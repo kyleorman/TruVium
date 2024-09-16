@@ -1,0 +1,48 @@
+{
+  "library_paths": [
+    "/usr/local/lib/ghdl/ieee/v08",   // Path to VHDL-2008 libraries
+    "/usr/local/lib/ghdl",            // General GHDL library path
+    "/usr/local/lib/ghdl/std/v08" // Add your custom library paths here (if any)
+  ],
+  "tool_options": {
+    "ghdl": {
+      "options": ["--std=08"],        // Default to VHDL-2008 standard
+      "workdir": "./work",            // Working directory for compiled files
+      "vcd": "./vcd_output"           // Specify output directory for VCD files (optional)
+    }
+  },
+  "tools": {
+    "analyze": {
+      "ghdl": {
+        "cmd": "ghdl -a",             // Command to analyze VHDL files
+        "args": ["--std=08"]          // Additional arguments for GHDL
+      }
+    },
+    "simulate": {
+      "ghdl": {
+        "cmd": "ghdl -r",             // Command to simulate VHDL files
+        "args": ["--std=08"],         // Additional arguments for GHDL simulation
+        "vcd": "--vcd=my_output.vcd"  // Optionally enable VCD generation
+      }
+    }
+  },
+  "linting": {
+    "hdl_checker": {
+      "cmd": "hdl_checker",           // Linting tool command
+      "args": ["--std=08"]            // Use VHDL-2008 standard in linting
+    }
+  },
+  "file_extensions": [
+    "*.vhdl", "*.vhd"                 // File extensions that will trigger HDL Checker
+  ],
+  "work_library": "work",             // Default work library (can be customized)
+  "preprocessor": {
+    "defines": {
+      "SYNTHESIS": "1"                // Preprocessor define for synthesis (if needed)
+    }
+  },
+  "extra_paths": [
+    "/usr/local/bin"                  // Add any extra paths (optional)
+  ]
+}
+

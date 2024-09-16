@@ -1,0 +1,21 @@
+{
+    "languageserver": {
+        "hdlChecker": {
+            "command": "hdl_checker",
+            "args": [
+                "--lsp"
+            ],
+            "filetypes": [
+                "vhdl",
+                "verilog",
+                "systemverilog"
+            ]
+        }
+    }
+}
+
+{
+  "snippets.ultisnips.enable": false,
+  "snippets.userSnippetsDirectory": "~/.config/coc/snippets",  " or the location of vim-snippets
+  "snippets.loadFromExtensions": true
+}
