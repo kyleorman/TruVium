@@ -258,8 +258,8 @@ fi
 
 # Copy .vimrc to user's home directory
 echo "Copying .vimrc to user home directory..."
-if [ -f "$SCRIPT_DIR/.vimrc" ]; then
-    cp "$SCRIPT_DIR/.vimrc" "$USER_HOME/.vimrc"
+if [ -f "$SCRIPT_DIR/vimrc" ]; then
+    cp "$SCRIPT_DIR/vimrc" "$USER_HOME/.vimrc"
     chown "$SUDO_USER:$SUDO_USER" "$USER_HOME/.vimrc"
     chmod 644 "$USER_HOME/.vimrc"
     echo ".vimrc copied successfully."
@@ -370,8 +370,8 @@ fi
 
 # Copy .tmux.conf to user's home directory
 echo "Copying .tmux.conf to user home directory..."
-if [ -f "$SCRIPT_DIR/.tmux.conf" ]; then
-    cp "$SCRIPT_DIR/.tmux.conf" "$USER_HOME/.tmux.conf"
+if [ -f "$SCRIPT_DIR/tmux.conf" ]; then
+    cp "$SCRIPT_DIR/tmux.conf" "$USER_HOME/.tmux.conf"
     chown "$SUDO_USER:$SUDO_USER" "$USER_HOME/.tmux.conf"
     chmod 644 "$USER_HOME/.tmux.conf"
     echo ".tmux.conf copied successfully."
