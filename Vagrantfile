@@ -14,12 +14,6 @@ Vagrant.configure("2") do |config|
   # Provisioning with adjusted_setup.sh script
   config.vm.provision "shell", path: "vagrant_setup.sh"
 
-  # Provisioning with git_setup.sh script
-  config.vm.provision "shell" do |s|
-    s.inline = "cd /vagrant && bash git_setup.sh --config-file git_setup.conf --non-interactive"
-    s.privileged = false
-  end
-
   # Customize VM resources (headless setup)
   config.vm.provider "virtualbox" do |vb|
     vb.memory = "4096"    # Adjust memory
