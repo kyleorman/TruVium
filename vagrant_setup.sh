@@ -251,11 +251,7 @@ fi
 
 echo "Setting up zshrc entries..."
 {
-    echo 'if [ -e /usr/share/terminfo/x/xterm-256color ]; then'
-    echo '    export TERM="xterm-256color"'
-    echo 'else'
-    echo '    export TERM="xterm-color"'
-    echo 'fi'
+    echo 'export TERM="xterm-256color"'
     echo 'export PATH="$HOME/.local/bin:$PATH"'
     echo 'export PATH="/usr/bin:$PATH"'
     echo 'export PATH="$HOME/go/bin:$PATH"'
@@ -398,6 +394,17 @@ if [ -f "$SCRIPT_DIR/tmux.conf" ]; then
     echo ".tmux.conf copied successfully."
 else
     echo "Warning: .tmux.conf not found in $SCRIPT_DIR. Skipping copy."
+fi
+
+# Copy .tmux_keys.sh to user's home directory
+echo "Copying .tmux_keys.sh to user home directory..."
+if [ -f "$SCRIPT_DIR/tmux_keys.sh" ]; then
+    cp "$SCRIPT_DIR/tmux_keys.sh" "$USER_HOME/.tmux_keys.sh"
+    chown "$SUDO_USER:$SUDO_USER" "$USER_HOME/.tmux_keys.sh"
+    chmod 644 "$USER_HOME/.tmux_keys.sh"
+    echo ".tmux_keys.sh copied successfully."
+else
+    echo "Warning: .tmux_keys.sh not found in $SCRIPT_DIR. Skipping copy."
 fi
 
 # --- Tmux Plugin Manager (TPM) and Plugins Installation ---
