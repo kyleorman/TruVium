@@ -249,15 +249,22 @@ if [ -f "$USER_HOME/.zshrc" ]; then
     echo "Existing .zshrc backed up to .zshrc.bak"
 fi
 
-echo "Setting up environment variables..."
+echo "Setting up zshrc entries..."
 {
+    echo 'if [ -e /usr/share/terminfo/x/xterm-256color ]; then'
+    echo '    export TERM="xterm-256color"'
+    echo 'else'
+    echo '    export TERM="xterm-color"'
+    echo 'fi'
     echo 'export PATH="$HOME/.local/bin:$PATH"'
     echo 'export PATH="/usr/bin:$PATH"'
     echo 'export PATH="$HOME/go/bin:$PATH"'
+    echo ''
     echo 'if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
     echo '  tmux attach-session -t default || tmux new-session -s default'
     echo 'fi'
 } >> "$USER_HOME/.zshrc"
+
 
 # Ensure .vim folder exists before changing permissions
 echo "Creating .vim directory..."
