@@ -218,7 +218,7 @@ apt-get install -y build-essential dkms linux-headers-$(uname -r) \
     software-properties-common curl wget git golang python3 python3-pip python3-venv ninja-build pkg-config pipenv \
     cmake zsh vim-gtk3 make gcc perl gnat zlib1g-dev gperf flex desktop-file-utils libgtk-3-dev libgtk-4-dev libjudy-dev \
     libbz2-dev libgirepository1.0-dev exuberant-ctags tmux htop vagrant virtualbox-guest-utils shellcheck \
-    pandoc fonts-powerline grep sed bc xclip acpi || { echo "Package installation failed"; exit 1; }
+    pandoc fonts-powerline grep sed bc xclip acpi passwd || { echo "Package installation failed"; exit 1; }
 
 # Install VirtualBox Guest Additions utilities
 echo "Installing VirtualBox Guest Additions utilities..."
@@ -227,7 +227,21 @@ apt-get install -y virtualbox-guest-utils || { echo "Failed to install VirtualBo
 # Change default shell to zsh for the actual user, not root
 echo "Changing shell to zsh..."
 chsh -s /bin/zsh "$SUDO_USER"
-sudo -u "$SUDO_USER" RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+
+# Install Oh My Zsh for the user with the --unattended flag
+echo "Installing Oh My Zsh..."
+
+# Download the installer script as the target user
+sudo -u "$SUDO_USER" curl -fsSL -o /tmp/ohmyzsh_install.sh https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+
+# Ensure the installer script is executable
+chmod +x /tmp/ohmyzsh_install.sh
+
+# Run the installer script with the appropriate environment variable and flag
+sudo -u "$SUDO_USER" env RUNZSH=no /tmp/ohmyzsh_install.sh --unattended
+
+# Remove the installer script after installation
+rm /tmp/ohmyzsh_install.sh
 
 # Backup existing .zshrc if it exists
 if [ -f "$USER_HOME/.zshrc" ]; then
@@ -513,10 +527,30 @@ else
     echo "No ftdetect files found in $FTDETECT_SRC_DIR. Skipping symlink creation."
 fi
 
+# Define the desired plugins
+DESIRED_PLUGINS="plugins=(git zsh-syntax-highlighting zsh-autosuggestions)"
+
+# Check if the plugins line exists in .zshrc
+if grep -q "^plugins=" "$USER_HOME/.zshrc"; then
+    # Replace the existing plugins line
+    sed -i "s/^plugins=.*/$DESIRED_PLUGINS/" "$USER_HOME/.zshrc"
+else
+    # Add the plugins line after the line that sources oh-my-zsh.sh
+    sed -i "/^source.*oh-my-zsh.sh/a $DESIRED_PLUGINS" "$USER_HOME/.zshrc"
+fi
+
+echo "Plugins configured in .zshrc."
+
+# Ensure correct ownership and permissions
+chown "$SUDO_USER:$SUDO_USER" "$USER_HOME/.zshrc"
+chmod 644 "$USER_HOME/.zshrc"
+
 # Clone Zsh plugins as the user
 echo "Cloning Zsh plugins..."
 sudo -u "$SUDO_USER" git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "${ZSH_CUSTOM:-$USER_HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" || true
 sudo -u "$SUDO_USER" git clone https://github.com/zsh-users/zsh-autosuggestions.git "${ZSH_CUSTOM:-$USER_HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" || true
+
+
 
 # Install Python linters, formatters, and hdl-checker
 echo "Installing Python tools..."
@@ -580,8 +614,19 @@ cd ~
 echo "Verifying GHDL installation..."
 ghdl --version || { echo "GHDL verification failed"; exit 1; }
 
+# Configuring Git
+echo "Configuring Git..."
+if sudo -u "$SUDO_USER" bash /vagrant/git_setup.sh --config-file /vagrant/git_setup.conf --non-interactive; then
+    echo "Git configured successfully."
+else
+    echo "Git configuration failed."
+    exit 1
+fi
+
 # Clean up package manager cache
 echo "Cleaning up..."
+rm -rf /tmp/gtkwave /tmp/ghdl
 apt-get autoremove -y && apt-get clean
 
 echo "Setup completed successfully!"
+
