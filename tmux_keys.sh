@@ -1,10 +1,13 @@
-
 #!/bin/bash
 
 # ~/.tmux_keys.sh
 # Usage: ~/.tmux_keys.sh <key>
 
-LOGFILE=~/tmux_key_binding.log
+# Logging for DEBUG
+#LOGFILE=~/tmux_key_binding.log
+
+# Logging off
+LOGFILE=/dev/null
 
 {
   echo "Timestamp: $(date)"
