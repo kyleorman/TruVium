@@ -1,0 +1,7 @@
+{
+  "install_path": "/opt/vlsi-tools",
+  "tools": {
+    "vivado": true,
+    "modelsim": false
+  }
+}
