@@ -412,12 +412,12 @@ fi
 # Copy yank to system bin directory
 echo "Copying yank to system bin directory..."
 if [ -f "$SCRIPT_DIR/yank" ]; then
-    cp "$SCRIPT_DIR/yank" "/usr/local/bin/yank"
+    cp "$SCRIPT_DIR/yank" "/bin/yank"
     # Set proper ownership (root:root)
-    chown root:root "/usr/local/bin/yank"
+    chown root:root "/bin/yank"
     # Set permissions to make it executable
-    chmod 755 "/usr/local/bin/yank"
-    echo "yank copied successfully to /usr/local/bin."
+    chmod 755 "/bin/yank"
+    echo "yank copied successfully to /bin."
 else
     echo "Warning: yank not found in $SCRIPT_DIR. Skipping copy."
 fi
