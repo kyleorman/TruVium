@@ -218,7 +218,7 @@ apt-get install -y build-essential dkms linux-headers-$(uname -r) \
     software-properties-common curl wget git golang python3 python3-pip python3-venv ninja-build pkg-config pipenv \
     cmake zsh vim-gtk3 make gcc perl gnat zlib1g-dev gperf flex desktop-file-utils libgtk-3-dev libgtk-4-dev libjudy-dev \
     libbz2-dev libgirepository1.0-dev exuberant-ctags tmux htop vagrant virtualbox-guest-utils shellcheck \
-    pandoc fonts-powerline grep sed bc xclip acpi passwd || { echo "Package installation failed"; exit 1; }
+    pandoc fonts-powerline grep sed bc xclip acpi passwd xauth xorg openbox xdg-utils || { echo "Package installation failed"; exit 1; }
 
 # Install VirtualBox Guest Additions utilities
 echo "Installing VirtualBox Guest Additions utilities..."
@@ -644,4 +644,3 @@ rm -rf /tmp/gtkwave /tmp/ghdl
 apt-get autoremove -y && apt-get clean
 
 echo "Setup completed successfully!"
-
