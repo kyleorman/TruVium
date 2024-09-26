@@ -2,6 +2,14 @@ Vagrant.configure("2") do |config|
   # Define the base box
   config.vm.box = "ubuntu/jammy64" # Ubuntu 22.04
 
+  # Enable port forwarding for Jupyter
+  if ARGV.include?("--jupyter")
+    config.vm.network "forwarded_port", guest: 8888, host: 8888
+    puts "Port forwarding for Jupyter is enabled on port 8888."
+  else
+    puts "Port forwarding for Jupyter is disabled."
+  end
+
   # Assign a hostname
   config.vm.hostname = "dev-env"
 
