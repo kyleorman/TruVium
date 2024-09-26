@@ -255,6 +255,7 @@ echo "Setting up zshrc entries..."
     echo 'export PATH="$HOME/.local/bin:$PATH"'
     echo 'export PATH="/usr/bin:$PATH"'
     echo 'export PATH="$HOME/go/bin:$PATH"'
+	echo 'export PATH="/usr/local/bin/:$PATH"'
     echo ''
     echo 'if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
     echo '  tmux attach-session -t default || tmux new-session -s default'
