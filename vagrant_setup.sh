@@ -408,6 +408,19 @@ else
     echo "Warning: .tmux_keys.sh not found in $SCRIPT_DIR. Skipping copy."
 fi
 
+# Copy yank to system bin directory
+echo "Copying yank to system bin directory..."
+if [ -f "$SCRIPT_DIR/yank" ]; then
+    cp "$SCRIPT_DIR/yank" "/usr/local/bin/yank"
+    # Set proper ownership (root:root)
+    chown root:root "/usr/local/bin/yank"
+    # Set permissions to make it executable
+    chmod 755 "/usr/local/bin/yank"
+    echo "yank copied successfully to /usr/local/bin."
+else
+    echo "Warning: yank not found in $SCRIPT_DIR. Skipping copy."
+fi
+
 # --- Tmux Plugin Manager (TPM) and Plugins Installation ---
 
 echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
@@ -421,7 +434,8 @@ TMUX_PLUGINS=(
     "tmux-plugins/tmux-prefix-highlight"   # Highlight when prefix is pressed
     "tmux-plugins/tmux-copycat"           # Enhanced search in tmux
     "tmux-plugins/tmux-open"              # Open files/directories
-    "tmux-plugins/tmux-battery"           # Display battery status
+    #"tmux-plugins/tmux-battery"           # Display battery status
+	"tmux-plugins/tmux-sensible"
     # Add more tmux plugins here as needed
 )
 
