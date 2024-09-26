@@ -1,6 +1,6 @@
 {
   "vm_box": "ubuntu/jammy64",
-  "vm_box_version": "20231002.0.0",
+  "vm_box_version": "20240823.0.1",
   "box_check_update": true,
   "vm_hostname": "dev-env",
   "vm_memory": "4096",
