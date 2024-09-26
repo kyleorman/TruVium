@@ -34,7 +34,7 @@ set mouse=a
 set encoding=utf-8
 
 " Configure backspace behavior
-set backspace=indent,eol,start
+"set backspace=indent,eol,start
 
 " Leader key configuration (must be set before any mappings that use <leader>)
 let mapleader = ","
@@ -723,6 +723,19 @@ function! InstallCoCExtensions()
         endif
     endfor
 endfunction
+
+" =====================================
+" ======== vim-slime Settings =========
+"Tell vim-slime to use tmux as the target
+let g:slime_target = "tmux"
+
+" Specify the tmux socket and target pane (tmux settings)
+let g:slime_default_config = {"socket_name": "default", "target_pane": "{last}"}
+
+xmap <leader><leader>s <Plug>SlimeRegionSend
+nmap <leader><leader>s <Plug>SlimeParagraphSend
+
+"let g:slime_paste_file = 1
 
 " =====================================
 " ======== Final Settings ============

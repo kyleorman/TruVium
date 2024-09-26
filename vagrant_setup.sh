@@ -311,6 +311,7 @@ START_PLUGINS=(
     "heavenshell/vim-pydocstring"
     "mrtazz/checkmake"
     "vim-syntastic/syntastic"
+    "jpalardy/vim-slime"
 )
 
 OPTIONAL_PLUGINS=(
@@ -569,7 +570,7 @@ sudo -u "$SUDO_USER" git clone https://github.com/zsh-users/zsh-autosuggestions.
 # Install Python linters, formatters, and hdl-checker
 echo "Installing Python tools..."
 pip3 install --upgrade pip
-pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker meson vsg tox || { echo "Failed to install Python tools"; exit 1; }
+pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker meson vsg tox ipython jupyter jupyter-console || { echo "Failed to install Python tools"; exit 1; }
 
 # Install CheckMake via Go (as apt version has issues)
 echo "Installing CheckMake via Go..."
