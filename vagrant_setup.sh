@@ -37,7 +37,7 @@ check_internet_connection() {
     fi
 }
 
-
+sudo apt-get remove -y --purge tmux
 # Ensure tmux is installed from source
 if ! command -v tmux &> /dev/null
 then
@@ -45,7 +45,7 @@ then
     
     # Install necessary dependencies for building tmux from source
     sudo apt-get update
-    sudo apt-get install -y autoconf automake pkg-config libevent-dev ncurses-dev build-essential bison
+    sudo apt-get install -y autoconf automake pkg-config libevent-dev ncurses-dev build-essential bison wget tar
 
     # Set tmux version to install (latest stable version)
     TMUX_VERSION="3.4"
@@ -57,7 +57,7 @@ then
     cd tmux-${TMUX_VERSION}
 
     # Prepare for build
-    sh autogen.sh
+    # sh autogen.sh
     ./configure
     make
 
