@@ -69,8 +69,8 @@ install_tmux_from_source() {
     fi
 
     # Clean up the temporary installation directory
-    echo "Cleaning up installation files..."
-    rm -rf "$TMP_DIR"
+    #echo "Cleaning up installation files..."
+    #rm -rf "$TMP_DIR"
 }
 
 # --- Main Script ---
@@ -335,8 +335,13 @@ echo "Setting up zshrc entries..."
 	echo 'export ZDOTDIR="$HOME/.zsh"'
     echo ''
     echo 'if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
-    echo '  tmux attach-session -t default || tmux new-session -s default -c "$USER_HOME"'
+    echo '  tmux attach-session -t default || tmux new-session -s default'
     echo 'fi'
+    echo ''
+    echo '# Fix tmux startup issues with non-existent directories'
+    echo 'if [ ! -d "$PWD" ]; then'
+    echo '  cd $HOME'
+    echo 'fi'	
 } >> "$USER_HOME/.zshrc"
 
 
@@ -733,6 +738,7 @@ fi
 # Clean up package manager cache
 echo "Cleaning up..."
 rm -rf /tmp/gtkwave /tmp/ghdl
+rm -rf "$TMP_DIR"
 apt-get autoremove -y && apt-get clean
 
 echo "Setup completed successfully!"
