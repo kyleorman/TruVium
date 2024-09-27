@@ -6,6 +6,7 @@
   "vm_memory": "4096",
   "vm_cpus": 2,
   "vb_gui": false,
+  "graphics_controller": "vmsvga",
   "vb_clipboard": "bidirectional",
   "ssh_forward_x11": true,
   "ssh_insert_key": false,
@@ -13,7 +14,13 @@
   "port_forwarding": [
     { "guest": 8888, "host": 8888 }
   ],
-  "synced_folders": [],
+  "synced_folders": [
+    {
+      "guest": "/home/vagrant/TruWork",
+      "host": "~/TruWork",
+      "create": true
+    }
+  ],
   "provision": [
     {
       "type": "shell",
@@ -28,5 +35,5 @@
   ],
   "environment_variables": {},
   "post_up_message": "Port forwarding for Jupyter is enabled on port 8888.",
-  "user_shell": "bash"  // Change to "zsh" if using zsh
+  "user_shell": "bash"
 }
