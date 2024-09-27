@@ -88,6 +88,7 @@ Vagrant.configure("2") do |config|
     vb.memory = vm_memory    # Adjust memory
     vb.cpus = vm_cpus        # Adjust number of CPUs
     vb.gui = settings.fetch('vb_gui', false)  # Enable or disable GUI mode
+    vb.customize ["modifyvm", :id, "--clipboard", settings.fetch('vb_clipboard', 'disabled')]
   end
 
   # Determine the shell configuration file based on the user's shell
