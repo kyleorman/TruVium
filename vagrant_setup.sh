@@ -37,50 +37,6 @@ check_internet_connection() {
     fi
 }
 
-sudo apt-get remove -y --purge tmux
-# Ensure tmux is installed from source
-if ! command -v tmux &> /dev/null
-then
-    echo "tmux not found, installing..."
-    
-    # Install necessary dependencies for building tmux from source
-    sudo apt-get update
-    sudo apt-get install -y autoconf automake pkg-config libevent-dev ncurses-dev build-essential bison wget tar
-
-    # Set tmux version to install (latest stable version)
-    TMUX_VERSION="3.4"
-
-    # Download and extract tmux source code
-    cd /tmp
-    wget https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz
-    tar -xvzf tmux-${TMUX_VERSION}.tar.gz
-    cd tmux-${TMUX_VERSION}
-
-    # Prepare for build
-    # sh autogen.sh
-    ./configure
-    make
-
-    # Install tmux
-    sudo make install
-
-    # Verify tmux installation
-    if command -v tmux &> /dev/null
-    then
-        echo "tmux successfully installed."
-    else
-        echo "tmux installation failed."
-        exit 1
-    fi
-
-    # Clean up the temporary directory
-    cd /tmp
-    rm -rf tmux-${TMUX_VERSION} tmux-${TMUX_VERSION}.tar.gz
-
-else
-    echo "tmux is already installed."
-fi
-
 # Function to ensure tmux is installed
 ensure_tmux_installed() {
     echo "Verifying tmux installation..."
@@ -242,6 +198,46 @@ fi
 # Execute the internet check
 check_internet_connection
 
+# Ensure tmux is installed from source
+sudo apt-get remove -y --purge tmux
+if ! command -v tmux &> /dev/null
+then
+    echo "tmux not found, installing..."
+    
+    # Install necessary dependencies for building tmux from source
+    sudo apt-get update
+    sudo apt-get install -y autoconf automake pkg-config libevent-dev ncurses-dev build-essential bison wget tar
+
+    # Set tmux version to install (latest stable version)
+    TMUX_VERSION="3.4"
+
+    # Download and extract tmux source code
+    cd /tmp || exit
+    wget https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz
+    tar -xvzf tmux-${TMUX_VERSION}.tar.gz
+    cd tmux-${TMUX_VERSION} || exit
+
+    # Prepare for build
+    # sh autogen.sh
+    ./configure
+    make
+
+    # Install tmux
+    sudo make install
+
+    # Verify tmux installation
+    if command -v tmux &> /dev/null
+    then
+        echo "tmux successfully installed."
+    else
+        echo "tmux installation failed."
+        exit 1
+    fi
+
+else
+    echo "tmux is already installed."
+fi
+
 # Ensure tmux is installed
 ensure_tmux_installed
 
@@ -300,9 +296,10 @@ echo "Setting up zshrc entries..."
     echo 'export PATH="/usr/bin:$PATH"'
     echo 'export PATH="$HOME/go/bin:$PATH"'
 	echo 'export PATH="/usr/local/bin/:$PATH"'
+	echo 'export ZDOTDIR="$HOME/.zsh"'
     echo ''
     echo 'if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
-    echo '  tmux attach-session -t default || tmux new-session -s default'
+    echo '  tmux attach-session -t default || tmux new-session -s default -c "$USER_HOME"'
     echo 'fi'
 } >> "$USER_HOME/.zshrc"
 
@@ -700,6 +697,7 @@ fi
 # Clean up package manager cache
 echo "Cleaning up..."
 rm -rf /tmp/gtkwave /tmp/ghdl
+rm -rf /tmp/tmux-${TMUX_VERSION} /tmp/tmux-${TMUX_VERSION}.tar.gz
 apt-get autoremove -y && apt-get clean
 
 echo "Setup completed successfully!"
