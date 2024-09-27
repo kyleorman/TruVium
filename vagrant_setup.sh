@@ -7,11 +7,79 @@ IFS=$'\n\t'
 SCRIPT_DIR="/vagrant"  # Directory where the script is being executed
 USER_HOME=$(eval echo ~$SUDO_USER)
 LOGFILE="/var/log/setup-script.log"
+TMUX_VERSION="3.4"
+TMP_DIR="/tmp/tmux_install"
+INSTALL_PREFIX="/usr/local"
 
 # Redirect all output to LOGFILE
 exec > >(tee -a "$LOGFILE") 2>&1
 
 # --- Function Definitions ---
+
+# Function to remove outdated tmux if present
+remove_outdated_tmux() {
+    echo "Checking for existing tmux installation..."
+    if command -v tmux &> /dev/null; then
+        CURRENT_VERSION=$(tmux -V | awk '{print $2}')
+        if [ "$CURRENT_VERSION" != "$TMUX_VERSION" ]; then
+            echo "Outdated tmux version $CURRENT_VERSION found. Removing it..."
+            sudo apt-get remove -y --purge tmux
+        else
+            echo "tmux $TMUX_VERSION is already installed."
+            return 0
+        fi
+    else
+        echo "tmux is not installed."
+    fi
+}
+
+# Function to install tmux from source
+install_tmux_from_source() {
+    echo "Installing tmux $TMUX_VERSION from source..."
+
+    # Create temporary directory for tmux installation
+    mkdir -p "$TMP_DIR"
+    cd "$TMP_DIR" || exit 1
+
+    # Install necessary dependencies for building tmux from source
+    echo "Installing dependencies..."
+    sudo apt-get update
+    sudo apt-get install -y autoconf automake pkg-config libevent-dev ncurses-dev build-essential bison wget tar
+
+    # Download and extract tmux source code
+    echo "Downloading tmux source code..."
+    wget -q "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz"
+    tar -xzf "tmux-${TMUX_VERSION}.tar.gz"
+    cd "tmux-${TMUX_VERSION}" || exit 1
+
+    # Build and install tmux
+    echo "Building tmux from source..."
+    ./configure --prefix="$INSTALL_PREFIX"
+    make -j$(nproc)
+
+    echo "Installing tmux..."
+    sudo make install
+
+    # Verify tmux installation
+    if tmux -V | grep -q "$TMUX_VERSION"; then
+        echo "tmux $TMUX_VERSION successfully installed."
+    else
+        echo "tmux installation failed."
+        exit 1
+    fi
+
+    # Clean up the temporary installation directory
+    echo "Cleaning up installation files..."
+    rm -rf "$TMP_DIR"
+}
+
+# --- Main Script ---
+
+# Ensure the script is run with sudo
+if [ -z "${SUDO_USER:-}" ]; then
+    echo "This script must be run with sudo."
+    exit 1
+fi
 
 # Function to check internet connection
 check_internet_connection() {
@@ -198,48 +266,16 @@ fi
 # Execute the internet check
 check_internet_connection
 
-# Ensure tmux is installed from source
-sudo apt-get remove -y --purge tmux
-if ! command -v tmux &> /dev/null
-then
-    echo "tmux not found, installing..."
-    
-    # Install necessary dependencies for building tmux from source
-    sudo apt-get update
-    sudo apt-get install -y autoconf automake pkg-config libevent-dev ncurses-dev build-essential bison wget tar
+# Remove outdated tmux if necessary
+remove_outdated_tmux
 
-    # Set tmux version to install (latest stable version)
-    TMUX_VERSION="3.4"
-
-    # Download and extract tmux source code
-    cd /tmp || exit
-    wget https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz
-    tar -xvzf tmux-${TMUX_VERSION}.tar.gz
-    cd tmux-${TMUX_VERSION} || exit
-
-    # Prepare for build
-    # sh autogen.sh
-    ./configure
-    make
-
-    # Install tmux
-    sudo make install
-
-    # Verify tmux installation
-    if command -v tmux &> /dev/null
-    then
-        echo "tmux successfully installed."
-    else
-        echo "tmux installation failed."
-        exit 1
-    fi
-
-else
-    echo "tmux is already installed."
-fi
+# Install tmux from source
+install_tmux_from_source
 
 # Ensure tmux is installed
 ensure_tmux_installed
+
+echo "tmux setup complete."
 
 # Add Vim PPA before updating the system
 echo "Adding Vim PPA..."
@@ -262,7 +298,7 @@ apt-get install -y build-essential dkms linux-headers-$(uname -r) \
 
 # Install VirtualBox Guest Additions utilities
 echo "Installing VirtualBox Guest Additions utilities..."
-apt-get install -y virtualbox-guest-utils || { echo "Failed to install VirtualBox guest additions"; exit 1; }
+apt-get install -y virtualbox-guest-utils virtualbox-guest-x11 || { echo "Failed to install VirtualBox guest additions"; exit 1; }
 
 # Change default shell to zsh for the actual user, not root
 echo "Changing shell to zsh..."
@@ -697,7 +733,6 @@ fi
 # Clean up package manager cache
 echo "Cleaning up..."
 rm -rf /tmp/gtkwave /tmp/ghdl
-rm -rf /tmp/tmux-${TMUX_VERSION} /tmp/tmux-${TMUX_VERSION}.tar.gz
 apt-get autoremove -y && apt-get clean
 
 echo "Setup completed successfully!"
