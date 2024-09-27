@@ -37,6 +37,50 @@ check_internet_connection() {
     fi
 }
 
+
+# Ensure tmux is installed from source
+if ! command -v tmux &> /dev/null
+then
+    echo "tmux not found, installing..."
+    
+    # Install necessary dependencies for building tmux from source
+    sudo apt-get update
+    sudo apt-get install -y autoconf automake pkg-config libevent-dev ncurses-dev build-essential bison
+
+    # Set tmux version to install (latest stable version)
+    TMUX_VERSION="3.4"
+
+    # Download and extract tmux source code
+    cd /tmp
+    wget https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz
+    tar -xvzf tmux-${TMUX_VERSION}.tar.gz
+    cd tmux-${TMUX_VERSION}
+
+    # Prepare for build
+    sh autogen.sh
+    ./configure
+    make
+
+    # Install tmux
+    sudo make install
+
+    # Verify tmux installation
+    if command -v tmux &> /dev/null
+    then
+        echo "tmux successfully installed."
+    else
+        echo "tmux installation failed."
+        exit 1
+    fi
+
+    # Clean up the temporary directory
+    cd /tmp
+    rm -rf tmux-${TMUX_VERSION} tmux-${TMUX_VERSION}.tar.gz
+
+else
+    echo "tmux is already installed."
+fi
+
 # Function to ensure tmux is installed
 ensure_tmux_installed() {
     echo "Verifying tmux installation..."
@@ -217,7 +261,7 @@ echo "Installing essential packages..."
 apt-get install -y build-essential dkms linux-headers-$(uname -r) \
     software-properties-common curl wget git golang python3 python3-pip python3-venv ninja-build pkg-config pipenv \
     cmake zsh vim-gtk3 make gcc perl gnat zlib1g-dev gperf flex desktop-file-utils libgtk-3-dev libgtk-4-dev libjudy-dev \
-    libbz2-dev libgirepository1.0-dev exuberant-ctags tmux htop vagrant virtualbox-guest-utils shellcheck \
+    libbz2-dev libgirepository1.0-dev exuberant-ctags htop vagrant virtualbox-guest-utils shellcheck \
     pandoc fonts-powerline grep sed bc xclip acpi passwd xauth xorg openbox xdg-utils || { echo "Package installation failed"; exit 1; }
 
 # Install VirtualBox Guest Additions utilities
@@ -435,7 +479,7 @@ TMUX_PLUGINS=(
     "tmux-plugins/tmux-prefix-highlight"   # Highlight when prefix is pressed
     "tmux-plugins/tmux-copycat"           # Enhanced search in tmux
     "tmux-plugins/tmux-open"              # Open files/directories
-    #"tmux-plugins/tmux-battery"           # Display battery status
+    "tmux-plugins/tmux-battery"           # Display battery status
 	"tmux-plugins/tmux-sensible"
     # Add more tmux plugins here as needed
 )
