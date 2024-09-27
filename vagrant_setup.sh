@@ -7,7 +7,7 @@ IFS=$'\n\t'
 SCRIPT_DIR="/vagrant"  # Directory where the script is being executed
 USER_HOME=$(eval echo ~$SUDO_USER)
 LOGFILE="/var/log/setup-script.log"
-TMUX_VERSION="3.4"
+TMUX_VERSION="3.5"
 TMP_DIR="/tmp/tmux_install"
 INSTALL_PREFIX="/usr/local"
 
@@ -23,7 +23,7 @@ remove_outdated_tmux() {
         CURRENT_VERSION=$(tmux -V | awk '{print $2}')
         if [ "$CURRENT_VERSION" != "$TMUX_VERSION" ]; then
             echo "Outdated tmux version $CURRENT_VERSION found. Removing it..."
-            sudo apt-get remove -y --purge tmux
+            sudo apt-get remove -y --purge tmux || { echo "Failed to remove tmux"; exit 1; }
         else
             echo "tmux $TMUX_VERSION is already installed."
             return 0
@@ -33,45 +33,153 @@ remove_outdated_tmux() {
     fi
 }
 
-# Function to install tmux from source
-install_tmux_from_source() {
-    echo "Installing tmux $TMUX_VERSION from source..."
+install_tmux_from_git() {
+    echo "Starting installation of tmux version $TMUX_VERSION from Git..."
 
-    # Create temporary directory for tmux installation
+    # Check if tmux is already installed and at the desired version
+    if command -v tmux &>/dev/null; then
+        INSTALLED_VERSION=$(tmux -V | awk '{print $2}')
+        if [[ "$INSTALLED_VERSION" == "$TMUX_VERSION" ]]; then
+            echo "tmux version $TMUX_VERSION is already installed. Skipping installation."
+            return 0
+        else
+            echo "tmux version $INSTALLED_VERSION is installed. Proceeding to install version $TMUX_VERSION."
+        fi
+    else
+        echo "tmux is not installed. Proceeding with installation."
+    fi
+
+    # Create a cleanup function to remove temporary files on exit
+    cleanup() {
+        echo "Cleaning up temporary directory..."
+        rm -rf "$TMP_DIR"
+    }
+    trap cleanup EXIT
+
+    # Ensure the correct temporary directory exists and navigate there
     mkdir -p "$TMP_DIR"
-    cd "$TMP_DIR" || exit 1
+    cd "$TMP_DIR" || { echo "Failed to access temporary directory $TMP_DIR"; exit 1; }
 
-    # Install necessary dependencies for building tmux from source
-    echo "Installing dependencies..."
-    sudo apt-get update
-    sudo apt-get install -y autoconf automake pkg-config libevent-dev ncurses-dev build-essential bison wget tar
+    echo "Updating package lists and installing dependencies..."
+    apt-get update -y
+    apt-get install -y --no-install-recommends \
+        autoconf \
+        automake \
+        pkg-config \
+        libevent-dev \
+        ncurses-dev \
+        build-essential \
+        git \
+        bison
 
-    # Download and extract tmux source code
-    echo "Downloading tmux source code..."
-    wget -q "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz"
-    tar -xzf "tmux-${TMUX_VERSION}.tar.gz"
-    cd "tmux-${TMUX_VERSION}" || exit 1
+    # Clone the tmux repository if not already cloned
+    if [[ ! -d "tmux" ]]; then
+        echo "Cloning tmux repository from GitHub..."
+        git clone https://github.com/tmux/tmux.git
+    else
+        echo "tmux repository already cloned. Fetching latest changes..."
+        cd tmux || { echo "Failed to navigate to tmux directory"; exit 1; }
+        git fetch --all
+    fi
 
-    # Build and install tmux
-    echo "Building tmux from source..."
-    ./configure --prefix="$INSTALL_PREFIX"
-    make -j$(nproc)
+    cd tmux || { echo "Failed to navigate to tmux directory"; exit 1; }
+
+    echo "Checking out tmux version $TMUX_VERSION..."
+    git checkout "tags/$TMUX_VERSION" || git checkout "$TMUX_VERSION" || { echo "Failed to checkout version $TMUX_VERSION"; exit 1; }
+
+    # Autogen, configure, make, and install steps
+    echo "Running autogen to generate configure script..."
+    sh autogen.sh || { echo "Failed to run autogen.sh"; exit 1; }
+
+    echo "Configuring tmux build with prefix $INSTALL_PREFIX..."
+    ./configure --prefix="$INSTALL_PREFIX" || { echo "Configuration failed"; exit 1; }
+
+    echo "Building tmux using $(nproc) parallel jobs..."
+    make -j"$(nproc)" || { echo "Build failed"; exit 1; }
 
     echo "Installing tmux..."
-    sudo make install
+    make install || { echo "Installation failed"; exit 1; }
 
-    # Verify tmux installation
+    # Verify installation
     if tmux -V | grep -q "$TMUX_VERSION"; then
-        echo "tmux $TMUX_VERSION successfully installed."
+        echo "tmux $TMUX_VERSION successfully installed from Git."
     else
-        echo "tmux installation failed."
+        echo "tmux installation from Git failed."
         exit 1
     fi
 
-    # Clean up the temporary installation directory
-    #echo "Cleaning up installation files..."
-    #rm -rf "$TMP_DIR"
+    # Fix permissions (if necessary)
+    echo "Fixing ownership of user home directory and /tmp..."
+    chown -R "$SUDO_USER:$SUDO_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
+    chown -R "$SUDO_USER:$SUDO_USER" /tmp || echo "Failed to change ownership of /tmp"
+
+    echo "tmux installation process completed successfully."
 }
+
+
+# Ensure no tmux session is running during Oh My Zsh installation
+kill_tmux_sessions() {
+    echo "Killing any running tmux sessions before Oh My Zsh installation..."
+    if tmux ls &> /dev/null; then
+        sudo -u "$SUDO_USER" tmux kill-server
+        echo "tmux server stopped."
+    else
+        echo "No tmux sessions were running."
+    fi
+}
+
+setup_zsh() {
+    local user_home=$(eval echo ~$SUDO_USER)
+
+    echo "Changing shell to zsh for $SUDO_USER..."
+
+    # Change default shell to zsh for the actual user
+    if chsh -s /bin/zsh "$SUDO_USER"; then
+        echo "Shell successfully changed to zsh for $SUDO_USER."
+    else
+        echo "Failed to change shell for $SUDO_USER."
+        return 1
+    fi
+
+    echo "Installing Oh My Zsh for $SUDO_USER..."
+
+    # Install Oh My Zsh using the official unattended method
+    if sudo -u "$SUDO_USER" sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
+        echo "Oh My Zsh installed successfully."
+    else
+        echo "Oh My Zsh installation failed."
+        return 1
+    fi
+
+    # Backup existing .zshrc if it exists
+    if [ -f "$user_home/.zshrc" ]; then
+        cp "$user_home/.zshrc" "$user_home/.zshrc.bak"
+        echo "Existing .zshrc backed up to $user_home/.zshrc.bak"
+    fi
+
+    # Append new configuration to .zshrc
+    echo "Setting up .zshrc for $SUDO_USER..."
+    {
+        echo 'export TERM="xterm-256color"'
+        echo 'export PATH="$HOME/.local/bin:$PATH"'
+        echo 'export PATH="/usr/bin:$PATH"'
+        echo 'export PATH="$HOME/go/bin:$PATH"'
+        echo 'export PATH="/usr/local/bin:$PATH"'
+        echo 'export ZDOTDIR="$HOME/.zsh"'
+        echo ''
+        echo 'if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
+        echo '  tmux attach-session -t default || tmux new-session -s default'
+        echo 'fi'
+        echo ''
+        echo '# Fix tmux startup issues with non-existent directories'
+        echo 'if [ ! -d "$PWD" ]; then'
+        echo '  cd $HOME'
+        echo 'fi'
+    } >> "$user_home/.zshrc"
+    sudo -u "$SUDO_USER" bash -c "source $user_home/.zshrc"
+    echo ".zshrc setup complete for $SUDO_USER."
+}
+
 
 # --- Main Script ---
 
@@ -102,17 +210,6 @@ check_internet_connection() {
         exit 1
     else
         echo "Internet connection is active."
-    fi
-}
-
-# Function to ensure tmux is installed
-ensure_tmux_installed() {
-    echo "Verifying tmux installation..."
-    if ! command -v tmux &>/dev/null; then
-        echo "Tmux is not installed. Installing tmux..."
-        apt-get install -y tmux || { echo "Failed to install tmux." ; exit 1; }
-    else
-        echo "Tmux is already installed."
     fi
 }
 
@@ -266,17 +363,6 @@ fi
 # Execute the internet check
 check_internet_connection
 
-# Remove outdated tmux if necessary
-remove_outdated_tmux
-
-# Install tmux from source
-install_tmux_from_source
-
-# Ensure tmux is installed
-ensure_tmux_installed
-
-echo "tmux setup complete."
-
 # Add Vim PPA before updating the system
 echo "Adding Vim PPA..."
 apt-get update -y
@@ -300,50 +386,17 @@ apt-get install -y build-essential dkms linux-headers-$(uname -r) \
 echo "Installing VirtualBox Guest Additions utilities..."
 apt-get install -y virtualbox-guest-utils virtualbox-guest-x11 || { echo "Failed to install VirtualBox guest additions"; exit 1; }
 
-# Change default shell to zsh for the actual user, not root
-echo "Changing shell to zsh..."
-chsh -s /bin/zsh "$SUDO_USER"
+# Remove outdated tmux if necessary
+remove_outdated_tmux
 
-# Install Oh My Zsh for the user with the --unattended flag
-echo "Installing Oh My Zsh..."
+# Install tmux from git
+install_tmux_from_git
 
-# Download the installer script as the target user
-sudo -u "$SUDO_USER" curl -fsSL -o /tmp/ohmyzsh_install.sh https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+kill_tmux_sessions
 
-# Ensure the installer script is executable
-chmod +x /tmp/ohmyzsh_install.sh
+setup_zsh
 
-# Run the installer script with the appropriate environment variable and flag
-sudo -u "$SUDO_USER" env RUNZSH=no /tmp/ohmyzsh_install.sh --unattended
-
-# Remove the installer script after installation
-rm /tmp/ohmyzsh_install.sh
-
-# Backup existing .zshrc if it exists
-if [ -f "$USER_HOME/.zshrc" ]; then
-    cp "$USER_HOME/.zshrc" "$USER_HOME/.zshrc.bak"
-    echo "Existing .zshrc backed up to .zshrc.bak"
-fi
-
-echo "Setting up zshrc entries..."
-{
-    echo 'export TERM="xterm-256color"'
-    echo 'export PATH="$HOME/.local/bin:$PATH"'
-    echo 'export PATH="/usr/bin:$PATH"'
-    echo 'export PATH="$HOME/go/bin:$PATH"'
-	echo 'export PATH="/usr/local/bin/:$PATH"'
-	echo 'export ZDOTDIR="$HOME/.zsh"'
-    echo ''
-    echo 'if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
-    echo '  tmux attach-session -t default || tmux new-session -s default'
-    echo 'fi'
-    echo ''
-    echo '# Fix tmux startup issues with non-existent directories'
-    echo 'if [ ! -d "$PWD" ]; then'
-    echo '  cd $HOME'
-    echo 'fi'	
-} >> "$USER_HOME/.zshrc"
-
+echo "tmux setup complete."
 
 # Ensure .vim folder exists before changing permissions
 echo "Creating .vim directory..."
@@ -738,7 +791,6 @@ fi
 # Clean up package manager cache
 echo "Cleaning up..."
 rm -rf /tmp/gtkwave /tmp/ghdl
-rm -rf "$TMP_DIR"
 apt-get autoremove -y && apt-get clean
 
 echo "Setup completed successfully!"

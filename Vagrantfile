@@ -77,7 +77,9 @@ Vagrant.configure("2") do |config|
   # Configure synced folders
   if settings.key?('synced_folders')
     settings['synced_folders'].each do |folder|
-      config.vm.synced_folder folder['host'], folder['guest'], type: folder['type'] || nil
+      # Dynamically expand the '~' in host paths to the home directory
+      host_path = folder['host'].gsub("~", ENV['HOME'])
+      config.vm.synced_folder host_path, folder['guest'], create: folder['create']
     end
   end
 
@@ -89,6 +91,7 @@ Vagrant.configure("2") do |config|
     vb.cpus = vm_cpus        # Adjust number of CPUs
     vb.gui = settings.fetch('vb_gui', false)  # Enable or disable GUI mode
     vb.customize ["modifyvm", :id, "--clipboard", settings.fetch('vb_clipboard', 'disabled')]
+    vb.customize ["modifyvm", :id, "--graphicscontroller", settings["graphics_controller"]]
   end
 
   # Determine the shell configuration file based on the user's shell
