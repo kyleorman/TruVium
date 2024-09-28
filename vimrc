@@ -19,28 +19,8 @@ set shiftwidth=4     " Number of spaces for indentation
 set expandtab        " Use spaces instead of tabs
 set autoindent       " Auto-indent new lines
 
-
 " Set clipboard to use the system clipboard
 set clipboard=unnamedplus
-
-" copy to attached terminal using the yank(1) script:
-" https://github.com/sunaku/home/blob/master/bin/yank
-function! Yank(text) abort
-  let escape = system('yank', a:text)
-  if v:shell_error
-    echoerr escape
-  else
-    call writefile([escape], '/dev/tty', 'b')
-  endif
-endfunction
-noremap <silent> <Leader>y y:<C-U>call Yank(@0)<CR>
-
-" automatically run yank(1) whenever yanking in Vim
-" (this snippet was contributed by Larry Sanderson)
-function! CopyYank() abort
-  call Yank(join(v:event.regcontents, "\n"))
-endfunction
-autocmd TextYankPost * call CopyYank()
 
 " Configure split behavior
 set splitbelow       " New horizontal splits appear below
@@ -59,9 +39,13 @@ set encoding=utf-8
 let mapleader = ","
 
 " Enable 256 colors for Vim when running inside tmux
-if $TERM =~ 'screen'
-  set t_Co=256
-endif
+"if $TERM =~ 'tmux-256colors'
+"  set t_Co=256
+"endif
+
+let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
+let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
+set termguicolors
 
 " Optionally enable true color support for Vim if your terminal supports it
 if has("termguicolors")

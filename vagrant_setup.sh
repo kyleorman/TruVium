@@ -200,6 +200,11 @@ install_tmux_from_git() {
         exit 1
     fi
 
+	# You might want to verify this file does what it says on the tin, just to be safe
+	wget http://invisible-island.net/datafiles/current/terminfo.src.gz
+	gunzip terminfo.src.gz
+	tic /tmp/terminfo.src
+	
     # Fix permissions (if necessary)
     echo "Fixing ownership of user home directory and /tmp..."
     chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
@@ -305,7 +310,8 @@ install_vim_from_source() {
     ./configure --prefix="$VIM_INSTALL_PREFIX" \
                 --with-features=huge \
                 --enable-multibyte \
-                --enable-rubyinterp=yes \
+				--enable-rubyinterp=dynamic \
+				--enable-tclinterp=yes \
                 --enable-python3interp=dynamic \
                 --with-python3-command=python3 \
                 --with-python3-config-dir="$PYTHON_CONFIG_DIR" \
@@ -372,6 +378,15 @@ kill_tmux_sessions() {
     fi
 }
 
+# Function to restart tmux server
+restart_tmux_server() {
+    echo "Restarting tmux server to apply shell changes..."
+    sudo -u "$ACTUAL_USER" tmux kill-server || true
+    sudo -u "$ACTUAL_USER" tmux start-server
+    sudo -u "$ACTUAL_USER" tmux new-session -d -s default
+    echo "tmux server restarted with default session."
+}
+
 # Function to set up Zsh and Oh My Zsh
 setup_zsh() {
     echo "Changing shell to zsh for $ACTUAL_USER..."
@@ -403,7 +418,6 @@ setup_zsh() {
     # Append new configuration to .zshrc with interactive shell check
     echo "Setting up .zshrc for $ACTUAL_USER..."
     {
-        echo 'export TERM="xterm-256color"'
         echo 'export PATH="$HOME/.local/bin:$PATH"'
         echo 'export PATH="/usr/bin:$PATH"'
         echo 'export PATH="$HOME/go/bin:$PATH"'
@@ -787,6 +801,8 @@ copy_config_files() {
         ["tmux.conf"]=".tmux.conf"
         ["tmux_keys.sh"]=".tmux_keys.sh"
         ["coc-settings.json"]=".vim/coc-settings.json"
+		["airline_theme.conf"]=".vim/airline_theme.conf"
+		["color_scheme.conf"]=".vim/color_scheme.conf"
     )
 
     for src in "${!CONFIG_FILES[@]}"; do
@@ -889,10 +905,13 @@ install_dependencies() {
         openbox \
         xdg-utils \
         tmux \
-		python3-dev \
-		liblua5.4-dev \
         virtualbox-guest-utils \
-        virtualbox-guest-x11 || { echo "Package installation failed"; exit 1; }
+        virtualbox-guest-x11 \
+        python3-dev \
+        liblua5.4-dev \
+        libperl-dev \
+        ruby-dev \
+        tcl-dev || { echo "Package installation failed"; exit 1; }
 }
 
 # Function to install Node.js
@@ -924,6 +943,21 @@ install_nodejs() {
     # Update npm to the latest version
     echo "----- Updating npm to the latest version -----"
     npm install -g npm
+}
+
+# Function to ensure the home directory is owned by the actual user
+ensure_home_ownership() {
+    echo "----- Ensuring ownership of home directory -----"
+    
+    echo "Setting ownership of home directory to $ACTUAL_USER..."
+    if chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME"; then
+        echo "Ownership of $USER_HOME set to $ACTUAL_USER successfully."
+    else
+        echo "Error: Failed to set ownership for $USER_HOME."
+        exit 1
+    fi
+    
+    echo "----- Home directory ownership ensured -----"
 }
 
 # --- Main Script Execution ---
@@ -963,6 +997,9 @@ kill_tmux_sessions
 setup_zsh
 clone_zsh_plugins
 
+# Restart tmux server to apply changes
+restart_tmux_server
+
 # Copy configuration files
 copy_config_files
 
@@ -994,6 +1031,9 @@ echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
 install_tpm
 
 echo "Tmux Plugin Manager and plugins installed successfully."
+
+# Ensure home directory ownership is correct
+ensure_home_ownership
 
 # Clean up package manager cache
 echo "Cleaning up package manager cache..."
