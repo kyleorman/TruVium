@@ -203,26 +203,20 @@ setup_zsh() {
         echo 'export PATH="/usr/bin:$PATH"'
         echo 'export PATH="$HOME/go/bin:$PATH"'
         echo 'export PATH="/usr/local/bin:$PATH"'
-        echo 'export ZDOTDIR="$HOME/.zsh"'
+        echo 'export PATH="$HOME/go/bin:$PATH"'
         echo ''
         echo 'if [[ $- == *i* ]]; then'  # Check if shell is interactive
         echo '  if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
         echo '    tmux attach-session -t default || tmux new-session -s default'
         echo '  fi'
         echo 'fi'
-        echo ''
-        echo '# Fix tmux startup issues with non-existent directories'
-        echo 'if [ ! -d "$PWD" ]; then'
-        echo '  cd $HOME'
-        echo 'fi'
-        echo ''
-        echo '# Add Go binaries to PATH'
-        echo 'export PATH="$HOME/go/bin:$PATH"'
     } >> "$USER_HOME/.zshrc"
 
     # Set ownership and permissions for .zshrc
     chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
     chmod 644 "$USER_HOME/.zshrc"
+	
+	sudo -u "$ACTUAL_USER" /usr/local/bin/tmux set-environment -g ZDOTDIR "$USER_HOME/.zsh"
 
     echo ".zshrc setup complete for $ACTUAL_USER."
 }
