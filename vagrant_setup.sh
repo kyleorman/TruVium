@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Exit immediately if a command exits with a non-zero status,
+# if any undefined variable is used, and if any command in a pipeline fails
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -9,7 +11,8 @@ LOGFILE="/var/log/setup-script.log"
 TMUX_VERSION="3.5"
 TMP_DIR="/tmp/setup_script_install"
 INSTALL_PREFIX="/usr/local"
-NODE_VERSION="${NODE_VERSION:-18.x}"  # Default Node.js version
+NODE_VERSION="${NODE_VERSION:-22.x}"  # Default Node.js version
+VIM_VERSION="${VIM_VERSION:-}"        # Optional: Specify Vim version, defaults to latest
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
@@ -54,6 +57,13 @@ check_internet_connection() {
     else
         echo "Internet connection is active."
     fi
+}
+
+# Function to remove existing Vim installations (Optional)
+remove_system_vim() {
+    echo "Removing any existing Vim installations to prevent conflicts..."
+    apt-get remove -y vim vim-runtime gvim vim-tiny vim-common || { echo "Failed to remove existing Vim installations"; exit 1; }
+    echo "Existing Vim installations removed successfully."
 }
 
 # Function to remove outdated tmux if present
@@ -122,8 +132,10 @@ install_tmux_from_git() {
     git checkout "tags/$TMUX_VERSION" || { echo "Failed to checkout version $TMUX_VERSION"; exit 1; }
 
     # Autogen, configure, make, and install steps
-    echo "Running autogen to generate configure script..."
-    sh autogen.sh || { echo "Failed to run autogen.sh"; exit 1; }
+    if [ ! -f "configure" ]; then
+        echo "Running autogen to generate configure script..."
+        sh autogen.sh || { echo "Failed to run autogen.sh"; exit 1; }
+    fi
 
     echo "Configuring tmux build with prefix $INSTALL_PREFIX..."
     ./configure --prefix="$INSTALL_PREFIX" || { echo "Configuration failed"; exit 1; }
@@ -140,8 +152,8 @@ install_tmux_from_git() {
         echo "Updated PATH to include /usr/local/bin."
     fi
 
-    # Verify installation without assuming the path
-    if tmux -V | grep -q "$TMUX_VERSION"; then
+    # Verify installation using full path
+    if /usr/local/bin/tmux -V | grep -q "$TMUX_VERSION"; then
         echo "tmux $TMUX_VERSION successfully installed from Git."
     else
         echo "tmux installation from Git failed."
@@ -154,6 +166,131 @@ install_tmux_from_git() {
     chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
 
     echo "tmux installation process completed successfully."
+}
+
+# Function to install Vim from Source with Dynamic Version Detection
+install_vim_from_source() {
+    echo "Installing Vim from source with extensive feature support..."
+
+    # Define variables
+    VIM_SRC_DIR="$TMP_DIR/vim"
+    VIM_INSTALL_PREFIX="$INSTALL_PREFIX"
+
+    # Install additional dependencies for Vim
+    echo "Installing additional dependencies for Vim..."
+    apt-get install -y --no-install-recommends \
+        liblua5.3-dev \
+        libperl-dev \
+        libpython3-dev \
+        libncurses5-dev \
+        libtinfo-dev \
+        libx11-dev \
+        libgtk-3-dev \
+        libatk1.0-dev \
+        libcairo2-dev \
+        libxpm-dev \
+        libxt-dev || { echo "Failed to install Vim build dependencies"; exit 1; }
+
+    # Create temporary directory for Vim source
+    mkdir -p "$VIM_SRC_DIR"
+    cd "$VIM_SRC_DIR" || { echo "Failed to access Vim source directory"; exit 1; }
+
+    # Clone Vim repository if not already cloned
+    if [ ! -d "vim" ]; then
+        echo "Cloning Vim repository..."
+        git clone https://github.com/vim/vim.git || { echo "Failed to clone Vim repository"; exit 1; }
+    fi
+
+    cd vim || { echo "Failed to navigate to Vim directory"; exit 1; }
+
+    # Fetch all tags from the repository
+    echo "Fetching all Vim tags..."
+    git fetch --all --tags --prune || { echo "Failed to fetch Vim tags"; exit 1; }
+
+    # Determine the Vim version to install
+    if [ -z "$VIM_VERSION" ]; then
+        # Determine the latest stable Vim version tag
+        echo "Determining the latest stable Vim tag..."
+        VIM_VERSION_TAG=$(git tag -l "v*" --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)*$' | head -n1)
+        if [ -z "$VIM_VERSION_TAG" ]; then
+            echo "Error: Unable to determine the latest stable Vim version tag."
+            exit 1
+        fi
+        VIM_VERSION="${VIM_VERSION_TAG#v}"  # Remove the 'v' prefix
+    else
+        # Use the specified VIM_VERSION
+        VIM_VERSION_TAG="v$VIM_VERSION"
+        echo "Using specified Vim version tag: $VIM_VERSION_TAG"
+    fi
+
+    echo "Selected Vim version tag: $VIM_VERSION_TAG"
+    echo "Expected Vim version string: $VIM_VERSION"
+
+    # Check if the desired version is already checked out
+    CURRENT_CHECKOUT=$(git describe --tags --exact-match 2>/dev/null || echo "")
+    if [ "$CURRENT_CHECKOUT" = "$VIM_VERSION_TAG" ]; then
+        echo "Vim is already checked out at version $VIM_VERSION_TAG."
+    else
+        # Checkout the desired Vim version
+        echo "Checking out Vim version $VIM_VERSION_TAG..."
+        git checkout "tags/$VIM_VERSION_TAG" || { echo "Failed to checkout Vim version $VIM_VERSION_TAG"; exit 1; }
+    fi
+
+    # Autogen, configure, make, and install steps
+    if [ ! -f "configure" ]; then
+        echo "Running autogen to generate configure script..."
+        sh autogen.sh || { echo "Failed to run autogen.sh"; exit 1; }
+    else
+        echo "Configure script already exists."
+    fi
+
+    echo "Configuring Vim build with prefix $VIM_INSTALL_PREFIX and features=huge..."
+    ./configure --prefix="$VIM_INSTALL_PREFIX" \
+                --with-features=huge \
+                --enable-multibyte \
+                --enable-rubyinterp=yes \
+                --enable-python3interp=yes \
+                --with-python3-config-dir=$(python3-config --configdir) \
+                --enable-perlinterp=yes \
+                --enable-luainterp=yes \
+                --enable-gui=gtk3 \
+                --enable-cscope || { echo "Vim configuration failed"; exit 1; }
+
+    echo "Building Vim using $(nproc) parallel jobs..."
+    make -j"$(nproc)" || { echo "Vim build failed"; exit 1; }
+
+    echo "Installing Vim..."
+    make install || { echo "Vim installation failed"; exit 1; }
+
+    # Ensure /usr/local/bin is in PATH
+    if [[ ":$PATH:" != *":/usr/local/bin:"* ]]; then
+        export PATH="/usr/local/bin:$PATH"
+        echo "Updated PATH to include /usr/local/bin."
+    fi
+
+    # Verify installation using full path
+    echo "Verifying Vim installation..."
+    INSTALLED_VIM_VERSION=$(/usr/local/bin/vim --version | head -n1 | awk '{print $5}')
+    echo "Installed Vim version: $INSTALLED_VIM_VERSION"
+    if [ "$INSTALLED_VIM_VERSION" = "$VIM_VERSION" ]; then
+        echo "Vim $VIM_VERSION successfully installed from source."
+    else
+        echo "Vim installation verification failed."
+        echo "Expected version: $VIM_VERSION, but found version: $INSTalled_VIM_VERSION"
+        exit 1
+    fi
+
+    # Fix permissions (if necessary)
+    echo "Fixing ownership of user home directory and /tmp..."
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
+
+    echo "Vim installation process completed successfully."
+
+    # Optionally, remove Vim source directory to save space
+    # Uncomment the following lines if you wish to remove the source
+    # echo "Cleaning up Vim source files..."
+    # rm -rf "$VIM_SRC_DIR"
 }
 
 # Function to kill any running tmux sessions
@@ -215,8 +352,8 @@ setup_zsh() {
     # Set ownership and permissions for .zshrc
     chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
     chmod 644 "$USER_HOME/.zshrc"
-	
-	sudo -u "$ACTUAL_USER" /usr/local/bin/tmux set-environment -g ZDOTDIR "$USER_HOME/.zsh"
+
+    sudo -u "$ACTUAL_USER" /usr/local/bin/tmux set-environment -g ZDOTDIR "$USER_HOME/.zsh"
 
     echo ".zshrc setup complete for $ACTUAL_USER."
 }
@@ -612,6 +749,13 @@ install_vim_plugins_all() {
     setup_ftdetect_symlinks
 }
 
+# Function to install and configure TPM and tmux plugins
+install_tpm() {
+    ensure_tpm_installed
+    automate_tpm_install
+    check_tpm_installation
+}
+
 # Function to install all dependencies and tools
 install_dependencies() {
     echo "Installing essential packages..."
@@ -636,7 +780,6 @@ install_dependencies() {
         pipenv \
         cmake \
         zsh \
-        vim-gtk3 \
         make \
         gcc \
         perl \
@@ -670,10 +813,6 @@ install_dependencies() {
         tmux \
         virtualbox-guest-utils \
         virtualbox-guest-x11 || { echo "Package installation failed"; exit 1; }
-
-    # Install VirtualBox Guest Additions utilities
-    echo "Installing VirtualBox Guest Additions utilities..."
-    apt-get install -y virtualbox-guest-utils virtualbox-guest-x11 || { echo "Failed to install VirtualBox guest additions"; exit 1; }
 }
 
 # --- Main Script Execution ---
@@ -692,9 +831,15 @@ install_python_tools
 # Install CheckMake via Go
 install_checkmake
 
+# Remove existing Vim installations (Optional)
+remove_system_vim
+
 # Install tmux before setting up Zsh
 remove_outdated_tmux
 install_tmux_from_git
+
+# Install Vim from source with dynamic version detection
+install_vim_from_source
 
 # Install Node.js if not installed
 if ! command -v node &>/dev/null; then
@@ -741,12 +886,6 @@ echo "tmux setup complete."
 
 # Install Tmux Plugin Manager and tmux plugins
 echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
-install_tpm() {
-    ensure_tpm_installed
-    automate_tpm_install
-    check_tpm_installation
-}
-
 install_tpm
 
 echo "Tmux Plugin Manager and plugins installed successfully."
