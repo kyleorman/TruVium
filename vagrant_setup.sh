@@ -5,189 +5,32 @@ IFS=$'\n\t'
 
 # --- Configuration Variables ---
 SCRIPT_DIR="/vagrant"  # Directory where the script is being executed
-USER_HOME=$(eval echo ~$SUDO_USER)
 LOGFILE="/var/log/setup-script.log"
 TMUX_VERSION="3.5"
-TMP_DIR="/tmp/tmux_install"
+TMP_DIR="/tmp/setup_script_install"
 INSTALL_PREFIX="/usr/local"
+NODE_VERSION="${NODE_VERSION:-18.x}"  # Default Node.js version
+
+# Determine the actual user (non-root)
+if [ "${SUDO_USER:-}" ]; then
+    ACTUAL_USER="$SUDO_USER"
+    USER_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
+else
+    echo "This script must be run with sudo."
+    exit 1
+fi
 
 # Redirect all output to LOGFILE
 exec > >(tee -a "$LOGFILE") 2>&1
 
+# --- Trap for Cleanup ---
+cleanup() {
+    echo "Cleaning up temporary directories..."
+    rm -rf "$TMP_DIR" /tmp/gtkwave /tmp/ghdl
+}
+trap cleanup EXIT
+
 # --- Function Definitions ---
-
-# Function to remove outdated tmux if present
-remove_outdated_tmux() {
-    echo "Checking for existing tmux installation..."
-    if command -v tmux &> /dev/null; then
-        CURRENT_VERSION=$(tmux -V | awk '{print $2}')
-        if [ "$CURRENT_VERSION" != "$TMUX_VERSION" ]; then
-            echo "Outdated tmux version $CURRENT_VERSION found. Removing it..."
-            sudo apt-get remove -y --purge tmux || { echo "Failed to remove tmux"; exit 1; }
-        else
-            echo "tmux $TMUX_VERSION is already installed."
-            return 0
-        fi
-    else
-        echo "tmux is not installed."
-    fi
-}
-
-install_tmux_from_git() {
-    echo "Starting installation of tmux version $TMUX_VERSION from Git..."
-
-    # Check if tmux is already installed and at the desired version
-    if command -v tmux &>/dev/null; then
-        INSTALLED_VERSION=$(tmux -V | awk '{print $2}')
-        if [[ "$INSTALLED_VERSION" == "$TMUX_VERSION" ]]; then
-            echo "tmux version $TMUX_VERSION is already installed. Skipping installation."
-            return 0
-        else
-            echo "tmux version $INSTALLED_VERSION is installed. Proceeding to install version $TMUX_VERSION."
-        fi
-    else
-        echo "tmux is not installed. Proceeding with installation."
-    fi
-
-    # Create a cleanup function to remove temporary files on exit
-    cleanup() {
-        echo "Cleaning up temporary directory..."
-        rm -rf "$TMP_DIR"
-    }
-    trap cleanup EXIT
-
-    # Ensure the correct temporary directory exists and navigate there
-    mkdir -p "$TMP_DIR"
-    cd "$TMP_DIR" || { echo "Failed to access temporary directory $TMP_DIR"; exit 1; }
-
-    echo "Updating package lists and installing dependencies..."
-    apt-get update -y
-    apt-get install -y --no-install-recommends \
-        autoconf \
-        automake \
-        pkg-config \
-        libevent-dev \
-        ncurses-dev \
-        build-essential \
-        git \
-        bison
-
-    # Clone the tmux repository if not already cloned
-    if [[ ! -d "tmux" ]]; then
-        echo "Cloning tmux repository from GitHub..."
-        git clone https://github.com/tmux/tmux.git
-    else
-        echo "tmux repository already cloned. Fetching latest changes..."
-        cd tmux || { echo "Failed to navigate to tmux directory"; exit 1; }
-        git fetch --all
-    fi
-
-    cd tmux || { echo "Failed to navigate to tmux directory"; exit 1; }
-
-    echo "Checking out tmux version $TMUX_VERSION..."
-    git checkout "tags/$TMUX_VERSION" || git checkout "$TMUX_VERSION" || { echo "Failed to checkout version $TMUX_VERSION"; exit 1; }
-
-    # Autogen, configure, make, and install steps
-    echo "Running autogen to generate configure script..."
-    sh autogen.sh || { echo "Failed to run autogen.sh"; exit 1; }
-
-    echo "Configuring tmux build with prefix $INSTALL_PREFIX..."
-    ./configure --prefix="$INSTALL_PREFIX" || { echo "Configuration failed"; exit 1; }
-
-    echo "Building tmux using $(nproc) parallel jobs..."
-    make -j"$(nproc)" || { echo "Build failed"; exit 1; }
-
-    echo "Installing tmux..."
-    make install || { echo "Installation failed"; exit 1; }
-
-    # Verify installation
-    if tmux -V | grep -q "$TMUX_VERSION"; then
-        echo "tmux $TMUX_VERSION successfully installed from Git."
-    else
-        echo "tmux installation from Git failed."
-        exit 1
-    fi
-
-    # Fix permissions (if necessary)
-    echo "Fixing ownership of user home directory and /tmp..."
-    chown -R "$SUDO_USER:$SUDO_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
-    chown -R "$SUDO_USER:$SUDO_USER" /tmp || echo "Failed to change ownership of /tmp"
-
-    echo "tmux installation process completed successfully."
-}
-
-
-# Ensure no tmux session is running during Oh My Zsh installation
-kill_tmux_sessions() {
-    echo "Killing any running tmux sessions before Oh My Zsh installation..."
-    if tmux ls &> /dev/null; then
-        sudo -u "$SUDO_USER" tmux kill-server
-        echo "tmux server stopped."
-    else
-        echo "No tmux sessions were running."
-    fi
-}
-
-setup_zsh() {
-    local user_home=$(eval echo ~$SUDO_USER)
-
-    echo "Changing shell to zsh for $SUDO_USER..."
-
-    # Change default shell to zsh for the actual user
-    if chsh -s /bin/zsh "$SUDO_USER"; then
-        echo "Shell successfully changed to zsh for $SUDO_USER."
-    else
-        echo "Failed to change shell for $SUDO_USER."
-        return 1
-    fi
-
-    echo "Installing Oh My Zsh for $SUDO_USER..."
-
-    # Install Oh My Zsh using the official unattended method
-    if sudo -u "$SUDO_USER" sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
-        echo "Oh My Zsh installed successfully."
-    else
-        echo "Oh My Zsh installation failed."
-        return 1
-    fi
-
-    # Backup existing .zshrc if it exists
-    if [ -f "$user_home/.zshrc" ]; then
-        cp "$user_home/.zshrc" "$user_home/.zshrc.bak"
-        echo "Existing .zshrc backed up to $user_home/.zshrc.bak"
-    fi
-
-    # Append new configuration to .zshrc
-    echo "Setting up .zshrc for $SUDO_USER..."
-    {
-        echo 'export TERM="xterm-256color"'
-        echo 'export PATH="$HOME/.local/bin:$PATH"'
-        echo 'export PATH="/usr/bin:$PATH"'
-        echo 'export PATH="$HOME/go/bin:$PATH"'
-        echo 'export PATH="/usr/local/bin:$PATH"'
-        echo 'export ZDOTDIR="$HOME/.zsh"'
-        echo ''
-        echo 'if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
-        echo '  tmux attach-session -t default || tmux new-session -s default'
-        echo 'fi'
-        echo ''
-        echo '# Fix tmux startup issues with non-existent directories'
-        echo 'if [ ! -d "$PWD" ]; then'
-        echo '  cd $HOME'
-        echo 'fi'
-    } >> "$user_home/.zshrc"
-    sudo -u "$SUDO_USER" bash -c "source $user_home/.zshrc"
-    echo ".zshrc setup complete for $SUDO_USER."
-}
-
-
-# --- Main Script ---
-
-# Ensure the script is run with sudo
-if [ -z "${SUDO_USER:-}" ]; then
-    echo "This script must be run with sudo."
-    exit 1
-fi
 
 # Function to check internet connection
 check_internet_connection() {
@@ -213,33 +56,189 @@ check_internet_connection() {
     fi
 }
 
-# Function to ensure TPM is installed
+# Function to remove outdated tmux if present
+remove_outdated_tmux() {
+    echo "Checking for existing tmux installation..."
+    if command -v tmux &> /dev/null; then
+        CURRENT_VERSION=$(tmux -V | awk '{print $2}')
+        if [ "$CURRENT_VERSION" != "$TMUX_VERSION" ]; then
+            echo "Outdated tmux version $CURRENT_VERSION found. Removing it..."
+            apt-get remove -y --purge tmux || { echo "Failed to remove tmux"; exit 1; }
+        else
+            echo "tmux $TMUX_VERSION is already installed."
+            return 0
+        fi
+    else
+        echo "tmux is not installed."
+    fi
+}
+
+# Function to install tmux from Git
+install_tmux_from_git() {
+    echo "Starting installation of tmux version $TMUX_VERSION from Git..."
+
+    # Check if tmux is already installed and at the desired version
+    if command -v tmux &>/dev/null; then
+        INSTALLED_VERSION=$(tmux -V | awk '{print $2}')
+        if [[ "$INSTALLED_VERSION" == "$TMUX_VERSION" ]]; then
+            echo "tmux version $TMUX_VERSION is already installed. Skipping installation."
+            return 0
+        else
+            echo "tmux version $INSTALLED_VERSION is installed. Proceeding to install version $TMUX_VERSION."
+        fi
+    else
+        echo "tmux is not installed. Proceeding with installation."
+    fi
+
+    # Ensure the correct temporary directory exists and navigate there
+    mkdir -p "$TMP_DIR"
+    cd "$TMP_DIR" || { echo "Failed to access temporary directory $TMP_DIR"; exit 1; }
+
+    echo "Updating package lists and installing dependencies..."
+    apt-get update -y
+    apt-get install -y --no-install-recommends \
+        autoconf \
+        automake \
+        pkg-config \
+        libevent-dev \
+        ncurses-dev \
+        build-essential \
+        git \
+        bison \
+        ninja-build || { echo "Failed to install dependencies"; exit 1; }
+
+    # Clone the tmux repository if not already cloned
+    if [[ ! -d "tmux" ]]; then
+        echo "Cloning tmux repository from GitHub..."
+        git clone https://github.com/tmux/tmux.git
+    fi
+
+    cd tmux || { echo "Failed to navigate to tmux directory"; exit 1; }
+
+    echo "Fetching latest changes..."
+    git fetch --all
+
+    echo "Checking out tmux version $TMUX_VERSION..."
+    git checkout "tags/$TMUX_VERSION" || { echo "Failed to checkout version $TMUX_VERSION"; exit 1; }
+
+    # Autogen, configure, make, and install steps
+    echo "Running autogen to generate configure script..."
+    sh autogen.sh || { echo "Failed to run autogen.sh"; exit 1; }
+
+    echo "Configuring tmux build with prefix $INSTALL_PREFIX..."
+    ./configure --prefix="$INSTALL_PREFIX" || { echo "Configuration failed"; exit 1; }
+
+    echo "Building tmux using $(nproc) parallel jobs..."
+    make -j"$(nproc)" || { echo "Build failed"; exit 1; }
+
+    echo "Installing tmux..."
+    make install || { echo "Installation failed"; exit 1; }
+
+    # Ensure /usr/local/bin is in PATH
+    if [[ ":$PATH:" != *":/usr/local/bin:"* ]]; then
+        export PATH="/usr/local/bin:$PATH"
+        echo "Updated PATH to include /usr/local/bin."
+    fi
+
+    # Verify installation without assuming the path
+    if tmux -V | grep -q "$TMUX_VERSION"; then
+        echo "tmux $TMUX_VERSION successfully installed from Git."
+    else
+        echo "tmux installation from Git failed."
+        exit 1
+    fi
+
+    # Fix permissions (if necessary)
+    echo "Fixing ownership of user home directory and /tmp..."
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
+
+    echo "tmux installation process completed successfully."
+}
+
+# Function to kill any running tmux sessions
+kill_tmux_sessions() {
+    echo "Killing any running tmux sessions before Oh My Zsh installation..."
+    if tmux ls &> /dev/null; then
+        sudo -u "$ACTUAL_USER" tmux kill-server
+        echo "tmux server stopped."
+    else
+        echo "No tmux sessions were running."
+    fi
+}
+
+# Function to set up Zsh and Oh My Zsh
+setup_zsh() {
+    echo "Changing shell to zsh for $ACTUAL_USER..."
+
+    # Change default shell to zsh for the actual user
+    if chsh -s /bin/zsh "$ACTUAL_USER"; then
+        echo "Shell successfully changed to zsh for $ACTUAL_USER."
+    else
+        echo "Failed to change shell for $ACTUAL_USER."
+        return 1
+    fi
+
+    echo "Installing Oh My Zsh for $ACTUAL_USER..."
+
+    # Download Oh My Zsh install script
+    OH_MY_ZSH_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
+    OH_MY_ZSH_SCRIPT="/tmp/install_oh_my_zsh.sh"
+    curl -fsSL "$OH_MY_ZSH_URL" -o "$OH_MY_ZSH_SCRIPT" || { echo "Failed to download Oh My Zsh installer"; exit 1; }
+
+    # Install Oh My Zsh using the official unattended method
+    sudo -u "$ACTUAL_USER" bash "$OH_MY_ZSH_SCRIPT" --unattended || { echo "Oh My Zsh installation failed"; return 1; }
+
+    # Backup existing .zshrc if it exists
+    if [ -f "$USER_HOME/.zshrc" ]; then
+        cp "$USER_HOME/.zshrc" "$USER_HOME/.zshrc.bak"
+        echo "Existing .zshrc backed up to $USER_HOME/.zshrc.bak"
+    fi
+
+    # Append new configuration to .zshrc with interactive shell check
+    echo "Setting up .zshrc for $ACTUAL_USER..."
+    {
+        echo 'export TERM="xterm-256color"'
+        echo 'export PATH="$HOME/.local/bin:$PATH"'
+        echo 'export PATH="/usr/bin:$PATH"'
+        echo 'export PATH="$HOME/go/bin:$PATH"'
+        echo 'export PATH="/usr/local/bin:$PATH"'
+        echo 'export ZDOTDIR="$HOME/.zsh"'
+        echo ''
+        echo 'if [[ $- == *i* ]]; then'  # Check if shell is interactive
+        echo '  if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
+        echo '    tmux attach-session -t default || tmux new-session -s default'
+        echo '  fi'
+        echo 'fi'
+        echo ''
+        echo '# Fix tmux startup issues with non-existent directories'
+        echo 'if [ ! -d "$PWD" ]; then'
+        echo '  cd $HOME'
+        echo 'fi'
+        echo ''
+        echo '# Add Go binaries to PATH'
+        echo 'export PATH="$HOME/go/bin:$PATH"'
+    } >> "$USER_HOME/.zshrc"
+
+    # Set ownership and permissions for .zshrc
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
+    chmod 644 "$USER_HOME/.zshrc"
+
+    echo ".zshrc setup complete for $ACTUAL_USER."
+}
+
+# Function to ensure TPM (Tmux Plugin Manager) is installed
 ensure_tpm_installed() {
     echo "Verifying Tmux Plugin Manager (TPM) installation..."
     TPM_DIR="$USER_HOME/.tmux/plugins/tpm"
     if [ ! -d "$TPM_DIR" ]; then
         echo "Cloning Tmux Plugin Manager (TPM)..."
-        sudo -u "$SUDO_USER" git clone https://github.com/tmux-plugins/tpm "$TPM_DIR" || {
+        sudo -u "$ACTUAL_USER" git clone https://github.com/tmux-plugins/tpm "$TPM_DIR" || {
             echo "Failed to clone TPM."
             exit 1
         }
     else
         echo "TPM is already installed."
-    fi
-}
-
-# Function to ensure Tmux server is running
-ensure_tmux_server() {
-    echo "Ensuring Tmux server is running for $SUDO_USER..."
-
-    if sudo -u "$SUDO_USER" tmux has-session -t default &>/dev/null; then
-        echo "Tmux server is already running for $SUDO_USER."
-    else
-        echo "Starting a new Tmux session for $SUDO_USER."
-        sudo -u "$SUDO_USER" tmux new-session -d -s default || {
-            echo "Failed to start Tmux session for $SUDO_USER."
-            exit 1
-        }
     fi
 }
 
@@ -258,59 +257,17 @@ automate_tpm_install() {
         echo "TPM initialization already present in .tmux.conf."
     fi
 
-    # Determine the Tmux prefix
-    TMUX_PREFIX=$(grep '^set-option -g prefix' "$USER_HOME/.tmux.conf" | awk '{print $3}' | tr -d '"') || TMUX_PREFIX=""
-    if [ -z "$TMUX_PREFIX" ]; then
-        TMUX_PREFIX="C-b" # Default Tmux prefix
-        echo "No custom prefix found. Using default prefix 'C-b'."
-    else
-        echo "Detected Tmux prefix: $TMUX_PREFIX"
-    fi
-
-    # Start a detached tmux session named 'plugin_install' running an interactive shell
-    sudo -u "$SUDO_USER" tmux new-session -d -s plugin_install "bash" || {
-        echo "Failed to create 'plugin_install' session."
-        return 1
-    }
-
-    # Wait until the session is ready
-    attempts=0
-    max_attempts=5
-    while ! sudo -u "$SUDO_USER" tmux has-session -t plugin_install &>/dev/null; do
-        sleep 1
-        attempts=$((attempts + 1))
-        if [ "$attempts" -ge "$max_attempts" ]; then
-            echo "Timeout waiting for 'plugin_install' session to be ready."
-            return 1
-        fi
-    done
-
-    echo "'plugin_install' session exists."
-
-    # Send the key sequence to install plugins: <prefix> + I
-    sudo -u "$SUDO_USER" tmux send-keys -t plugin_install:0.0 "$TMUX_PREFIX" "I" C-m || {
-        echo "Failed to send keys to 'plugin_install' session."
-        return 1
-    }
-
-    # Wait for the installation to complete
-    sleep 5
-
-    # Kill the 'plugin_install' session
-    sudo -u "$SUDO_USER" tmux kill-session -t plugin_install || {
-        echo "Failed to kill 'plugin_install' session."
-        return 1
-    }
-
-    echo "Tmux plugins installation triggered."
+    # Reload tmux environment and install plugins using the absolute path to tmux
+    sudo -u "$ACTUAL_USER" /usr/local/bin/tmux new-session -d -s tpm_install "/usr/local/bin/tmux source ~/.tmux.conf && ~/.tmux/plugins/tpm/bin/install_plugins"
+    echo "TPM plugin installation triggered."
 }
 
 # Function to check if TPM plugins are installed
 check_tpm_installation() {
     echo "Checking if TPM plugins are installed..."
 
-    # List installed plugins
-    TMUX_PLUGINS_INSTALLED=$(sudo -u "$SUDO_USER" tmux list-plugins 2>/dev/null || echo "")
+    # List installed plugins using the absolute path to tmux
+    TMUX_PLUGINS_INSTALLED=$(sudo -u "$ACTUAL_USER" /usr/local/bin/tmux list-plugins 2>/dev/null || echo "")
 
     if [ -n "$TMUX_PLUGINS_INSTALLED" ]; then
         echo "Tmux plugins are installed successfully."
@@ -344,453 +301,466 @@ generate_helptags() {
 
     if [ -d "$doc_dir" ]; then
         echo "Generating helptags for plugin at '$plugin_dir'..."
-        vim -u NONE -c "helptags $doc_dir" -c "qall" || {
+        vim -u NONE -c "helptags $doc_dir" -c "qa!" || {
             echo "Warning: Failed to generate helptags for '$plugin_dir'."
         }
     fi
 }
 
-# --- Begin Script Execution ---
+# Function to clone and install Vim plugins
+install_vim_plugins() {
+    echo "Starting Vim plugin installation..."
 
-# Ensure the script is run with sudo
-if [ -z "${SUDO_USER:-}" ]; then
-    echo "This script must be run with sudo."
-    exit 1
-fi
+    # Define plugin arrays
+    START_PLUGINS=(
+        "preservim/nerdtree"
+        "preservim/vimux"
+        "christoomey/vim-tmux-navigator"
+        "vim-airline/vim-airline"
+        "vim-airline/vim-airline-themes"
+        "junegunn/fzf"
+        "junegunn/fzf.vim"
+        "tpope/vim-fugitive"
+        "tpope/vim-rhubarb"
+        "dense-analysis/ale"
+        "neoclide/coc.nvim"
+        "tpope/vim-surround"
+        "SirVer/ultisnips"
+        "honza/vim-snippets"
+        "preservim/tagbar"
+        "preservim/nerdcommenter"
+        "github/copilot.vim"
+        "davidhalter/jedi-vim"
+        "heavenshell/vim-pydocstring"
+        "mrtazz/checkmake"
+        "vim-syntastic/syntastic"
+        "jpalardy/vim-slime"
+    )
 
-# Redirect all output to LOGFILE is already handled at the top
+    OPTIONAL_PLUGINS=(
+        "klen/python-mode"
+        "suoto/hdl_checker"
+        # Add more optional plugins here as needed
+    )
+
+    COLOR_SCHEMES=(
+        "altercation/vim-colors-solarized"
+        "rafi/awesome-vim-colorschemes"
+    )
+
+    # Define plugin directories
+    START_PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/start"
+    OPT_PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/opt"
+    COLOR_PLUGIN_DIR="$USER_HOME/.vim/pack/colors/start"
+
+    # Ensure plugin directories exist
+    mkdir -p "$START_PLUGIN_DIR"
+    mkdir -p "$OPT_PLUGIN_DIR"
+    mkdir -p "$COLOR_PLUGIN_DIR"
+
+    # Clone essential start plugins
+    echo "Cloning essential start plugins..."
+    for plugin in "${START_PLUGINS[@]}"; do
+        plugin_name=$(basename "$plugin")
+        target_path="$START_PLUGIN_DIR/$plugin_name"
+        clone_plugin "$plugin" "$target_path"
+    done
+
+    # Clone optional plugins
+    echo "Cloning optional plugins..."
+    for plugin in "${OPTIONAL_PLUGINS[@]}"; do
+        plugin_name=$(basename "$plugin")
+        target_path="$OPT_PLUGIN_DIR/$plugin_name"
+        clone_plugin "$plugin" "$target_path"
+    done
+
+    # Clone color schemes
+    echo "Cloning color schemes..."
+    for color in "${COLOR_SCHEMES[@]}"; do
+        color_name=$(basename "$color")
+        target_path="$COLOR_PLUGIN_DIR/$color_name"
+        clone_plugin "$color" "$target_path"
+    done
+
+    # Generate helptags for all plugins
+    echo "Generating helptags for plugins..."
+    for plugin in "${START_PLUGINS[@]}" "${OPTIONAL_PLUGINS[@]}" "${COLOR_SCHEMES[@]}"; do
+        plugin_name=$(basename "$plugin")
+        target_path="$START_PLUGIN_DIR/$plugin_name"
+
+        # Adjust for optional plugins
+        if [[ " ${OPTIONAL_PLUGINS[@]} " =~ " $plugin " ]]; then
+            target_path="$OPT_PLUGIN_DIR/$plugin_name"
+        fi
+
+        # Adjust for color schemes
+        if [[ " ${COLOR_SCHEMES[@]} " =~ " $plugin " ]]; then
+            target_path="$COLOR_PLUGIN_DIR/$plugin_name"
+        fi
+
+        generate_helptags "$target_path"
+    done
+
+    echo "Vim plugins installed and helptags generated successfully."
+}
+
+# Function to clone Zsh plugins
+clone_zsh_plugins() {
+    echo "Cloning Zsh plugins..."
+    ZSH_CUSTOM="${ZSH_CUSTOM:-$USER_HOME/.oh-my-zsh/custom}"
+
+    sudo -u "$ACTUAL_USER" git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" || true
+    sudo -u "$ACTUAL_USER" git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions" || true
+
+    # Update .zshrc plugins line
+    DESIRED_PLUGINS='plugins=(git zsh-syntax-highlighting zsh-autosuggestions)'
+    if grep -q "^plugins=" "$USER_HOME/.zshrc"; then
+        sed -i "s/^plugins=.*/$DESIRED_PLUGINS/" "$USER_HOME/.zshrc"
+    else
+        sed -i "/^source.*oh-my-zsh.sh/a $DESIRED_PLUGINS" "$USER_HOME/.zshrc"
+    fi
+
+    echo "Plugins configured in .zshrc."
+
+    # Ensure correct ownership and permissions
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
+    chmod 644 "$USER_HOME/.zshrc"
+}
+
+# Function to install Python tools
+install_python_tools() {
+    echo "Installing Python tools..."
+    pip3 install --upgrade pip
+    pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker vsg tox ipython jupyter jupyter-console meson || { echo "Failed to install Python tools"; exit 1; }
+}
+
+# Function to install CheckMake via Go
+install_checkmake() {
+    echo "Installing CheckMake via Go..."
+    sudo -u "$ACTUAL_USER" go install github.com/mrtazz/checkmake/cmd/checkmake@latest || { echo "CheckMake installation failed"; exit 1; }
+    echo 'export PATH="$HOME/go/bin:$PATH"' >> "$USER_HOME/.zshrc"
+}
+
+# Function to install dependencies for coc.nvim
+install_coc_dependencies() {
+    echo "Installing dependencies for coc.nvim..."
+
+    COC_DIR="$START_PLUGIN_DIR/coc.nvim"
+
+    if [ -d "$COC_DIR" ]; then
+        echo "Changing ownership of coc.nvim directory to $ACTUAL_USER..."
+        chown -R "$ACTUAL_USER:$ACTUAL_USER" "$COC_DIR"
+
+        echo "Running 'npm ci' in coc.nvim directory..."
+        sudo -u "$ACTUAL_USER" bash -c "cd '$COC_DIR' && npm ci" || {
+            echo "Error: Failed to install dependencies for coc.nvim."
+            exit 1
+        }
+        echo "Dependencies for coc.nvim installed successfully."
+    else
+        echo "Error: coc.nvim directory not found at '$COC_DIR'."
+        exit 1
+    fi
+}
+
+# Function to install FZF
+install_fzf() {
+    echo "Installing FZF..."
+    if [ ! -d "$USER_HOME/.fzf" ]; then
+        sudo -u "$ACTUAL_USER" git clone --depth 1 https://github.com/junegunn/fzf.git "$USER_HOME/.fzf" || { echo "FZF clone failed"; exit 1; }
+
+        # Ensure .zshrc is owned by the actual user and writable
+        chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
+        chmod 644 "$USER_HOME/.zshrc"
+
+        sudo -u "$ACTUAL_USER" bash -c "cd '$USER_HOME/.fzf' && ./install --all" || { echo "FZF installation failed"; exit 1; }
+        echo "FZF installed successfully."
+    else
+        echo "FZF is already installed."
+    fi
+}
+
+# Function to create symbolic links for ftdetect
+setup_ftdetect_symlinks() {
+    FTDETECT_SRC_DIR="$START_PLUGIN_DIR/ultisnips/ftdetect"
+    FTDETECT_DEST_DIR="$USER_HOME/.vim/ftdetect"
+
+    echo "Setting up ftdetect symbolic links..."
+
+    # Ensure the destination directory exists
+    mkdir -p "$FTDETECT_DEST_DIR"
+
+    # Check if the source directory exists and contains files
+    if [ -d "$FTDETECT_SRC_DIR" ] && [ "$(ls -A "$FTDETECT_SRC_DIR")" ]; then
+        for src_file in "$FTDETECT_SRC_DIR"/*; do
+            # Extract the filename
+            filename="$(basename "$src_file")"
+            dest_file="$FTDETECT_DEST_DIR/$filename"
+
+            # Check if the destination symlink already exists
+            if [ -L "$dest_file" ]; then
+                echo "Symlink for $filename already exists. Skipping."
+            elif [ -e "$dest_file" ]; then
+                echo "A file named $filename exists and is not a symlink. Skipping to avoid overwriting."
+            else
+                # Create the symbolic link
+                ln -s "$src_file" "$dest_file" && \
+                    echo "Created symlink: $dest_file -> $src_file" || \
+                    echo "Failed to create symlink for $filename"
+            fi
+        done
+    else
+        echo "No ftdetect files found in $FTDETECT_SRC_DIR. Skipping symlink creation."
+    fi
+}
+
+# Function to configure Git
+configure_git() {
+    GIT_SETUP_SCRIPT="$SCRIPT_DIR/git_setup.sh"
+    GIT_SETUP_CONF="$SCRIPT_DIR/git_setup.conf"
+
+    echo "Configuring Git..."
+
+    if [ -f "$GIT_SETUP_SCRIPT" ] && [ -f "$GIT_SETUP_CONF" ]; then
+        if sudo -u "$ACTUAL_USER" bash "$GIT_SETUP_SCRIPT" --config-file "$GIT_SETUP_CONF" --non-interactive; then
+            echo "Git configured successfully."
+        else
+            echo "Git configuration failed."
+            exit 1
+        fi
+    else
+        echo "Error: Git setup scripts or configuration files are missing."
+        exit 1
+    fi
+}
+
+# Function to install GTKWAVE
+install_gtkwave() {
+    echo "Cloning GTKWAVE repository..."
+    sudo -u "$ACTUAL_USER" git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave || { echo "GTKWAVE clone failed"; exit 1; }
+
+    cd /tmp/gtkwave || exit
+    echo "Building GTKWAVE..."
+    meson setup build && meson compile -C build || { echo "GTKWAVE build failed"; exit 1; }
+    sudo meson install -C build || { echo "GTKWAVE installation failed"; exit 1; }
+    cd ~
+}
+
+# Function to install GHDL
+install_ghdl() {
+    echo "Cloning GHDL repository..."
+    sudo -u "$ACTUAL_USER" git clone https://github.com/ghdl/ghdl.git /tmp/ghdl || { echo "GHDL clone failed"; exit 1; }
+
+    cd /tmp/ghdl || exit
+    echo "Building and installing GHDL..."
+    ./configure --prefix=/usr/local && make && sudo make install || { echo "GHDL build or installation failed"; exit 1; }
+    cd ~
+}
+
+# Function to verify GHDL installation
+verify_ghdl() {
+    echo "Verifying GHDL installation..."
+    if command -v ghdl &>/dev/null; then
+        ghdl --version || { echo "GHDL verification failed"; exit 1; }
+        echo "GHDL verified successfully."
+    else
+        echo "GHDL command not found after installation."
+        exit 1
+    fi
+}
+
+# Function to copy configuration files
+copy_config_files() {
+    echo "Copying configuration files to user home directory..."
+
+    # Declare an associative array of source and destination files
+    declare -A CONFIG_FILES=(
+        ["vimrc"]=".vimrc"
+        ["tmux.conf"]=".tmux.conf"
+        ["tmux_keys.sh"]=".tmux_keys.sh"
+        ["coc-settings.json"]=".vim/coc-settings.json"
+    )
+
+    for src in "${!CONFIG_FILES[@]}"; do
+        dest="${CONFIG_FILES[$src]}"
+        src_path="$SCRIPT_DIR/$src"
+        dest_path="$USER_HOME/$dest"
+
+        # Ensure the destination directory exists
+        dest_dir=$(dirname "$dest_path")
+        mkdir -p "$dest_dir"
+
+        if [ -f "$src_path" ]; then
+            cp "$src_path" "$dest_path"
+            chown "$ACTUAL_USER:$ACTUAL_USER" "$dest_path"
+            chmod 644 "$dest_path"
+            echo "$src copied successfully to $dest_path."
+        else
+            echo "Warning: $src not found in $SCRIPT_DIR. Skipping copy."
+        fi
+    done
+
+    # Copy 'yank' to /usr/local/bin instead of /bin for better practices
+    echo "Copying 'yank' to /usr/local/bin..."
+    if [ -f "$SCRIPT_DIR/yank" ]; then
+        cp "$SCRIPT_DIR/yank" "/usr/local/bin/yank"
+        chown root:root "/usr/local/bin/yank"
+        chmod 755 "/usr/local/bin/yank"
+        echo "'yank' copied successfully to /usr/local/bin."
+    else
+        echo "Warning: 'yank' not found in $SCRIPT_DIR. Skipping copy."
+    fi
+}
+
+# Function to install Vim plugins
+install_vim_plugins_all() {
+    install_vim_plugins
+    setup_ftdetect_symlinks
+}
+
+# Function to install all dependencies and tools
+install_dependencies() {
+    echo "Installing essential packages..."
+    apt-get update -y
+    apt-get install -y --no-install-recommends \
+        autoconf \
+        automake \
+        pkg-config \
+        libevent-dev \
+        ncurses-dev \
+        build-essential \
+        git \
+        bison \
+        ninja-build \
+        software-properties-common \
+        curl \
+        wget \
+        golang \
+        python3 \
+        python3-pip \
+        python3-venv \
+        pipenv \
+        cmake \
+        zsh \
+        vim-gtk3 \
+        make \
+        gcc \
+        perl \
+        gnat \
+        zlib1g-dev \
+        gperf \
+        flex \
+        desktop-file-utils \
+        libgtk-3-dev \
+        libgtk-4-dev \
+        libjudy-dev \
+        libbz2-dev \
+        libgirepository1.0-dev \
+        exuberant-ctags \
+        htop \
+        vagrant \
+        virtualbox-guest-utils \
+        shellcheck \
+        pandoc \
+        fonts-powerline \
+        grep \
+        sed \
+        bc \
+        xclip \
+        acpi \
+        passwd \
+        xauth \
+        xorg \
+        openbox \
+        xdg-utils \
+        tmux \
+        virtualbox-guest-utils \
+        virtualbox-guest-x11 || { echo "Package installation failed"; exit 1; }
+
+    # Install VirtualBox Guest Additions utilities
+    echo "Installing VirtualBox Guest Additions utilities..."
+    apt-get install -y virtualbox-guest-utils virtualbox-guest-x11 || { echo "Failed to install VirtualBox guest additions"; exit 1; }
+}
+
+# --- Main Script Execution ---
+
+echo "----- Starting Setup Script -----"
 
 # Execute the internet check
 check_internet_connection
 
-# Add Vim PPA before updating the system
-echo "Adding Vim PPA..."
-apt-get update -y
-apt-get install -y software-properties-common
-add-apt-repository -y ppa:jonathonf/vim
+# Install essential packages
+install_dependencies
 
-# Update system, upgrade, and fix broken packages
-echo "Updating and upgrading system packages..."
-apt-get update -y && apt-get upgrade -y
-apt --fix-broken install -y || { echo "Failed to fix broken packages"; exit 1; }
+# Install Python tools
+install_python_tools
 
-# Install essential packages including Vim (removed desktop-related packages)
-echo "Installing essential packages..."
-apt-get install -y build-essential dkms linux-headers-$(uname -r) \
-    software-properties-common curl wget git golang python3 python3-pip python3-venv ninja-build pkg-config pipenv \
-    cmake zsh vim-gtk3 make gcc perl gnat zlib1g-dev gperf flex desktop-file-utils libgtk-3-dev libgtk-4-dev libjudy-dev \
-    libbz2-dev libgirepository1.0-dev exuberant-ctags htop vagrant virtualbox-guest-utils shellcheck \
-    pandoc fonts-powerline grep sed bc xclip acpi passwd xauth xorg openbox xdg-utils || { echo "Package installation failed"; exit 1; }
+# Install CheckMake via Go
+install_checkmake
 
-# Install VirtualBox Guest Additions utilities
-echo "Installing VirtualBox Guest Additions utilities..."
-apt-get install -y virtualbox-guest-utils virtualbox-guest-x11 || { echo "Failed to install VirtualBox guest additions"; exit 1; }
-
-# Remove outdated tmux if necessary
+# Install tmux before setting up Zsh
 remove_outdated_tmux
-
-# Install tmux from git
 install_tmux_from_git
 
-kill_tmux_sessions
-
-setup_zsh
-
-echo "tmux setup complete."
-
-# Ensure .vim folder exists before changing permissions
-echo "Creating .vim directory..."
-mkdir -p "$USER_HOME/.vim"
-chown -R "$SUDO_USER:$SUDO_USER" "$USER_HOME/.vim"
-
-# Backup existing .vimrc if it exists
-if [ -f "$USER_HOME/.vimrc" ]; then
-    cp "$USER_HOME/.vimrc" "$USER_HOME/.vimrc.bak"
-    echo "Existing .vimrc backed up to .vimrc.bak"
-fi
-
-# Copy .vimrc to user's home directory
-echo "Copying .vimrc to user home directory..."
-if [ -f "$SCRIPT_DIR/vimrc" ]; then
-    cp "$SCRIPT_DIR/vimrc" "$USER_HOME/.vimrc"
-    chown "$SUDO_USER:$SUDO_USER" "$USER_HOME/.vimrc"
-    chmod 644 "$USER_HOME/.vimrc"
-    echo ".vimrc copied successfully."
-else
-    echo "Warning: .vimrc not found in $SCRIPT_DIR. Skipping copy."
-fi
-
-# --- Vim Plugin Management ---
-
-echo "Starting Vim plugin installation..."
-
-# Define plugin arrays
-START_PLUGINS=(
-    "preservim/nerdtree"
-    "preservim/vimux"
-    "christoomey/vim-tmux-navigator"
-    "vim-airline/vim-airline"
-    "vim-airline/vim-airline-themes"
-    "junegunn/fzf"
-    "junegunn/fzf.vim"
-    "tpope/vim-fugitive"
-    "tpope/vim-rhubarb"
-    "dense-analysis/ale"
-    "neoclide/coc.nvim"
-    "tpope/vim-surround"
-    "SirVer/ultisnips"
-    "honza/vim-snippets"
-    "preservim/tagbar"
-    "preservim/nerdcommenter"
-    "github/copilot.vim"
-    "davidhalter/jedi-vim"
-    "heavenshell/vim-pydocstring"
-    "mrtazz/checkmake"
-    "vim-syntastic/syntastic"
-    "jpalardy/vim-slime"
-)
-
-OPTIONAL_PLUGINS=(
-    "klen/python-mode"
-    "suoto/hdl_checker"
-    # Add more optional plugins here as needed
-)
-
-COLOR_SCHEMES=(
-    "altercation/vim-colors-solarized"
-    "rafi/awesome-vim-colorschemes"
-)
-
-# Define plugin directories
-START_PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/start"
-OPT_PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/opt"
-COLOR_PLUGIN_DIR="$USER_HOME/.vim/pack/colors/start"
-
-# Ensure plugin directories exist
-mkdir -p "$START_PLUGIN_DIR"
-mkdir -p "$OPT_PLUGIN_DIR"
-mkdir -p "$COLOR_PLUGIN_DIR"
-
-# Clone essential start plugins
-echo "Cloning essential start plugins..."
-for plugin in "${START_PLUGINS[@]}"; do
-    plugin_name=$(basename "$plugin")
-    target_path="$START_PLUGIN_DIR/$plugin_name"
-    clone_plugin "$plugin" "$target_path"
-done
-
-# Clone optional plugins
-echo "Cloning optional plugins..."
-for plugin in "${OPTIONAL_PLUGINS[@]}"; do
-    plugin_name=$(basename "$plugin")
-    target_path="$OPT_PLUGIN_DIR/$plugin_name"
-    clone_plugin "$plugin" "$target_path"
-done
-
-# Clone color schemes
-echo "Cloning color schemes..."
-for color in "${COLOR_SCHEMES[@]}"; do
-    color_name=$(basename "$color")
-    target_path="$COLOR_PLUGIN_DIR/$color_name"
-    clone_plugin "$color" "$target_path"
-done
-
-# Generate helptags for all plugins
-echo "Generating helptags for plugins..."
-for plugin in "${START_PLUGINS[@]}" "${OPTIONAL_PLUGINS[@]}" "${COLOR_SCHEMES[@]}"; do
-    plugin_name=$(basename "$plugin")
-    target_path="$START_PLUGIN_DIR/$plugin_name"
-
-    # Adjust for optional plugins
-    if [[ " ${OPTIONAL_PLUGINS[@]} " =~ " $plugin " ]]; then
-        target_path="$OPT_PLUGIN_DIR/$plugin_name"
-    fi
-
-    # Adjust for color schemes
-    if [[ " ${COLOR_SCHEMES[@]} " =~ " $plugin " ]]; then
-        target_path="$COLOR_PLUGIN_DIR/$plugin_name"
-    fi
-
-    generate_helptags "$target_path"
-done
-
-echo "Vim plugins installed and helptags generated successfully."
-
-# Backup existing .tmux.conf if it exists
-if [ -f "$USER_HOME/.tmux.conf" ]; then
-    cp "$USER_HOME/.tmux.conf" "$USER_HOME/.tmux.conf.bak"
-    echo "Existing .tmux.conf backed up to .tmux.conf.bak"
-fi
-
-# Copy .tmux.conf to user's home directory
-echo "Copying .tmux.conf to user home directory..."
-if [ -f "$SCRIPT_DIR/tmux.conf" ]; then
-    cp "$SCRIPT_DIR/tmux.conf" "$USER_HOME/.tmux.conf"
-    chown "$SUDO_USER:$SUDO_USER" "$USER_HOME/.tmux.conf"
-    chmod 644 "$USER_HOME/.tmux.conf"
-    echo ".tmux.conf copied successfully."
-else
-    echo "Warning: .tmux.conf not found in $SCRIPT_DIR. Skipping copy."
-fi
-
-# Copy .tmux_keys.sh to user's home directory
-echo "Copying .tmux_keys.sh to user home directory..."
-if [ -f "$SCRIPT_DIR/tmux_keys.sh" ]; then
-    cp "$SCRIPT_DIR/tmux_keys.sh" "$USER_HOME/.tmux_keys.sh"
-    chown "$SUDO_USER:$SUDO_USER" "$USER_HOME/.tmux_keys.sh"
-    chmod 644 "$USER_HOME/.tmux_keys.sh"
-    echo ".tmux_keys.sh copied successfully."
-else
-    echo "Warning: .tmux_keys.sh not found in $SCRIPT_DIR. Skipping copy."
-fi
-
-# Copy yank to system bin directory
-echo "Copying yank to system bin directory..."
-if [ -f "$SCRIPT_DIR/yank" ]; then
-    cp "$SCRIPT_DIR/yank" "/bin/yank"
-    # Set proper ownership (root:root)
-    chown root:root "/bin/yank"
-    # Set permissions to make it executable
-    chmod 755 "/bin/yank"
-    echo "yank copied successfully to /bin."
-else
-    echo "Warning: yank not found in $SCRIPT_DIR. Skipping copy."
-fi
-
-# --- Tmux Plugin Manager (TPM) and Plugins Installation ---
-
-echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
-
-# Define tmux plugins to install (including TPM itself)
-TMUX_PLUGINS=(
-    "tmux-plugins/tpm"                    # TPM itself
-    "tmux-plugins/tmux-resurrect"         # Restore tmux sessions
-    "tmux-plugins/tmux-continuum"         # Continuous tmux auto-saving
-    "tmux-plugins/tmux-yank"              # Enhanced copy-paste
-    "tmux-plugins/tmux-prefix-highlight"   # Highlight when prefix is pressed
-    "tmux-plugins/tmux-copycat"           # Enhanced search in tmux
-    "tmux-plugins/tmux-open"              # Open files/directories
-    "tmux-plugins/tmux-battery"           # Display battery status
-	"tmux-plugins/tmux-sensible"
-    # Add more tmux plugins here as needed
-)
-
-# Function to clone tmux plugins
-clone_tmux_plugin() {
-    local plugin="$1"
-    local plugin_name=$(basename "$plugin")
-    local target_dir="$USER_HOME/.tmux/plugins/$plugin_name"
-
-    if [ -d "$target_dir" ]; then
-        echo "Tmux plugin '$plugin_name' already exists. Skipping clone."
-    else
-        echo "Cloning tmux plugin '$plugin_name' into '$target_dir'..."
-        sudo -u "$SUDO_USER" git clone --depth=1 "https://github.com/$plugin.git" "$target_dir" || {
-            echo "Error: Failed to clone tmux plugin '$plugin_name'."
-            exit 1
-        }
-        echo "Successfully cloned tmux plugin '$plugin_name'."
-    fi
-}
-
-# Clone each tmux plugin
-for plugin in "${TMUX_PLUGINS[@]}"; do
-    clone_tmux_plugin "$plugin"
-done
-
-# Set ownership and permissions for tmux plugins
-echo "Setting ownership and permissions for tmux plugins..."
-sudo chown -R "$SUDO_USER:$SUDO_USER" "$USER_HOME/.tmux/plugins" || {
-    echo "Error: Failed to set ownership for tmux plugins."
-    exit 1
-}
-
-echo "Tmux Plugin Manager and plugins installed successfully."
-
-# --- Ensure Tmux Server is Running ---
-ensure_tmux_server
-
-# --- Automate TPM Plugin Installation ---
-automate_tpm_install
-
-# --- Check TPM Plugin Installation ---
-check_tpm_installation
-
-# Optional: Instruct the user to manually trigger installation if needed
-echo "If plugins are not installed automatically, please start a new tmux session and press <prefix> + I (e.g., Ctrl-b + I) to install them."
-
-# Parameterize Node.js version and check if Node.js is already installed
-NODE_VERSION=${NODE_VERSION:-18.x}
-if ! command -v node &> /dev/null; then
+# Install Node.js if not installed
+if ! command -v node &>/dev/null; then
     echo "Installing Node.js $NODE_VERSION..."
-    curl -fsSL https://deb.nodesource.com/setup_"$NODE_VERSION" | bash -
+    curl -fsSL https://deb.nodesource.com/setup_"$NODE_VERSION" | bash - || { echo "Node.js setup script failed"; exit 1; }
     apt-get install -y nodejs || { echo "Node.js installation failed"; exit 1; }
 else
     echo "Node.js is already installed."
 fi
 
+# Update npm to the latest version
 npm install -g npm
 
-echo "Installing dependencies for coc.nvim..."
+# Install and configure Zsh and Oh My Zsh
+kill_tmux_sessions
+setup_zsh
+clone_zsh_plugins
 
-COC_DIR="$START_PLUGIN_DIR/coc.nvim"
+# Copy configuration files
+copy_config_files
 
-if [ -d "$COC_DIR" ]; then
-    echo "Changing ownership of coc.nvim directory to $SUDO_USER..."
-    sudo chown -R "$SUDO_USER:$SUDO_USER" "$COC_DIR"
+# Install FZF after ensuring Zsh is set up
+install_fzf
 
-    echo "Running 'npm ci' in coc.nvim directory..."
-    sudo -u "$SUDO_USER" bash -c "cd '$COC_DIR' && npm ci" || {
-        echo "Error: Failed to install dependencies for coc.nvim."
-        exit 1
-    }
-    echo "Dependencies for coc.nvim installed successfully."
-else
-    echo "Error: coc.nvim directory not found at '$COC_DIR'."
-    exit 1
-fi
+# Install Vim plugins
+install_vim_plugins_all
 
-# Install FZF with path and error protection
-echo "Installing FZF..."
-if [ ! -d "$USER_HOME/.fzf" ]; then
-    sudo -u "$SUDO_USER" git clone --depth 1 https://github.com/junegunn/fzf.git "$USER_HOME/.fzf" || { echo "FZF clone failed"; exit 1; }
-    sudo -u "$SUDO_USER" bash -c "$USER_HOME/.fzf/install --all" || { echo "FZF installation failed"; exit 1; }
-    echo "FZF installed successfully."
-else
-    echo "FZF is already installed."
-fi
+# Configure Git
+configure_git
 
-# --- Symbolic Links for ftdetect ---
-FTDETECT_SRC_DIR="$USER_HOME/.vim/pack/plugins/start/ultisnips/ftdetect"
-FTDETECT_DEST_DIR="$USER_HOME/.vim/ftdetect"
+# Install coc.nvim dependencies
+install_coc_dependencies
 
-echo "Setting up ftdetect symbolic links..."
+# Install GTKWAVE
+install_gtkwave
 
-# Ensure the destination directory exists
-mkdir -p "$FTDETECT_DEST_DIR"
+# Install GHDL
+install_ghdl
 
-# Check if the source directory exists and contains files
-if [ -d "$FTDETECT_SRC_DIR" ] && [ "$(ls -A "$FTDETECT_SRC_DIR")" ]; then
-    for src_file in "$FTDETECT_SRC_DIR"/*; do
-        # Extract the filename
-        filename="$(basename "$src_file")"
-        dest_file="$FTDETECT_DEST_DIR/$filename"
+# Verify GHDL installation
+verify_ghdl
 
-        # Check if the destination symlink already exists
-        if [ -L "$dest_file" ]; then
-            echo "Symlink for $filename already exists. Skipping."
-        elif [ -e "$dest_file" ]; then
-            echo "A file named $filename exists and is not a symlink. Skipping to avoid overwriting."
-        else
-            # Create the symbolic link
-            ln -s "$src_file" "$dest_file" && \
-                echo "Created symlink: $dest_file -> $src_file" || \
-                echo "Failed to create symlink for $filename"
-        fi
-    done
-else
-    echo "No ftdetect files found in $FTDETECT_SRC_DIR. Skipping symlink creation."
-fi
+echo "tmux setup complete."
 
-# Define the desired plugins
-DESIRED_PLUGINS="plugins=(git zsh-syntax-highlighting zsh-autosuggestions)"
+# Install Tmux Plugin Manager and tmux plugins
+echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
+install_tpm() {
+    ensure_tpm_installed
+    automate_tpm_install
+    check_tpm_installation
+}
 
-# Check if the plugins line exists in .zshrc
-if grep -q "^plugins=" "$USER_HOME/.zshrc"; then
-    # Replace the existing plugins line
-    sed -i "s/^plugins=.*/$DESIRED_PLUGINS/" "$USER_HOME/.zshrc"
-else
-    # Add the plugins line after the line that sources oh-my-zsh.sh
-    sed -i "/^source.*oh-my-zsh.sh/a $DESIRED_PLUGINS" "$USER_HOME/.zshrc"
-fi
+install_tpm
 
-echo "Plugins configured in .zshrc."
-
-# Ensure correct ownership and permissions
-chown "$SUDO_USER:$SUDO_USER" "$USER_HOME/.zshrc"
-chmod 644 "$USER_HOME/.zshrc"
-
-# Clone Zsh plugins as the user
-echo "Cloning Zsh plugins..."
-sudo -u "$SUDO_USER" git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "${ZSH_CUSTOM:-$USER_HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" || true
-sudo -u "$SUDO_USER" git clone https://github.com/zsh-users/zsh-autosuggestions.git "${ZSH_CUSTOM:-$USER_HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" || true
-
-
-
-# Install Python linters, formatters, and hdl-checker
-echo "Installing Python tools..."
-pip3 install --upgrade pip
-pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker meson vsg tox ipython jupyter jupyter-console || { echo "Failed to install Python tools"; exit 1; }
-
-# Install CheckMake via Go (as apt version has issues)
-echo "Installing CheckMake via Go..."
-sudo -u "$SUDO_USER" go install github.com/mrtazz/checkmake/cmd/checkmake@latest || { echo "CheckMake installation failed"; exit 1; }
-
-echo "Setting up Python docstrings..."
-
-PYDOCSTRING_DIR="$USER_HOME/.vim/pack/plugins/start/vim-pydocstring"
-
-if [ -d "$PYDOCSTRING_DIR" ]; then
-    # Ensure correct permissions for the plugin directory
-    sudo chown -R "$SUDO_USER:$SUDO_USER" "$PYDOCSTRING_DIR"
-
-    # Run the installation command as the user
-    sudo -u "$SUDO_USER" bash -c "
-        cd '$PYDOCSTRING_DIR' || exit
-        make install || true
-    "
-else
-    echo "Error: vim-pydocstring directory not found."
-fi
-
-# Copy coc-settings.json to the user's .vim directory
-echo "Copying coc-settings.json to the .vim directory..."
-if [ -f "$SCRIPT_DIR/coc-settings.json" ]; then
-    cp "$SCRIPT_DIR/coc-settings.json" "$USER_HOME/.vim/coc-settings.json"
-    chown "$SUDO_USER:$SUDO_USER" "$USER_HOME/.vim/coc-settings.json"
-    chmod 644 "$USER_HOME/.vim/coc-settings.json"
-    echo "coc-settings.json copied successfully."
-else
-    echo "Warning: coc-settings.json not found in $SCRIPT_DIR. Skipping copy."
-fi
-
-# --- GTKWAVE Installation ---
-# Clone the GTKWAVE repository and install it using meson
-echo "Cloning GTKWAVE repository..."
-sudo -u "$SUDO_USER" git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave || { echo "GTKWAVE clone failed"; exit 1; }
-
-cd /tmp/gtkwave || exit
-echo "Building GTKWAVE..."
-meson setup build && meson compile -C build || { echo "GTKWAVE build failed"; exit 1; }
-sudo meson install -C build || { echo "GTKWAVE installation failed"; exit 1; }
-cd ~
-
-# --- GHDL Installation ---
-# Clone the GHDL repository and install it from source
-echo "Cloning GHDL repository..."
-sudo -u "$SUDO_USER" git clone https://github.com/ghdl/ghdl.git /tmp/ghdl || { echo "GHDL clone failed"; exit 1; }
-
-cd /tmp/ghdl || exit
-echo "Building and installing GHDL..."
-./configure --prefix=/usr/local && make && sudo make install || { echo "GHDL build or installation failed"; exit 1; }
-cd ~
-
-# Verify the installation
-echo "Verifying GHDL installation..."
-ghdl --version || { echo "GHDL verification failed"; exit 1; }
-
-# Configuring Git
-echo "Configuring Git..."
-if sudo -u "$SUDO_USER" bash /vagrant/git_setup.sh --config-file /vagrant/git_setup.conf --non-interactive; then
-    echo "Git configured successfully."
-else
-    echo "Git configuration failed."
-    exit 1
-fi
+echo "Tmux Plugin Manager and plugins installed successfully."
 
 # Clean up package manager cache
 echo "Cleaning up..."
-rm -rf /tmp/gtkwave /tmp/ghdl
 apt-get autoremove -y && apt-get clean
 
 echo "Setup completed successfully!"
+
+# --- End of Script ---
