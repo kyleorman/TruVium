@@ -12,7 +12,7 @@ TMUX_VERSION="3.5"
 TMP_DIR="/tmp/setup_script_install"
 INSTALL_PREFIX="/usr/local"
 NODE_VERSION="${NODE_VERSION:-22.x}"  # Default Node.js version
-VIM_VERSION="${VIM_VERSION:-}"        # Optional: Specify Vim version, defaults to latest
+VIM_VERSION="${VIM_VERSION:-9.1.0744}"        # Optional: Specify Vim version, defaults to latest
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
@@ -211,7 +211,8 @@ install_vim_from_source() {
     if [ -z "$VIM_VERSION" ]; then
         # Determine the latest stable Vim version tag
         echo "Determining the latest stable Vim tag..."
-        VIM_VERSION_TAG=$(git tag -l "v*" --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)*$' | head -n1)
+        VIM_VERSION_TAG=$(git tag -l "v*" --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)*$' | head -n1)
+        echo "Latest Vim tag detected: $VIM_VERSION_TAG"
         if [ -z "$VIM_VERSION_TAG" ]; then
             echo "Error: Unable to determine the latest stable Vim version tag."
             exit 1
@@ -233,7 +234,7 @@ install_vim_from_source() {
     else
         # Checkout the desired Vim version
         echo "Checking out Vim version $VIM_VERSION_TAG..."
-        git checkout "tags/$VIM_VERSION_TAG" || { echo "Failed to checkout Vim version $VIM_VERSION_TAG"; exit 1; }
+        git checkout "$VIM_VERSION_TAG" || { echo "Failed to checkout Vim version $VIM_VERSION_TAG"; exit 1; }
     fi
 
     # Autogen, configure, make, and install steps
@@ -272,11 +273,20 @@ install_vim_from_source() {
     echo "Verifying Vim installation..."
     INSTALLED_VIM_VERSION=$(/usr/local/bin/vim --version | head -n1 | awk '{print $5}')
     echo "Installed Vim version: $INSTALLED_VIM_VERSION"
-    if [ "$INSTALLED_VIM_VERSION" = "$VIM_VERSION" ]; then
+    echo "Expected Vim version: $VIM_VERSION"
+
+    # Extract major and minor versions for comparison
+    INSTALLED_VIM_MAIN_VERSION=$(echo "$INSTALLED_VIM_VERSION" | awk -F. '{print $1"."$2}')
+    EXPECTED_VIM_MAIN_VERSION=$(echo "$VIM_VERSION" | awk -F. '{print $1"."$2}')
+
+    echo "Installed Vim main version: $INSTALLED_VIM_MAIN_VERSION"
+    echo "Expected Vim main version: $EXPECTED_VIM_MAIN_VERSION"
+
+    if [ "$INSTALLED_VIM_MAIN_VERSION" = "$EXPECTED_VIM_MAIN_VERSION" ]; then
         echo "Vim $VIM_VERSION successfully installed from source."
     else
         echo "Vim installation verification failed."
-        echo "Expected version: $VIM_VERSION, but found version: $INSTalled_VIM_VERSION"
+        echo "Expected main version: $EXPECTED_VIM_MAIN_VERSION, but found main version: $INSTALLED_VIM_MAIN_VERSION"
         exit 1
     fi
 
@@ -290,8 +300,9 @@ install_vim_from_source() {
     # Optionally, remove Vim source directory to save space
     # Uncomment the following lines if you wish to remove the source
     # echo "Cleaning up Vim source files..."
-    # rm -rf "$VIM_SRC_DIR"
+    rm -rf "$VIM_SRC_DIR"
 }
+
 
 # Function to kill any running tmux sessions
 kill_tmux_sessions() {
