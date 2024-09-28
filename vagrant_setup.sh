@@ -2,7 +2,7 @@
 
 # Exit immediately if a command exits with a non-zero status,
 # if any undefined variable is used, and if any command in a pipeline fails
-set -euo pipefail
+set -eEuo pipefail
 IFS=$'\n\t'
 
 # --- Configuration Variables ---
@@ -12,7 +12,7 @@ TMUX_VERSION="3.5"
 TMP_DIR="/tmp/setup_script_install"
 INSTALL_PREFIX="/usr/local"
 NODE_VERSION="${NODE_VERSION:-22.x}"  # Default Node.js version
-VIM_VERSION="${VIM_VERSION:-9.1.0744}"        # Optional: Specify Vim version, defaults to latest
+VIM_VERSION="${VIM_VERSION:-9.1.0744}" # Optional: Specify Vim version, defaults to latest
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
@@ -23,15 +23,55 @@ else
     exit 1
 fi
 
-# Redirect all output to LOGFILE
-exec > >(tee -a "$LOGFILE") 2>&1
+# Export environment variable to indicate the setup script is running
+export SETUP_SCRIPT_RUNNING=true
+
+# Redirect all output to LOGFILE with timestamps
+exec > >(while IFS= read -r line; do echo "$(date '+%Y-%m-%d %H:%M:%S') - $line"; done | tee -a "$LOGFILE") 2>&1
 
 # --- Trap for Cleanup ---
 cleanup() {
-    echo "Cleaning up temporary directories..."
-    rm -rf "$TMP_DIR" /tmp/gtkwave /tmp/ghdl
+    echo "----- Cleaning Up Temporary Directories and Files -----"
+    
+    # Remove general temporary installation directory
+    if [ -d "$TMP_DIR" ]; then
+        echo "Removing temporary directory: $TMP_DIR"
+        rm -rf "$TMP_DIR" || echo "Failed to remove $TMP_DIR"
+    else
+        echo "Temporary directory $TMP_DIR does not exist. Skipping."
+    fi
+    
+    # Remove GTKWAVE and GHDL build directories
+    for dir in /tmp/gtkwave /tmp/ghdl; do
+        if [ -d "$dir" ]; then
+            echo "Removing directory: $dir"
+            rm -rf "$dir" || echo "Failed to remove $dir"
+        else
+            echo "Directory $dir does not exist. Skipping."
+        fi
+    done
+    
+    # Remove Vim source directory if it exists
+    VIM_SRC_DIR="$TMP_DIR/vim"
+    if [ -d "$VIM_SRC_DIR" ]; then
+        echo "Removing Vim source directory: $VIM_SRC_DIR"
+        rm -rf "$VIM_SRC_DIR" || echo "Failed to remove $VIM_SRC_DIR"
+    else
+        echo "Vim source directory $VIM_SRC_DIR does not exist. Skipping."
+    fi
+    
+    # Remove Oh My Zsh installation script
+    OH_MY_ZSH_SCRIPT="/tmp/install_oh_my_zsh.sh"
+    if [ -f "$OH_MY_ZSH_SCRIPT" ]; then
+        echo "Removing Oh My Zsh install script: $OH_MY_ZSH_SCRIPT"
+        rm -f "$OH_MY_ZSH_SCRIPT" || echo "Failed to remove $OH_MY_ZSH_SCRIPT"
+    else
+        echo "Oh My Zsh install script $OH_MY_ZSH_SCRIPT does not exist. Skipping."
+    fi
+    
+    echo "----- Cleanup Completed -----"
 }
-trap cleanup EXIT
+trap cleanup ERR EXIT
 
 # --- Function Definitions ---
 
@@ -168,6 +208,14 @@ install_tmux_from_git() {
     echo "tmux installation process completed successfully."
 }
 
+# Function to start tmux server and create default session
+start_tmux_server() {
+    echo "Starting tmux server and creating default session..."
+    sudo -u "$ACTUAL_USER" tmux start-server
+    sudo -u "$ACTUAL_USER" tmux new-session -d -s default || echo "Default tmux session already exists."
+    echo "tmux server started with default session."
+}
+
 # Function to install Vim from Source with Dynamic Version Detection
 install_vim_from_source() {
     echo "Installing Vim from source with extensive feature support..."
@@ -300,9 +348,8 @@ install_vim_from_source() {
     # Optionally, remove Vim source directory to save space
     # Uncomment the following lines if you wish to remove the source
     # echo "Cleaning up Vim source files..."
-    rm -rf "$VIM_SRC_DIR"
+    # rm -rf "$VIM_SRC_DIR"
 }
-
 
 # Function to kill any running tmux sessions
 kill_tmux_sessions() {
@@ -354,8 +401,14 @@ setup_zsh() {
         echo 'export PATH="$HOME/go/bin:$PATH"'
         echo ''
         echo 'if [[ $- == *i* ]]; then'  # Check if shell is interactive
-        echo '  if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
-        echo '    tmux attach-session -t default || tmux new-session -s default'
+        echo '  if [ -z "$SETUP_SCRIPT_RUNNING" ]; then'  # Check if setup script is not running
+        echo '    if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
+        echo '      if tmux ls &> /dev/null; then'
+        echo '        tmux attach-session -t default'
+        echo '      else'
+        echo '        tmux new-session -s default'
+        echo '      fi'
+        echo '    fi'
         echo '  fi'
         echo 'fi'
     } >> "$USER_HOME/.zshrc"
@@ -367,6 +420,9 @@ setup_zsh() {
     sudo -u "$ACTUAL_USER" /usr/local/bin/tmux set-environment -g ZDOTDIR "$USER_HOME/.zsh"
 
     echo ".zshrc setup complete for $ACTUAL_USER."
+
+    # Unset the environment variable after setup
+    unset SETUP_SCRIPT_RUNNING
 }
 
 # Function to ensure TPM (Tmux Plugin Manager) is installed
@@ -559,7 +615,7 @@ clone_zsh_plugins() {
     if grep -q "^plugins=" "$USER_HOME/.zshrc"; then
         sed -i "s/^plugins=.*/$DESIRED_PLUGINS/" "$USER_HOME/.zshrc"
     else
-        sed -i "/^source.*oh-my-zsh.sh/a $DESIRED_PLUGINS" "$USER_HOME/.zshrc"
+        sed -i "/^source .*oh-my-zsh.sh/a $DESIRED_PLUGINS" "$USER_HOME/.zshrc"
     fi
 
     echo "Plugins configured in .zshrc."
@@ -826,6 +882,37 @@ install_dependencies() {
         virtualbox-guest-x11 || { echo "Package installation failed"; exit 1; }
 }
 
+# Function to install Node.js
+install_nodejs() {
+    echo "----- Installing Node.js -----"
+
+    # Change directory to user's home to prevent 'getcwd()' issues
+    echo "Changing directory to user's home to avoid 'getcwd()' errors during cleanup..."
+    cd "$USER_HOME" || { echo "Error: Failed to change directory to $USER_HOME"; exit 1; }
+
+    # Check if Node.js is already installed
+    if ! command -v node &>/dev/null; then
+        echo "Node.js is not installed. Proceeding with installation..."
+
+        echo "Installing Node.js version $NODE_VERSION..."
+        # Download and execute the NodeSource setup script for the specified Node.js version
+        curl -fsSL https://deb.nodesource.com/setup_"$NODE_VERSION" | bash - || { echo "Error: Node.js setup script failed"; exit 1; }
+
+        echo "Installing Node.js package..."
+        apt-get install -y nodejs || { echo "Error: Node.js installation failed"; exit 1; }
+
+        echo "Node.js version $(node -v) installed successfully."
+    else
+        echo "Node.js is already installed. Version: $(node -v)"
+    fi
+
+    echo "----- Node.js Installation Completed -----"
+
+    # Update npm to the latest version
+    echo "----- Updating npm to the latest version -----"
+    npm install -g npm
+}
+
 # --- Main Script Execution ---
 
 echo "----- Starting Setup Script -----"
@@ -845,24 +932,18 @@ install_checkmake
 # Remove existing Vim installations (Optional)
 remove_system_vim
 
-# Install tmux before setting up Zsh
+# Install tmux from Git
 remove_outdated_tmux
 install_tmux_from_git
+
+# Start tmux server and create default session
+start_tmux_server
 
 # Install Vim from source with dynamic version detection
 install_vim_from_source
 
-# Install Node.js if not installed
-if ! command -v node &>/dev/null; then
-    echo "Installing Node.js $NODE_VERSION..."
-    curl -fsSL https://deb.nodesource.com/setup_"$NODE_VERSION" | bash - || { echo "Node.js setup script failed"; exit 1; }
-    apt-get install -y nodejs || { echo "Node.js installation failed"; exit 1; }
-else
-    echo "Node.js is already installed."
-fi
-
-# Update npm to the latest version
-npm install -g npm
+# Install Node.js
+install_nodejs
 
 # Install and configure Zsh and Oh My Zsh
 kill_tmux_sessions
@@ -902,9 +983,17 @@ install_tpm
 echo "Tmux Plugin Manager and plugins installed successfully."
 
 # Clean up package manager cache
-echo "Cleaning up..."
+echo "Cleaning up package manager cache..."
 apt-get autoremove -y && apt-get clean
 
-echo "Setup completed successfully!"
+echo "----- Setup Completed Successfully! -----"
+
+# --- Final Cleanup ---
+cleanup
+
+# Remove the trap to prevent cleanup from running again
+trap - ERR EXIT
+
+echo "----- Setup Script Finished -----"
 
 # --- End of Script ---
