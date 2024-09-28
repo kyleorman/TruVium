@@ -293,15 +293,25 @@ install_vim_from_source() {
         echo "Configure script already exists."
     fi
 
+    # Verify that python3-config returns a valid directory
+    PYTHON_CONFIG_DIR=$(python3-config --configdir)
+    if [ -z "$PYTHON_CONFIG_DIR" ]; then
+        echo "Error: python3-config did not return a valid config directory."
+        exit 1
+    fi
+    echo "python3-config detected config directory: $PYTHON_CONFIG_DIR"
+
     echo "Configuring Vim build with prefix $VIM_INSTALL_PREFIX and features=huge..."
     ./configure --prefix="$VIM_INSTALL_PREFIX" \
                 --with-features=huge \
                 --enable-multibyte \
                 --enable-rubyinterp=yes \
-                --enable-python3interp=yes \
-                --with-python3-config-dir=$(python3-config --configdir) \
+                --enable-python3interp=dynamic \
+                --with-python3-command=python3 \
+                --with-python3-config-dir="$PYTHON_CONFIG_DIR" \
                 --enable-perlinterp=yes \
-                --enable-luainterp=yes \
+                --enable-luainterp=dynamic \
+                --with-lua-prefix=/usr \
                 --enable-gui=gtk3 \
                 --enable-cscope || { echo "Vim configuration failed"; exit 1; }
 
@@ -845,6 +855,7 @@ install_dependencies() {
         python3-pip \
         python3-venv \
         pipenv \
+		lua5.4 \
         cmake \
         zsh \
         make \
@@ -878,6 +889,8 @@ install_dependencies() {
         openbox \
         xdg-utils \
         tmux \
+		python3-dev \
+		liblua5.4-dev \
         virtualbox-guest-utils \
         virtualbox-guest-x11 || { echo "Package installation failed"; exit 1; }
 }
