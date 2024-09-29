@@ -155,6 +155,9 @@ install_tmux_from_git() {
         build-essential \
         git \
         bison \
+		wget \
+		gzip \
+		tcl \
         ninja-build || { echo "Failed to install dependencies"; exit 1; }
 
     # Clone the tmux repository if not already cloned
@@ -200,10 +203,37 @@ install_tmux_from_git() {
         exit 1
     fi
 
-	# You might want to verify this file does what it says on the tin, just to be safe
-	wget http://invisible-island.net/datafiles/current/terminfo.src.gz
-	gunzip terminfo.src.gz
-	tic /tmp/terminfo.src
+    # Terminfo Update Process
+    echo "Starting terminfo update process..."
+
+    # Define temporary paths
+    TERMINFO_TMP_DIR="/tmp/terminfo_update"
+    TERMINFO_SRC_GZ="$TERMINFO_TMP_DIR/terminfo.src.gz"
+    TERMINFO_SRC="$TERMINFO_TMP_DIR/terminfo.src"
+
+    # Create a temporary directory for terminfo operations
+    mkdir -p "$TERMINFO_TMP_DIR"
+    
+    echo "Downloading the latest terminfo source file from the official ncurses repository..."
+    wget -O "$TERMINFO_SRC_GZ" http://invisible-island.net/datafiles/current/terminfo.src.gz || { echo "Failed to download terminfo.src.gz"; exit 1; }
+	
+	#echo "Verifying the integrity of the downloaded terminfo.src.gz..."
+	#echo "expected_checksum  $TERMINFO_SRC_GZ" | sha256sum -c - || { echo "Checksum verification failed"; exit 1; }
+
+	echo "Backing up existing terminfo database..."
+	mkdir -p "$TERMINFO_TMP_DIR/backup"
+	cp -r ~/.terminfo "$TERMINFO_TMP_DIR/backup/" || echo "Failed to back up existing terminfo database"
+
+    echo "Decompressing the terminfo source file..."
+    gunzip -f "$TERMINFO_SRC_GZ" || { echo "Failed to decompress terminfo.src.gz"; exit 1; }
+
+    echo "Compiling the terminfo source file..."
+    tic "$TERMINFO_SRC" || { echo "Failed to compile terminfo.src"; exit 1; }
+
+    echo "Terminfo update process completed successfully."
+
+    # Optional: Clean up terminfo temporary files
+    rm -rf "$TERMINFO_TMP_DIR"
 	
     # Fix permissions (if necessary)
     echo "Fixing ownership of user home directory and /tmp..."
