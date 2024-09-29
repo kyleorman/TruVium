@@ -128,6 +128,19 @@ Vagrant.configure("2") do |config|
       SHELL
     end
   end
+  
+
+  config.trigger.after :up do |trigger|
+    trigger.name = "Open URL in host's browser"
+    url_to_open = settings['open_url'] || "http://www.google.com"  # Default to Google if not set
+  
+    # This will run on the host machine to open the URL in the default browser
+    trigger.run = {
+      inline: "if [ \"$(uname)\" = \"Darwin\" ]; then open #{url_to_open}; elif [ \"$(uname)\" = \"Linux\" ]; then xdg-open #{url_to_open}; elif [ \"$(uname)\" = \"CYGWIN\" ] || [ \"$(uname)\" = \"MINGW\" ] || [ \"$(uname)\" = \"MSYS\" ]; then start #{url_to_open}; fi"
+    }
+  end
+
+
 
   # Post-up message
   if settings.key?('post_up_message')
