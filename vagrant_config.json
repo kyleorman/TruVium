@@ -35,5 +35,6 @@
   ],
   "environment_variables": {},
   "post_up_message": "Port forwarding for Jupyter is enabled on port 8888.",
-  "user_shell": "bash"
+  "user_shell": "bash",
+  "open_url": "http://www.google.com"
 }
