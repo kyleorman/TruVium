@@ -587,11 +587,20 @@ install_vim_plugins() {
         "mrtazz/checkmake"
         "vim-syntastic/syntastic"
         "jpalardy/vim-slime"
+		"lervag/vimtex"
+		"pangloss/vim-javascript"
+		"elzr/vim-json"
+		"stephpy/vim-yaml"
+		"vim-python/python-syntax"
     )
 
     OPTIONAL_PLUGINS=(
         "klen/python-mode"
         "suoto/hdl_checker"
+		"vim-perl/vim-perl"
+		"octol/vim-cpp-enhanced-highlight"
+		"nsf/gocode"
+		"grossbart/vim-matlab"
         # Add more optional plugins here as needed
     )
 
@@ -709,6 +718,52 @@ install_coc_dependencies() {
             exit 1
         }
         echo "Dependencies for coc.nvim installed successfully."
+
+        echo "Installing global npm packages for language servers..."
+
+        # Install bash-language-server
+        echo "Installing bash-language-server..."
+        sudo -u "$ACTUAL_USER" npm install -g bash-language-server || {
+            echo "Error: Failed to install bash-language-server."
+            exit 1
+        }
+
+        # Install svlangserver
+        echo "Installing svlangserver..."
+        sudo -u "$ACTUAL_USER" npm install -g svlangserver || {
+            echo "Error: Failed to install svlangserver."
+            exit 1
+        }
+
+        # Install yaml-language-server
+        echo "Installing yaml-language-server..."
+        sudo -u "$ACTUAL_USER" npm install -g yaml-language-server || {
+            echo "Error: Failed to install yaml-language-server."
+            exit 1
+        }
+
+        # Install vscode-langservers-extracted (for HTML, CSS, JSON language servers)
+        echo "Installing vscode-langservers-extracted..."
+        sudo -u "$ACTUAL_USER" npm install -g vscode-langservers-extracted || {
+            echo "Error: Failed to install vscode-langservers-extracted."
+            exit 1
+        }
+
+        # Install typescript-language-server and typescript
+        echo "Installing typescript-language-server and typescript..."
+        sudo -u "$ACTUAL_USER" npm install -g typescript typescript-language-server || {
+            echo "Error: Failed to install typescript-language-server and typescript."
+            exit 1
+        }
+
+        # Install pyright (Python language server)
+        echo "Installing pyright..."
+        sudo -u "$ACTUAL_USER" npm install -g pyright || {
+            echo "Error: Failed to install pyright."
+            exit 1
+        }
+
+        echo "Global npm packages for language servers installed successfully."
     else
         echo "Error: coc.nvim directory not found at '$COC_DIR'."
         exit 1
@@ -941,6 +996,10 @@ install_dependencies() {
         liblua5.4-dev \
         libperl-dev \
         ruby-dev \
+		clangd \
+		openjdk-11-jre \
+		cpanminus \
+		openjdk-11-jre-headless \
         tcl-dev || { echo "Package installation failed"; exit 1; }
 }
 
@@ -973,6 +1032,81 @@ install_nodejs() {
     # Update npm to the latest version
     echo "----- Updating npm to the latest version -----"
     npm install -g npm
+}
+
+# Function to install Perl Language Server
+install_perl_language_server() {
+    echo "Installing Perl Language Server..."
+
+    # Install cpanminus if not already installed
+    if ! command -v cpanm &>/dev/null; then
+        echo "Installing cpanminus..."
+        apt-get install -y cpanminus || { echo "Failed to install cpanminus"; exit 1; }
+    fi
+
+    # Install Perl::LanguageServer
+    echo "Installing Perl::LanguageServer via cpanminus..."
+    cpanm Perl::LanguageServer || { echo "Failed to install Perl::LanguageServer"; exit 1; }
+
+    echo "Perl Language Server installed successfully."
+}
+
+# Function to install MATLAB Language Server
+install_matlab_language_server() {
+    echo "Installing MATLAB Language Server..."
+
+    # Ensure Java 11+ is installed
+    if ! java -version 2>&1 | grep -q "11"; then
+        echo "Java 11+ is required. Installing OpenJDK 11..."
+        apt-get install -y openjdk-11-jre || { echo "Failed to install OpenJDK 11"; exit 1; }
+    fi
+
+    # Clone the MATLAB Language Server repository
+    sudo -u "$ACTUAL_USER" git clone https://github.com/matlab-language-server/matlab-language-server.git "$TMP_DIR/matlab-language-server" || { echo "Failed to clone MATLAB Language Server"; exit 1; }
+
+    # Build the language server
+    cd "$TMP_DIR/matlab-language-server" || { echo "Failed to access MATLAB Language Server directory"; exit 1; }
+    sudo -u "$ACTUAL_USER" ./gradlew installDist || { echo "Failed to build MATLAB Language Server"; exit 1; }
+
+    # Copy the built server to /usr/local/share
+    mkdir -p /usr/local/share/matlab-language-server
+    cp -r "$TMP_DIR/matlab-language-server/build/install/matlab-language-server/." /usr/local/share/matlab-language-server/ || { echo "Failed to copy MATLAB Language Server"; exit 1; }
+
+    echo "MATLAB Language Server installed successfully."
+}
+
+# Function to install LaTeX Language Server (texlab)
+install_texlab() {
+    echo "Installing LaTeX Language Server (texlab)..."
+
+    # Check if texlab is already installed
+    if ! command -v texlab &>/dev/null; then
+        # Install via package manager or download binary
+        if apt-get install -y texlab; then
+            echo "texlab installed via package manager."
+        else
+            echo "Failed to install texlab via package manager. Attempting manual installation..."
+            TEXLAB_VERSION="5.4.0"
+            wget -O "$TMP_DIR/texlab.tar.gz" "https://github.com/latex-lsp/texlab/releases/download/v$TEXLAB_VERSION/texlab-x86_64-linux.tar.gz" || { echo "Failed to download texlab"; exit 1; }
+            tar -xzf "$TMP_DIR/texlab.tar.gz" -C /usr/local/bin || { echo "Failed to extract texlab"; exit 1; }
+            chmod +x /usr/local/bin/texlab
+            echo "texlab installed manually."
+        fi
+    else
+        echo "texlab is already installed."
+    fi
+}
+
+# Function to install XML Language Server (lemminx)
+install_lemminx() {
+    echo "Installing XML Language Server (lemminx)..."
+
+    # Download the latest lemminx binary
+    LEMMINX_URL=$(curl -s https://api.github.com/repos/eclipse/lemminx/releases/latest | grep "browser_download_url.*lemminx-linux" | cut -d '"' -f 4)
+    wget -O /usr/local/bin/lemminx "$LEMMINX_URL" || { echo "Failed to download lemminx"; exit 1; }
+    chmod +x /usr/local/bin/lemminx
+
+    echo "lemminx installed successfully."
 }
 
 # Function to ensure the home directory is owned by the actual user
@@ -1044,6 +1178,12 @@ configure_git
 
 # Install coc.nvim dependencies
 install_coc_dependencies
+
+# Install additional language servers
+install_perl_language_server
+install_matlab_language_server
+install_texlab
+install_lemminx
 
 # Install GTKWAVE
 install_gtkwave

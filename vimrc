@@ -4,7 +4,13 @@
 
 " Be improved, required
 set nocompatible
-filetype off  " Required
+" Required
+filetype plugin indent on
+
+" Reduces flicker and speeds up macros
+set lazyredraw
+" Faster redrawing
+set ttyfast
 
 " Enable syntax highlighting
 syntax on
@@ -12,6 +18,10 @@ syntax on
 " Display line numbers and relative line numbers
 set number
 set relativenumber
+
+" Toggle relative numbers and numbers on/off
+nnoremap <F3> :set invnumber<CR>
+nnoremap <F4> :set invrnu<CR>
 
 " Configure tabs and indentation
 set tabstop=4        " Number of spaces in a tab
@@ -28,12 +38,14 @@ set splitright       " New vertical splits appear to the right
 
 " Enable mouse support in all modes
 set mouse=a
+" Enable mouse in Normal and Visual modes
+"set mouse=nv
 
 " Set encoding to UTF-8 for consistency
 set encoding=utf-8
 
 " Configure backspace behavior
-"set backspace=indent,eol,start
+set backspace=indent,eol,start
 
 " Leader key configuration (must be set before any mappings that use <leader>)
 let mapleader = ","
@@ -45,16 +57,11 @@ let mapleader = ","
 
 let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
 let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
-set termguicolors
 
 " Optionally enable true color support for Vim if your terminal supports it
 if has("termguicolors")
   set termguicolors
 endif
-
-set norelativenumber
-nnoremap <F3> :set invnumber<CR>
-nnoremap <F4> :set invrnu<CR>
 
 " Disable arrow keys in Normal and Visual Modes to encourage use of hjkl
 nnoremap <Up> <Nop>
@@ -390,22 +397,32 @@ vmap <leader>go :GBrowse<CR>
 
 " Define linters for various filetypes
 let g:ale_linters = {
-\   'vhdl': ['hdl_checker', 'ghdl'],
-\   'python': ['flake8', 'pylint', 'mypy'],
-\   'sh': ['shellcheck'],
-\   'make': ['checkmake']
-\}
+    \   'python': ['flake8', 'pylint', 'mypy'],
+    \   'sh': ['shellcheck'],
+    \   'make': ['checkmake'],
+    \   'vhdl': ['hdl_checker', 'ghdl'],
+    \   'c': ['clangd'],
+    \   'cpp': ['clangd'],
+    \   'perl': ['perl'],
+    \   'ruby': ['rubocop'],
+    \   'yaml': ['yamllint'],
+    \   'markdown': ['markdownlint'],
+    \   'latex': ['chktex'],
+    \}
 
 " Define fixers for various filetypes
 let g:ale_fixers = {
 \   'python': ['autopep8'],
 \   'sh': ['shfmt'],
-\   'make': ['shfmt']
+\   'make': ['shfmt'],
 \}
 
 " Enable fixing and linting on save
 let g:ale_fix_on_save = 1
 let g:ale_lint_on_save = 1
+
+" Set ALE sign priority lower than CoC's
+let g:ale_sign_priority = 5
 
 " ALE-specific settings for Python
 let g:ale_python_flake8_options = '--max-line-length=88'  " Follow PEP8 line length
@@ -431,12 +448,19 @@ let g:ale_make_checkmake_executable = 'checkmake'
 " let g:ale_virtualtext_cursor = 1
 " let g:ale_sign_column_always = 1
 
+" Disable ALE's autocompletion
+let g:ale_completion_enabled = 0
+
 " =====================================
 " ======== CoC Configuration ==========
 " =====================================
 
 " Define CoC extensions
-let g:coc_global_extensions = ['coc-python', 'coc-sh', 'coc-json']
+let g:coc_global_extensions = [
+    \ 'coc-python', 'coc-sh', 'coc-json', 'coc-clangd',
+    \ 'coc-solargraph', 'coc-markdownlint', 'coc-yaml',
+    \ 'coc-html', 'coc-css', 'coc-tsserver', 'coc-texlab'
+    \ ]
 
 " Use <Tab> and <S-Tab> for navigating the completion menu
 inoremap <silent><expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
@@ -483,14 +507,14 @@ command! -nargs=0 CocListExtensions :CocList extensions
 autocmd VimEnter * silent! call InstallCoCExtensions()
 
 " CoC snippet support with shared keybindings
-inoremap <silent><expr> <C-b> coc#pum#visible() ? "\<C-n>" :
-    \ (coc#expandable() ? "\<C-r>=coc#rpc#request('snippetNext', [])\<CR>" :
-    \ UltiSnips#CanJumpForwards() ? "\<C-r>=UltiSnips#JumpForwards()<CR>" :
-    \ "\<C-b>")
-inoremap <silent><expr> <C-z> coc#pum#visible() ? "\<C-p>" :
-    \ (coc#expandable() ? "\<C-r>=coc#rpc#request('snippetPrev', [])\<CR>" :
-    \ UltiSnips#CanJumpBackwards() ? "\<C-r>=UltiSnips#JumpBackwards()<CR>" :
-    \ "\<C-z>")
+"inoremap <silent><expr> <C-b> coc#pum#visible() ? "\<C-n>" :
+"    \ (coc#expandable() ? "\<C-r>=coc#rpc#request('snippetNext', [])\<CR>" :
+"    \ UltiSnips#CanJumpForwards() ? "\<C-r>=UltiSnips#JumpForwards()<CR>" :
+"    \ "\<C-b>")
+"inoremap <silent><expr> <C-z> coc#pum#visible() ? "\<C-p>" :
+"    \ (coc#expandable() ? "\<C-r>=coc#rpc#request('snippetPrev', [])\<CR>" :
+"    \ UltiSnips#CanJumpBackwards() ? "\<C-r>=UltiSnips#JumpBackwards()<CR>" :
+"    \ "\<C-z>")
 
 " =====================================
 " ======== Copilot Configuration ======
@@ -572,10 +596,21 @@ nnoremap <leader>ds :Pydocstring<CR>
 let g:UltiSnipsSnippetDirectories = ['UltiSnips', 'vim-snippets']
 
 " Set snippet triggers
-let g:UltiSnipsListSnippets = "C-Tab>"
-let g:UltiSnipsExpandTrigger = "<tab>"
-let g:UltiSnipsJumpForwardTrigger = "<C-b>"
-let g:UltiSnipsJumpBackwardTrigger = "<C-z>"
+"let g:UltiSnipsListSnippets = "C-Tab>"
+let g:UltiSnipsExpandTrigger = "<Tab>"
+"let g:UltiSnipsJumpForwardTrigger = "<Tab>"
+"let g:UltiSnipsJumpBackwardTrigger = "<S-Tab>"
+
+" Jump forward through snippet placeholders
+" Note: UltiSnips#ExpandSnippetOrJump() returns 1 if it can expand or jump, 0 otherwise
+" If it can't, it passes the Tab key through
+imap <silent><expr> <Tab> UltiSnips#ExpandSnippetOrJump() ? '' : '<Tab>'
+smap <expr> <Tab> UltiSnips#JumpForwards() ? '' : "\<Tab>"
+
+" Jump backward through snippet placeholders
+imap <expr> <S-Tab> UltiSnips#JumpBackwards() ? '' : "\<S-Tab>"
+smap <expr> <S-Tab> UltiSnips#JumpBackwards() ? '' : "\<S-Tab>"
+
 
 " =====================================
 " ======== Tagbar Configuration =========
@@ -594,6 +629,8 @@ let g:NERDCompactSexyComs = 1
 let g:NERDDefaultAlign = 'left'
 let g:NERDTrimTrailingWhitespace = 1
 let g:NERDCommenterUseOperatorMappings = 1
+
+let g:NERDCommenterMapLeader = ''
 
 " NERDCommenter Default Key Mappings:
 " ,c<space>    - Toggle comment on current line or selection
@@ -713,7 +750,7 @@ endif
 " Function to install CoC extensions if not already installed
 function! InstallCoCExtensions()
     " Define desired extensions
-    let extensions = ['coc-python', 'coc-sh', 'coc-json']
+    let extensions = ['coc-python', 'coc-sh', 'coc-json', 'coc-clangd', 'coc-html', 'coc-css', 'coc-tsserver', 'coc-textlab', 'coc-yaml', 'coc-markdownlint', 'coc-solargraph']
 
     " Iterate and install each extension
     for extension in extensions
