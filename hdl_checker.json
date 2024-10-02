@@ -1,48 +1,47 @@
 {
   "library_paths": [
-    "/usr/local/lib/ghdl/ieee/v08",   // Path to VHDL-2008 libraries
-    "/usr/local/lib/ghdl",            // General GHDL library path
-    "/usr/local/lib/ghdl/std/v08" // Add your custom library paths here (if any)
+    "/usr/local/lib/ghdl/ieee/v08",
+    "/usr/local/lib/ghdl",
+    "/usr/local/lib/ghdl/std/v08"
   ],
   "tool_options": {
     "ghdl": {
-      "options": ["--std=08"],        // Default to VHDL-2008 standard
-      "workdir": "./work",            // Working directory for compiled files
-      "vcd": "./vcd_output"           // Specify output directory for VCD files (optional)
+      "options": ["--std=08"],
+      "workdir": "./work",
+      "vcd": "./vcd_output"
     }
   },
   "tools": {
     "analyze": {
       "ghdl": {
-        "cmd": "ghdl -a",             // Command to analyze VHDL files
-        "args": ["--std=08"]          // Additional arguments for GHDL
+        "cmd": "ghdl -a",
+        "args": ["--std=08"]
       }
     },
     "simulate": {
       "ghdl": {
-        "cmd": "ghdl -r",             // Command to simulate VHDL files
-        "args": ["--std=08"],         // Additional arguments for GHDL simulation
-        "vcd": "--vcd=my_output.vcd"  // Optionally enable VCD generation
+        "cmd": "ghdl -r",
+        "args": ["--std=08"],
+        "vcd": "--vcd=my_output.vcd"
       }
     }
   },
   "linting": {
     "hdl_checker": {
-      "cmd": "hdl_checker",           // Linting tool command
-      "args": ["--std=08"]            // Use VHDL-2008 standard in linting
+      "cmd": "hdl_checker",
+      "args": ["--std=08"]
     }
   },
   "file_extensions": [
-    "*.vhdl", "*.vhd"                 // File extensions that will trigger HDL Checker
+    "*.vhdl", "*.vhd"
   ],
-  "work_library": "work",             // Default work library (can be customized)
+  "work_library": "work",
   "preprocessor": {
     "defines": {
-      "SYNTHESIS": "1"                // Preprocessor define for synthesis (if needed)
+      "SYNTHESIS": "1"
     }
   },
   "extra_paths": [
-    "/usr/local/bin"                  // Add any extra paths (optional)
+    "/usr/local/bin"
   ]
 }
-
