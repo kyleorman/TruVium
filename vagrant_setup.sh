@@ -1063,7 +1063,7 @@ install_matlab_language_server() {
     fi
 
     # Clone the MATLAB Language Server repository
-    sudo -u "$ACTUAL_USER" git clone https://github.com/matlab-language-server/matlab-language-server.git "$TMP_DIR/matlab-language-server" || { echo "Failed to clone MATLAB Language Server"; exit 1; }
+    sudo -u "$ACTUAL_USER" git clone https://github.com/mathworks/matlab-language-server.git "$TMP_DIR/matlab-language-server" || { echo "Failed to clone MATLAB Language Server"; exit 1; }
 
     # Build the language server
     cd "$TMP_DIR/matlab-language-server" || { echo "Failed to access MATLAB Language Server directory"; exit 1; }
@@ -1076,25 +1076,49 @@ install_matlab_language_server() {
     echo "MATLAB Language Server installed successfully."
 }
 
-# Function to install LaTeX Language Server (texlab)
+# Function to install LaTeX Language Server (TexLab)
 install_texlab() {
-    echo "Installing LaTeX Language Server (texlab)..."
+    echo "Installing LaTeX Language Server (TexLab)..."
+
+    # Define the version you want to install
+    TEXLAB_VERSION="5.19.0"  # Update to the latest version or desired version
 
     # Check if texlab is already installed
     if ! command -v texlab &>/dev/null; then
-        # Install via package manager or download binary
-        if apt-get install -y texlab; then
-            echo "texlab installed via package manager."
+        echo "TexLab is not installed. Proceeding with installation..."
+
+        # Create temporary directory for download
+        mkdir -p "$TMP_DIR/texlab_install"
+        cd "$TMP_DIR/texlab_install" || { echo "Failed to access temporary directory"; exit 1; }
+
+        # Determine system architecture
+        ARCH=$(uname -m)
+        if [[ "$ARCH" == "x86_64" ]]; then
+            TEXLAB_ARCH="x86_64"
+        elif [[ "$ARCH" == "aarch64" ]]; then
+            TEXLAB_ARCH="aarch64"
         else
-            echo "Failed to install texlab via package manager. Attempting manual installation..."
-            TEXLAB_VERSION="5.4.0"
-            wget -O "$TMP_DIR/texlab.tar.gz" "https://github.com/latex-lsp/texlab/releases/download/v$TEXLAB_VERSION/texlab-x86_64-linux.tar.gz" || { echo "Failed to download texlab"; exit 1; }
-            tar -xzf "$TMP_DIR/texlab.tar.gz" -C /usr/local/bin || { echo "Failed to extract texlab"; exit 1; }
-            chmod +x /usr/local/bin/texlab
-            echo "texlab installed manually."
+            echo "Unsupported architecture: $ARCH"
+            exit 1
         fi
+
+        # Download TexLab binary
+        TEXLAB_URL="https://github.com/latex-lsp/texlab/releases/download/v${TEXLAB_VERSION}/texlab-${TEXLAB_VERSION}-linux-${TEXLAB_ARCH}.tar.gz"
+        echo "Downloading TexLab from $TEXLAB_URL..."
+        wget -O "texlab.tar.gz" "$TEXLAB_URL" || { echo "Failed to download TexLab"; exit 1; }
+
+        # Extract the binary
+        echo "Extracting TexLab..."
+        tar -xzf "texlab.tar.gz" || { echo "Failed to extract TexLab"; exit 1; }
+
+        # Move the binary to /usr/local/bin
+        echo "Installing TexLab to /usr/local/bin..."
+        mv "texlab" /usr/local/bin/ || { echo "Failed to move TexLab binary"; exit 1; }
+        chmod +x /usr/local/bin/texlab
+
+        echo "TexLab installed successfully."
     else
-        echo "texlab is already installed."
+        echo "TexLab is already installed."
     fi
 }
 
