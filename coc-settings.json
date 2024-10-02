@@ -1,21 +1,30 @@
 {
-    "languageserver": {
-        "hdlChecker": {
-            "command": "hdl_checker",
-            "args": [
-                "--lsp"
-            ],
-            "filetypes": [
-                "vhdl",
-                "verilog",
-                "systemverilog"
-            ]
-        }
+  "languageserver": {
+    "hdlChecker": {
+      "command": "hdl_checker",
+      "args": ["--lsp"],
+      "filetypes": ["vhdl", "verilog", "systemverilog"]
+    },
+    "svlangserver": {
+      "command": "svlangserver",
+      "filetypes": ["systemverilog", "verilog"]
+    },
+    "perl": {
+      "command": "perl",
+      "args": ["-MPerl::LanguageServer", "-e", "Perl::LanguageServer::run", "--", "--stdio"],
+      "filetypes": ["perl"]
+    },
+    "matlab": {
+      "command": "java",
+      "args": ["-jar", "/path/to/matlab-language-server.jar"],
+      "filetypes": ["matlab"]
+    },
+    "xml": {
+      "command": "lemminx",
+      "filetypes": ["xml"]
     }
-}
-
-{
-  "snippets.ultisnips.enable": false,
-  "snippets.userSnippetsDirectory": "~/.config/coc/snippets",  " or the location of vim-snippets
-  "snippets.loadFromExtensions": true
+  },
+  "snippets.enable": false,
+  "diagnostic.enable": false,
+  "snippets.ultisnips.enable": true
 }
