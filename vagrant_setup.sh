@@ -600,7 +600,7 @@ install_vim_plugins() {
 		"vim-perl/vim-perl"
 		"octol/vim-cpp-enhanced-highlight"
 		"nsf/gocode"
-		"grossbart/vim-matlab"
+		"daeyun/vim-matlab"
         # Add more optional plugins here as needed
     )
 
@@ -692,7 +692,7 @@ clone_zsh_plugins() {
 install_python_tools() {
     echo "Installing Python tools..."
     pip3 install --upgrade pip
-    pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker vsg tox ipython jupyter jupyter-console meson || { echo "Failed to install Python tools"; exit 1; }
+    pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker vsg tox ipython jupyter jupyter-console meson pexpect || { echo "Failed to install Python tools"; exit 1; }
 }
 
 # Function to install CheckMake via Go
@@ -723,42 +723,42 @@ install_coc_dependencies() {
 
         # Install bash-language-server
         echo "Installing bash-language-server..."
-        sudo -u "$ACTUAL_USER" npm install -g bash-language-server || {
+        npm install -g bash-language-server || {
             echo "Error: Failed to install bash-language-server."
             exit 1
         }
 
         # Install svlangserver
         echo "Installing svlangserver..."
-        sudo -u "$ACTUAL_USER" npm install -g svlangserver || {
+        npm install -g svlangserver || {
             echo "Error: Failed to install svlangserver."
             exit 1
         }
 
         # Install yaml-language-server
         echo "Installing yaml-language-server..."
-        sudo -u "$ACTUAL_USER" npm install -g yaml-language-server || {
+        npm install -g yaml-language-server || {
             echo "Error: Failed to install yaml-language-server."
             exit 1
         }
 
         # Install vscode-langservers-extracted (for HTML, CSS, JSON language servers)
         echo "Installing vscode-langservers-extracted..."
-        sudo -u "$ACTUAL_USER" npm install -g vscode-langservers-extracted || {
+        npm install -g vscode-langservers-extracted || {
             echo "Error: Failed to install vscode-langservers-extracted."
             exit 1
         }
 
         # Install typescript-language-server and typescript
         echo "Installing typescript-language-server and typescript..."
-        sudo -u "$ACTUAL_USER" npm install -g typescript typescript-language-server || {
+        npm install -g typescript typescript-language-server || {
             echo "Error: Failed to install typescript-language-server and typescript."
             exit 1
         }
 
         # Install pyright (Python language server)
         echo "Installing pyright..."
-        sudo -u "$ACTUAL_USER" npm install -g pyright || {
+        npm install -g pyright || {
             echo "Error: Failed to install pyright."
             exit 1
         }
