@@ -3,7 +3,12 @@
     "hdlChecker": {
       "command": "hdl_checker",
       "args": ["--lsp"],
-      "filetypes": ["vhdl", "verilog", "systemverilog"]
+      "filetypes": ["vhdl", "verilog", "systemverilog"],
+	  "initializationOptions": {
+        "settings": {
+          "configuration": "${env:HOME}/.vim/hdl_checker.json"
+        }
+      }
     },
     "svlangserver": {
       "command": "svlangserver",
@@ -16,7 +21,7 @@
     },
     "matlab": {
       "command": "java",
-      "args": ["-jar", "/path/to/matlab-language-server.jar"],
+      "args": ["-jar", "/usr/local/share/matlab-language-server/matlab-language-server.jar"],
       "filetypes": ["matlab"]
     },
     "xml": {
