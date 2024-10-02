@@ -1,0 +1,14 @@
+# MATLAB Silent Installation Properties File
+
+destinationFolder=/usr/local/MATLAB/R2023a
+mode=silent
+agreeToLicense=yes
+licensePath=/home/youruser/license.lic
+fileInstallationKey=12345-67890-ABCDE-FGHIJ-KLMNO
+outputFile=/tmp/mathworks_install.log
+
+# Products to Install
+product.MATLAB
+product.Signal_Toolbox
+product.Control_Toolbox
+# Add other products as needed

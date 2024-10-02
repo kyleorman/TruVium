@@ -69,6 +69,12 @@ cleanup() {
         echo "Oh My Zsh install script $OH_MY_ZSH_SCRIPT does not exist. Skipping."
     fi
     
+    # Remove Go tarball
+    if [ -f "/tmp/go.tar.gz" ]; then
+    	echo "Removing Go tarball..."
+	rm /tmp/go.tar.gz || echo "Failed to remove Go tarball"
+    fi
+	    
     echo "----- Cleanup Completed -----"
 }
 trap cleanup ERR EXIT
@@ -340,8 +346,8 @@ install_vim_from_source() {
     ./configure --prefix="$VIM_INSTALL_PREFIX" \
                 --with-features=huge \
                 --enable-multibyte \
-				--enable-rubyinterp=dynamic \
-				--enable-tclinterp=yes \
+		--enable-rubyinterp=dynamic \
+		--enable-tclinterp=yes \
                 --enable-python3interp=dynamic \
                 --with-python3-command=python3 \
                 --with-python3-config-dir="$PYTHON_CONFIG_DIR" \
@@ -452,7 +458,7 @@ setup_zsh() {
         echo 'export PATH="/usr/bin:$PATH"'
         echo 'export PATH="$HOME/go/bin:$PATH"'
         echo 'export PATH="/usr/local/bin:$PATH"'
-        echo 'export PATH="$HOME/go/bin:$PATH"'
+        echo 'export PATH="/usr/local/go/bin:$PATH"'
         echo ''
         echo 'if [[ $- == *i* ]]; then'  # Check if shell is interactive
         echo '  if [ -z "$SETUP_SCRIPT_RUNNING" ]; then'  # Check if setup script is not running
@@ -698,7 +704,7 @@ install_python_tools() {
 # Function to install CheckMake via Go
 install_checkmake() {
     echo "Installing CheckMake via Go..."
-    sudo -u "$ACTUAL_USER" go install github.com/mrtazz/checkmake/cmd/checkmake@latest || { echo "CheckMake installation failed"; exit 1; }
+    go install github.com/mrtazz/checkmake/cmd/checkmake@latest || { echo "CheckMake installation failed"; exit 1; }
     echo 'export PATH="$HOME/go/bin:$PATH"' >> "$USER_HOME/.zshrc"
 }
 
@@ -952,7 +958,6 @@ install_dependencies() {
         software-properties-common \
         curl \
         wget \
-        golang \
         python3 \
         python3-pip \
         python3-venv \
@@ -1002,6 +1007,7 @@ install_dependencies() {
 	cpanminus \
 	openjdk-11-jre-headless \
 	openjdk-11-jdk \
+	maven \
         tcl-dev || { echo "Package installation failed"; exit 1; }
 }
 
@@ -1126,9 +1132,6 @@ install_matlab() {
 install_texlab() {
     echo "Installing LaTeX Language Server (TexLab)..."
 
-    # Define the version you want to install
-    TEXLAB_VERSION="5.19.0"  # Update to the latest version or desired version
-
     # Check if texlab is already installed
     if ! command -v texlab &>/dev/null; then
         echo "TexLab is not installed. Proceeding with installation..."
@@ -1141,17 +1144,48 @@ install_texlab() {
         ARCH=$(uname -m)
         if [[ "$ARCH" == "x86_64" ]]; then
             TEXLAB_ARCH="x86_64"
-        elif [[ "$ARCH" == "aarch64" ]]; then
+        elif [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
             TEXLAB_ARCH="aarch64"
         else
             echo "Unsupported architecture: $ARCH"
             exit 1
         fi
 
-        # Download TexLab binary
-        TEXLAB_URL="https://github.com/latex-lsp/texlab/releases/download/v${TEXLAB_VERSION}/texlab-${TEXLAB_VERSION}-linux-${TEXLAB_ARCH}.tar.gz"
-        echo "Downloading TexLab from $TEXLAB_URL..."
-        wget -O "texlab.tar.gz" "$TEXLAB_URL" || { echo "Failed to download TexLab"; exit 1; }
+        # Get the latest release information from GitHub API
+        echo "Fetching the latest TexLab release information..."
+        RELEASE_DATA=$(curl -s https://api.github.com/repos/latex-lsp/texlab/releases/latest)
+        if [ -z "$RELEASE_DATA" ]; then
+            echo "Failed to fetch release data from GitHub."
+            exit 1
+        fi
+
+        # Extract the tag name
+        LATEST_RELEASE=$(echo "$RELEASE_DATA" | grep -Po '"tag_name": "\K.*?(?=")')
+        if [ -z "$LATEST_RELEASE" ]; then
+            echo "Failed to determine the latest release tag."
+            exit 1
+        fi
+
+        echo "Latest TexLab release: $LATEST_RELEASE"
+
+        # List all available asset URLs for debugging
+        echo "Available assets:"
+        echo "$RELEASE_DATA" | grep -Po '"browser_download_url": "\K.*?(?=")'
+
+        # Build the expected asset filename
+        ASSET_FILENAME="texlab-${TEXLAB_ARCH}-linux.tar.gz"
+
+        # Find the asset download URL matching our architecture
+        ASSET_URL=$(echo "$RELEASE_DATA" | grep -Po '"browser_download_url": "\K.*?(?=")' | grep "$ASSET_FILENAME")
+        if [ -z "$ASSET_URL" ]; then
+            echo "Failed to find a compatible TexLab asset to download."
+            exit 1
+        fi
+
+        echo "Selected asset URL: $ASSET_URL"
+
+        echo "Downloading TexLab from $ASSET_URL..."
+        wget -O "texlab.tar.gz" "$ASSET_URL" || { echo "Failed to download TexLab"; exit 1; }
 
         # Extract the binary
         echo "Extracting TexLab..."
@@ -1162,28 +1196,52 @@ install_texlab() {
         mv "texlab" /usr/local/bin/ || { echo "Failed to move TexLab binary"; exit 1; }
         chmod +x /usr/local/bin/texlab
 
+        # Clean up temporary files
+        cd ~
+        rm -rf "$TMP_DIR/texlab_install"
+
         echo "TexLab installed successfully."
     else
         echo "TexLab is already installed."
     fi
 }
 
-# Function to install XML Language Server (lemminx)
 install_lemminx() {
-    echo "Installing XML Language Server (lemminx)..."
+    echo "Installing XML Language Server (LemMinX)..."
 
-    # Download the latest lemminx binary
-    LEMMINX_URL=$(curl -s https://api.github.com/repos/eclipse/lemminx/releases/latest | grep "browser_download_url.*lemminx-linux" | cut -d '"' -f 4)
-    wget -O /usr/local/bin/lemminx "$LEMMINX_URL" || { echo "Failed to download lemminx"; exit 1; }
-    chmod +x /usr/local/bin/lemminx
+    # Install necessary dependencies
+    if ! command -v mvn &>/dev/null; then
+        echo "Maven is not installed. Installing Maven..."
+        apt-get update
+        apt-get install -y maven || { echo "Failed to install Maven"; exit 1; }
+    fi
+    if ! command -v java &>/dev/null; then
+        echo "Java is not installed. Installing Java (GraalVM)..."
+        apt-get install -y graalvm-ce-java11 || { echo "Failed to install GraalVM"; exit 1; }
+    fi
 
-    echo "lemminx installed successfully."
+    # Clone the LemMinX repository
+    if [ ! -d "/tmp/lemminx" ]; then
+        git clone https://github.com/eclipse/lemminx.git /tmp/lemminx || { echo "Failed to clone LemMinX repository"; exit 1; }
+    fi
+
+    # Build LemMinX
+    cd /tmp/lemminx
+    mvn package -DskipTests || { echo "Failed to build LemMinX"; exit 1; }
+
+    # Install the JAR file
+    cp org.eclipse.lemminx/target/org.eclipse.lemminx-uber.jar /usr/local/bin/lemminx.jar || { echo "Failed to install LemMinX"; exit 1; }
+
+    # Add an alias to your .zshrc
+    echo "alias lemminx='java -jar /usr/local/bin/lemminx.jar'" >> ~/.zshrc
+
+    echo "LemMinX installed successfully. Restart your terminal or run 'source ~/.zshrc' to use it."
 }
 
 # Function to install Go Language Server
 install_go_language_server() {
     echo "Installing Go Language Server (gopls)..."
-    sudo -u "$ACTUAL_USER" go install golang.org/x/tools/gopls@latest || { echo "Failed to install gopls"; exit 1; }
+    go install golang.org/x/tools/gopls@latest || { echo "Failed to install gopls"; exit 1; }
     echo "Go Language Server installed successfully."
 }
 
@@ -1202,6 +1260,54 @@ ensure_home_ownership() {
     echo "----- Home directory ownership ensured -----"
 }
 
+install_golang() {
+    echo "Installing the latest stable version of Go Programming Language..."
+
+    # Fetch the latest stable Go version
+    LATEST_GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | tr -d '\n' | grep -oP '^go\d+\.\d+(\.\d+)?')
+    GO_ARCH="linux-amd64"
+
+    # Check if Go is already installed and at the correct version
+    if command -v go &>/dev/null; then
+        INSTALLED_GO_VERSION=$(go version | awk '{print $3}')
+        if [[ "$INSTALLED_GO_VERSION" == "$LATEST_GO_VERSION" ]]; then
+            echo "Go $LATEST_GO_VERSION is already installed. Skipping installation."
+            return 0
+        else
+            echo "Updating Go from $INSTALLED_GO_VERSION to $LATEST_GO_VERSION."
+        fi
+    else
+        echo "Go is not installed. Proceeding with installation."
+    fi
+
+    # Download Go tarball
+    wget "https://go.dev/dl/$LATEST_GO_VERSION.$GO_ARCH.tar.gz" -O /tmp/go.tar.gz || { echo "Failed to download Go"; exit 1; }
+
+    # Remove previous Go installation, if it exists
+    rm -rf /usr/local/go
+
+    # Install Go by extracting the tarball
+    tar -C /usr/local -xzf /tmp/go.tar.gz || { echo "Failed to extract Go"; exit 1; }
+
+    # Temporarily add /usr/local/go/bin to the PATH for both user and sudo
+    export PATH="/usr/local/go/bin:$PATH"
+    sudo bash -c "export PATH='/usr/local/go/bin:$PATH'"
+
+    # Ensure /usr/local/go/bin is in the PATH for future sessions
+    echo 'export PATH=$PATH:/usr/local/go/bin' | sudo tee -a /root/.bashrc
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> "$USER_HOME/.zshrc"
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> "$USER_HOME/.bashrc"
+
+    # Verify installation
+    if go version | grep -q "$LATEST_GO_VERSION"; then
+        echo "Go $LATEST_GO_VERSION successfully installed."
+    else
+        echo "Go installation failed."
+        exit 1
+    fi
+}
+
+
 # --- Main Script Execution ---
 
 echo "----- Starting Setup Script -----"
@@ -1211,6 +1317,9 @@ check_internet_connection
 
 # Install essential packages
 install_dependencies
+
+# Install GO
+install_golang
 
 # Install Python tools
 install_python_tools
