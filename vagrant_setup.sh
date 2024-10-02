@@ -730,7 +730,7 @@ install_coc_dependencies() {
 
         # Install svlangserver
         echo "Installing svlangserver..."
-        npm install -g svlangserver || {
+        npm install -g @imc-trading/svlangserver || {
             echo "Error: Failed to install svlangserver."
             exit 1
         }
