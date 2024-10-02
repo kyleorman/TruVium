@@ -886,6 +886,7 @@ copy_config_files() {
         ["tmux.conf"]=".tmux.conf"
         ["tmux_keys.sh"]=".tmux_keys.sh"
         ["coc-settings.json"]=".vim/coc-settings.json"
+		["hdl_checker.json"]=".vim/hdl_checker.json"
 		["airline_theme.conf"]=".vim/airline_theme.conf"
 		["color_scheme.conf"]=".vim/color_scheme.conf"
     )
@@ -1109,6 +1110,13 @@ install_lemminx() {
     echo "lemminx installed successfully."
 }
 
+# Function to install Go Language Server
+install_go_language_server() {
+    echo "Installing Go Language Server (gopls)..."
+    sudo -u "$ACTUAL_USER" go install golang.org/x/tools/gopls@latest || { echo "Failed to install gopls"; exit 1; }
+    echo "Go Language Server installed successfully."
+}
+
 # Function to ensure the home directory is owned by the actual user
 ensure_home_ownership() {
     echo "----- Ensuring ownership of home directory -----"
@@ -1184,6 +1192,7 @@ install_perl_language_server
 install_matlab_language_server
 install_texlab
 install_lemminx
+install_go_language_server
 
 # Install GTKWAVE
 install_gtkwave
