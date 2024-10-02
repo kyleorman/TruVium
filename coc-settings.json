@@ -1,5 +1,21 @@
 {
   "languageserver": {
+	"texlab": {
+      "command": "texlab",
+      "filetypes": ["tex", "bib", "plaintex", "latex"],
+      "rootPatterns": ["texlab-config.toml", ".git/"],
+      "settings": {
+        "texlab": {
+          "build": {
+            "onSave": true
+          },
+          "forwardSearch": {
+            "executable": "evince",
+            "args": ["%p"]
+          }
+        }
+      }
+    },
     "hdlChecker": {
       "command": "hdl_checker",
       "args": ["--lsp"],
