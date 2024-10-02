@@ -957,7 +957,7 @@ install_dependencies() {
         python3-pip \
         python3-venv \
         pipenv \
-		lua5.4 \
+	lua5.4 \
         cmake \
         zsh \
         make \
@@ -997,10 +997,11 @@ install_dependencies() {
         liblua5.4-dev \
         libperl-dev \
         ruby-dev \
-		clangd \
-		openjdk-11-jre \
-		cpanminus \
-		openjdk-11-jre-headless \
+	clangd \
+	openjdk-11-jre \
+	cpanminus \
+	openjdk-11-jre-headless \
+	openjdk-11-jdk \
         tcl-dev || { echo "Package installation failed"; exit 1; }
 }
 
@@ -1057,23 +1058,68 @@ install_matlab_language_server() {
     echo "Installing MATLAB Language Server..."
 
     # Ensure Java 11+ is installed
-    if ! java -version 2>&1 | grep -q "11"; then
-        echo "Java 11+ is required. Installing OpenJDK 11..."
-        apt-get install -y openjdk-11-jre || { echo "Failed to install OpenJDK 11"; exit 1; }
+    JAVA_VERSION=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+    JAVA_MAJOR_VERSION=$(echo "$JAVA_VERSION" | awk -F. '{print $1}')
+    if [ -z "$JAVA_MAJOR_VERSION" ] || [ "$JAVA_MAJOR_VERSION" -lt 11 ]; then
+        echo "Java 11+ is required. Installing OpenJDK 17..."
+        apt-get install -y openjdk-17-jdk || { echo "Failed to install OpenJDK 17"; exit 1; }
+    fi
+
+    # Ensure MATLAB is installed
+    if [ -z "${MATLAB_HOME:-}" ] || [ ! -d "$MATLAB_HOME" ]; then
+        echo "MATLAB_HOME is not set or does not point to a valid directory."
+        echo "Please install MATLAB R2019a or newer and set the MATLAB_HOME environment variable."
+        exit 1
     fi
 
     # Clone the MATLAB Language Server repository
-    sudo -u "$ACTUAL_USER" git clone https://github.com/mathworks/matlab-language-server.git "$TMP_DIR/matlab-language-server" || { echo "Failed to clone MATLAB Language Server"; exit 1; }
+    sudo -u "$ACTUAL_USER" git clone https://github.com/mathworks/MATLAB-language-server.git "$TMP_DIR/MATLAB-language-server" || { echo "Failed to clone MATLAB Language Server"; exit 1; }
 
     # Build the language server
-    cd "$TMP_DIR/matlab-language-server" || { echo "Failed to access MATLAB Language Server directory"; exit 1; }
-    sudo -u "$ACTUAL_USER" ./gradlew installDist || { echo "Failed to build MATLAB Language Server"; exit 1; }
+    cd "$TMP_DIR/MATLAB-language-server" || { echo "Failed to access MATLAB Language Server directory"; exit 1; }
+
+    # Set MATLAB_HOME during the build
+    sudo -u "$ACTUAL_USER" bash -c "export MATLAB_HOME='$MATLAB_HOME'; ./gradlew installDist" || { echo "Failed to build MATLAB Language Server"; exit 1; }
 
     # Copy the built server to /usr/local/share
     mkdir -p /usr/local/share/matlab-language-server
-    cp -r "$TMP_DIR/matlab-language-server/build/install/matlab-language-server/." /usr/local/share/matlab-language-server/ || { echo "Failed to copy MATLAB Language Server"; exit 1; }
+    cp -r "$TMP_DIR/MATLAB-language-server/build/install/matlab-language-server/." /usr/local/share/matlab-language-server/ || { echo "Failed to copy MATLAB Language Server"; exit 1; }
 
     echo "MATLAB Language Server installed successfully."
+}
+
+install_matlab() {
+    echo "Starting MATLAB installation..."
+
+    # Define variables
+    MATLAB_INSTALLER="/path/to/matlab_installer.zip"  # Update this path
+    INSTALLER_INPUT="/path/to/installer_input.txt"    # Update this path
+    MATLAB_INSTALL_DIR="/usr/local/MATLAB/R2023a"     # Update version as needed
+
+    # Check if MATLAB is already installed
+    if [ -d "$MATLAB_INSTALL_DIR" ]; then
+        echo "MATLAB is already installed at $MATLAB_INSTALL_DIR."
+        export MATLAB_HOME="$MATLAB_INSTALL_DIR"
+        return 0
+    fi
+
+    # Unzip MATLAB installer if it's zipped
+    if [ -f "$MATLAB_INSTALLER" ]; then
+        echo "Extracting MATLAB installer..."
+        unzip -q "$MATLAB_INSTALLER" -d "$TMP_DIR/matlab_installer" || { echo "Failed to extract MATLAB installer"; exit 1; }
+    else
+        echo "MATLAB installer not found at $MATLAB_INSTALLER."
+        exit 1
+    fi
+
+    # Run the installer silently
+    echo "Running MATLAB silent installation..."
+    "$TMP_DIR/matlab_installer/install" -inputFile "$INSTALLER_INPUT" || { echo "MATLAB installation failed"; exit 1; }
+
+    # Set MATLAB_HOME environment variable
+    export MATLAB_HOME="$MATLAB_INSTALL_DIR"
+
+    echo "MATLAB installed successfully."
 }
 
 # Function to install LaTeX Language Server (TexLab)
@@ -1211,9 +1257,12 @@ configure_git
 # Install coc.nvim dependencies
 install_coc_dependencies
 
+# Install MATLAB
+#install_matlab
+
 # Install additional language servers
 install_perl_language_server
-install_matlab_language_server
+#install_matlab_language_server
 install_texlab
 install_lemminx
 install_go_language_server
