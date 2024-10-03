@@ -1008,6 +1008,8 @@ install_dependencies() {
 	openjdk-11-jre-headless \
 	openjdk-11-jdk \
 	maven \
+	tree \
+	copyq \
         tcl-dev || { echo "Package installation failed"; exit 1; }
 }
 
