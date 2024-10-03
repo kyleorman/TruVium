@@ -60,7 +60,7 @@ LOGFILE=/dev/null
         tmux select-pane -R
       fi
       ;;
-    \\)
+    C-\\)
       if [[ "$current_command" =~ ^(g?view|n?vim?x?)(diff)?$ ]]; then
         echo "Action: send-keys C-\\"
         tmux send-keys "C-\\"
