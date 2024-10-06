@@ -667,6 +667,36 @@ endfunction
 nnoremap <leader>fv :call FormatVHDL()<CR>
 
 " =====================================
+" ======== VHDL Language Settings ========
+" =====================================
+
+" Set indentation for VHDL files
+autocmd FileType vhdl setlocal tabstop=2 shiftwidth=2 expandtab smartindent
+
+" Automatically capitalize VHDL keywords
+function! CapitalizeVHDLKeywords()
+    let keywords = ['entity', 'architecture', 'signal', 'begin', 'end', 'if', 'then', 'else', 'process', 'is', 'port', 'map', 'use', 'library']
+    for keyword in keywords
+        execute 'silent! %s/\<' . keyword . '\>/' . toupper(keyword) . '/g'
+    endfor
+endfunction
+autocmd BufWritePre *.vhdl call CapitalizeVHDLKeywords()
+
+" Set comment style for VHDL
+autocmd FileType vhdl setlocal comments=sr:--
+
+" Align signals and assignments using vim-easy-align
+nmap ga <Plug>(EasyAlign)
+xmap ga <Plug>(EasyAlign)
+
+" Remove trailing whitespace before saving VHDL files
+autocmd BufWritePre *.vhdl %s/\s\+$//e
+
+" Automatically close VHDL constructs
+inoremap if if <Esc>lA then<Esc>o<Esc>oend if;
+inoremap proc process(<Esc>li) is<Esc>o<Esc>oend process;
+
+" =====================================
 " ======== Color Scheme Cycling ========
 " =====================================
 
@@ -738,12 +768,6 @@ if filereadable(expand('~/.vim/color_scheme.conf'))
 endif
 
 " =====================================
-" ======== ALE Configuration ==========
-" =====================================
-
-" (ALE settings are already defined above under ALE Configuration)
-
-" =====================================
 " ======== CoC Extensions Installation ====
 " =====================================
 
@@ -766,6 +790,8 @@ endfunction
 
 " =====================================
 " ======== vim-slime Settings =========
+" =====================================
+
 "Tell vim-slime to use tmux as the target
 let g:slime_target = "tmux"
 
@@ -776,6 +802,27 @@ xmap <leader><leader>s <Plug>SlimeRegionSend
 nmap <leader><leader>s <Plug>SlimeParagraphSend
 
 "let g:slime_paste_file = 1
+
+" =====================================
+" ======== EasyMotion Settings ============
+" =====================================
+let g:EasyMotion_do_mapping = 0 " Disable default mappings
+
+" Jump to anywhere you want with minimal keystrokes, with just one key binding.
+" `s{char}{label}`
+"nmap s <Plug>(easymotion-overwin-f)
+" or
+" `s{char}{char}{label}`
+" Need one more keystroke, but on average, it may be more comfortable.
+nmap s <Plug>(easymotion-overwin-f2)
+
+" Turn on case-insensitive feature
+let g:EasyMotion_smartcase = 1
+
+" JK motions: Line motions
+map <Leader>j <Plug>(easymotion-j)
+map <Leader>k <Plug>(easymotion-k)
+
 
 " =====================================
 " ======== Final Settings ============
