@@ -578,6 +578,8 @@ install_vim_plugins() {
         "vim-airline/vim-airline-themes"
         "junegunn/fzf"
         "junegunn/fzf.vim"
+	"junegunn/vim-easy-align"
+	"easymotion/vim-easymotion"
         "tpope/vim-fugitive"
         "tpope/vim-rhubarb"
         "dense-analysis/ale"
@@ -593,11 +595,12 @@ install_vim_plugins() {
         "mrtazz/checkmake"
         "vim-syntastic/syntastic"
         "jpalardy/vim-slime"
-		"lervag/vimtex"
-		"pangloss/vim-javascript"
-		"elzr/vim-json"
-		"stephpy/vim-yaml"
-		"vim-python/python-syntax"
+	"lervag/vimtex"
+	"pangloss/vim-javascript"
+	"elzr/vim-json"
+	"stephpy/vim-yaml"
+	"vim-python/python-syntax"
+	
     )
 
     OPTIONAL_PLUGINS=(
