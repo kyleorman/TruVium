@@ -13,6 +13,8 @@ TMP_DIR="/tmp/setup_script_install"
 INSTALL_PREFIX="/usr/local"
 NODE_VERSION="${NODE_VERSION:-22.x}"  # Default Node.js version
 VIM_VERSION="${VIM_VERSION:-9.1.0744}" # Optional: Specify Vim version, defaults to latest
+NEOVIM_VERSION="${NEOVIM_VERSION:-}"   # Optional: Specify Neovim version, defaults to latest stable
+EMACS_VERSION="${EMACS_VERSION:-}"     # Optional: Specify Emacs version, defaults to latest
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
@@ -42,7 +44,7 @@ cleanup() {
     fi
     
     # Remove GTKWAVE and GHDL build directories
-    for dir in /tmp/gtkwave /tmp/ghdl; do
+    for dir in /tmp/gtkwave /tmp/ghdl /tmp/lemminx /tmp/nerd-fonts; do
         if [ -d "$dir" ]; then
             echo "Removing directory: $dir"
             rm -rf "$dir" || echo "Failed to remove $dir"
@@ -60,6 +62,42 @@ cleanup() {
         echo "Vim source directory $VIM_SRC_DIR does not exist. Skipping."
     fi
     
+    # Remove Neovim source directory if it exists
+    NEOVIM_SRC_DIR="$TMP_DIR/neovim"
+    if [ -d "$NEOVIM_SRC_DIR" ]; then
+        echo "Removing Neovim source directory: $NEOVIM_SRC_DIR"
+        rm -rf "$NEOVIM_SRC_DIR" || echo "Failed to remove $NEOVIM_SRC_DIR"
+    else
+        echo "Neovim source directory $NEOVIM_SRC_DIR does not exist. Skipping."
+    fi
+
+    # Remove Emacs source directory if it exists
+    EMACS_SRC_DIR="$TMP_DIR/emacs"
+    if [ -d "$EMACS_SRC_DIR" ]; then
+        echo "Removing Emacs source directory: $EMACS_SRC_DIR"
+        rm -rf "$EMACS_SRC_DIR" || echo "Failed to remove $EMACS_SRC_DIR"
+    else
+        echo "Emacs source directory $EMACS_SRC_DIR does not exist. Skipping."
+    fi
+
+    # Remove MATLAB Language Server directory if it exists
+    MATLAB_LS_DIR="$TMP_DIR/MATLAB-language-server"
+    if [ -d "$MATLAB_LS_DIR" ]; then
+        echo "Removing MATLAB Language Server directory: $MATLAB_LS_DIR"
+        rm -rf "$MATLAB_LS_DIR" || echo "Failed to remove $MATLAB_LS_DIR"
+    else
+        echo "MATLAB Language Server directory $MATLAB_LS_DIR does not exist. Skipping."
+    fi
+
+    # Remove TexLab installation directory if it exists
+    TEXLAB_INSTALL_DIR="$TMP_DIR/texlab_install"
+    if [ -d "$TEXLAB_INSTALL_DIR" ]; then
+        echo "Removing TexLab installation directory: $TEXLAB_INSTALL_DIR"
+        rm -rf "$TEXLAB_INSTALL_DIR" || echo "Failed to remove $TEXLAB_INSTALL_DIR"
+    else
+        echo "TexLab installation directory $TEXLAB_INSTALL_DIR does not exist. Skipping."
+    fi
+
     # Remove Oh My Zsh installation script
     OH_MY_ZSH_SCRIPT="/tmp/install_oh_my_zsh.sh"
     if [ -f "$OH_MY_ZSH_SCRIPT" ]; then
@@ -71,10 +109,10 @@ cleanup() {
     
     # Remove Go tarball
     if [ -f "/tmp/go.tar.gz" ]; then
-    	echo "Removing Go tarball..."
-	rm /tmp/go.tar.gz || echo "Failed to remove Go tarball"
+        echo "Removing Go tarball..."
+        rm /tmp/go.tar.gz || echo "Failed to remove Go tarball"
     fi
-	    
+        
     echo "----- Cleanup Completed -----"
 }
 trap cleanup ERR EXIT
@@ -401,6 +439,337 @@ install_vim_from_source() {
     # Uncomment the following lines if you wish to remove the source
     # echo "Cleaning up Vim source files..."
     # rm -rf "$VIM_SRC_DIR"
+}
+
+# Function to install Neovim from source with optional version
+install_neovim_from_source() {
+    echo "Installing Neovim from source..."
+
+    # Define variables
+    NEOVIM_SRC_DIR="$TMP_DIR/neovim"
+    NEOVIM_INSTALL_PREFIX="$INSTALL_PREFIX"
+
+    # Install dependencies
+    echo "Installing Neovim build dependencies..."
+    apt-get update -y
+    apt-get install -y --no-install-recommends \
+        ninja-build \
+        gettext \
+        libtool \
+        libtool-bin \
+        autoconf \
+        automake \
+        cmake \
+        g++ \
+        pkg-config \
+        unzip \
+        curl \
+        doxygen || { echo "Failed to install Neovim build dependencies"; exit 1; }
+
+    # Clone Neovim repository
+    mkdir -p "$NEOVIM_SRC_DIR"
+    cd "$NEOVIM_SRC_DIR" || { echo "Failed to access Neovim source directory"; exit 1; }
+
+    if [ ! -d "neovim" ]; then
+        echo "Cloning Neovim repository..."
+        git clone https://github.com/neovim/neovim.git || { echo "Failed to clone Neovim repository"; exit 1; }
+    fi
+
+    cd neovim || { echo "Failed to navigate to Neovim directory"; exit 1; }
+
+    # Fetch all tags from the repository
+    echo "Fetching all Neovim tags..."
+    git fetch --all --tags --prune || { echo "Failed to fetch Neovim tags"; exit 1; }
+
+    # Determine the Neovim version to install
+    if [ -z "$NEOVIM_VERSION" ]; then
+        # Determine the latest stable Neovim version tag
+        echo "Determining the latest stable Neovim tag..."
+        NEOVIM_VERSION_TAG=$(git tag -l "v*" --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' | head -n1)
+        echo "Latest Neovim tag detected: $NEOVIM_VERSION_TAG"
+        if [ -z "$NEOVIM_VERSION_TAG" ]; then
+            echo "Error: Unable to determine the latest stable Neovim version tag."
+            exit 1
+        fi
+        NEOVIM_VERSION="${NEOVIM_VERSION_TAG#v}"  # Remove the 'v' prefix
+    else
+        # Use the specified NEOVIM_VERSION
+        NEOVIM_VERSION_TAG="v$NEOVIM_VERSION"
+        echo "Using specified Neovim version tag: $NEOVIM_VERSION_TAG"
+    fi
+
+    echo "Selected Neovim version tag: $NEOVIM_VERSION_TAG"
+    echo "Expected Neovim version string: $NEOVIM_VERSION"
+
+    # Check if the desired version is already checked out
+    CURRENT_CHECKOUT=$(git describe --tags --exact-match 2>/dev/null || echo "")
+    if [ "$CURRENT_CHECKOUT" = "$NEOVIM_VERSION_TAG" ]; then
+        echo "Neovim is already checked out at version $NEOVIM_VERSION_TAG."
+    else
+        # Checkout the desired Neovim version
+        echo "Checking out Neovim version $NEOVIM_VERSION_TAG..."
+        git checkout "$NEOVIM_VERSION_TAG" || { echo "Failed to checkout Neovim version $NEOVIM_VERSION_TAG"; exit 1; }
+    fi
+
+    # Build Neovim
+    echo "Building Neovim..."
+    make CMAKE_BUILD_TYPE=RelWithDebInfo || { echo "Neovim build failed"; exit 1; }
+
+    # Install Neovim
+    echo "Installing Neovim..."
+    make install || { echo "Neovim installation failed"; exit 1; }
+
+    # Verify installation
+    echo "Verifying Neovim installation..."
+    INSTALLED_NVIM_VERSION=$(/usr/local/bin/nvim --version | head -n1 | awk '{print $2}')
+    echo "Installed Neovim version: $INSTALLED_NVIM_VERSION"
+    EXPECTED_NVIM_VERSION="$NEOVIM_VERSION"
+    echo "Expected Neovim version: $EXPECTED_NVIM_VERSION"
+
+    # Extract major and minor versions for comparison
+    INSTALLED_NVIM_MAIN_VERSION=$(echo "$INSTALLED_NVIM_VERSION" | awk -F. '{print $1"."$2}')
+    EXPECTED_NVIM_MAIN_VERSION=$(echo "$EXPECTED_NVIM_VERSION" | awk -F. '{print $1"."$2}')
+
+    echo "Installed Neovim main version: $INSTALLED_NVIM_MAIN_VERSION"
+    echo "Expected Neovim main version: $EXPECTED_NVIM_MAIN_VERSION"
+
+    if [ "$INSTALLED_NVIM_MAIN_VERSION" = "$EXPECTED_NVIM_MAIN_VERSION" ]; then
+        echo "Neovim $EXPECTED_NVIM_VERSION successfully installed."
+    else
+        echo "Neovim installation verification failed."
+        echo "Expected main version: $EXPECTED_NVIM_MAIN_VERSION, but found main version: $INSTALLED_NVIM_MAIN_VERSION"
+        # You can choose to exit or continue
+        # exit 1
+    fi
+
+    # Fix permissions
+    echo "Fixing ownership of user home directory and /tmp..."
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
+
+    echo "Neovim installation process completed successfully."
+}
+
+# Function to install Emacs from source with optional version
+install_emacs_from_source() {
+    echo "Installing Emacs from source..."
+
+    # Define variables
+    EMACS_SRC_DIR="$TMP_DIR/emacs"
+    EMACS_INSTALL_PREFIX="$INSTALL_PREFIX"
+
+    # Install dependencies
+    echo "Installing Emacs build dependencies..."
+    apt-get update -y
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        texinfo \
+        libgtk-3-dev \
+        libjpeg-dev \
+        libpng-dev \
+        libgif-dev \
+        libtiff-dev \
+        libxpm-dev \
+        libncurses-dev \
+        libgnutls28-dev \
+        libxml2-dev \
+        libjansson-dev \
+        libharfbuzz-dev \
+        libsystemd-dev \
+        libsqlite3-dev \
+        autoconf \
+        automake \
+        libmagickwand-dev \
+        libgpm-dev \
+        libdbus-1-dev \
+        libm17n-dev \
+        libotf-dev \
+        librsvg2-dev \
+        liblcms2-dev \
+        libwebkit2gtk-4.0-dev \
+        libgccjit-11-dev \
+        libtree-sitter-dev \
+        libjansson-dev \
+        mailutils || { echo "Failed to install Emacs build dependencies"; exit 1; }
+
+    # Clone Emacs repository
+    mkdir -p "$EMACS_SRC_DIR"
+    cd "$EMACS_SRC_DIR" || { echo "Failed to access Emacs source directory"; exit 1; }
+
+    if [ ! -d "emacs" ]; then
+        echo "Cloning Emacs repository..."
+        git clone https://github.com/emacs-mirror/emacs.git || { echo "Failed to clone Emacs repository"; exit 1; }
+    fi
+
+    cd emacs || { echo "Failed to navigate to Emacs directory"; exit 1; }
+
+    # Fetch all tags from the repository
+    echo "Fetching all Emacs tags..."
+    git fetch --all --tags --prune || { echo "Failed to fetch Emacs tags"; exit 1; }
+
+    # Determine the Emacs version to install
+    if [ -z "$EMACS_VERSION" ]; then
+        # Determine the latest stable Emacs version tag
+        echo "Determining the latest stable Emacs tag..."
+        EMACS_VERSION_TAG=$(git tag -l | grep '^emacs-[0-9]' | sort -V | tail -n1)
+        echo "Latest Emacs tag detected: $EMACS_VERSION_TAG"
+        if [ -z "$EMACS_VERSION_TAG" ]; then
+            echo "Error: Unable to determine the latest stable Emacs version tag."
+            exit 1
+        fi
+        EMACS_VERSION="${EMACS_VERSION_TAG#emacs-}"  # Remove the 'emacs-' prefix
+    else
+        # Use the specified EMACS_VERSION
+        EMACS_VERSION_TAG="emacs-$EMACS_VERSION"
+        echo "Using specified Emacs version tag: $EMACS_VERSION_TAG"
+    fi
+
+    echo "Selected Emacs version tag: $EMACS_VERSION_TAG"
+    echo "Expected Emacs version string: $EMACS_VERSION"
+
+    # Checkout the desired Emacs version
+    echo "Checking out Emacs version $EMACS_VERSION_TAG..."
+    git checkout "$EMACS_VERSION_TAG" || { echo "Failed to checkout Emacs version $EMACS_VERSION_TAG"; exit 1; }
+
+    # Clean any previous build artifacts
+    make clean || true
+    git clean -fdx || true
+
+    # Build Emacs
+    echo "Building Emacs..."
+    ./autogen.sh || { echo "autogen.sh failed"; exit 1; }
+    ./configure --prefix="$EMACS_INSTALL_PREFIX" --with-json --with-native-compilation --with-mailutils || { echo "Emacs configuration failed"; exit 1; }
+    make -j"$(nproc)" || { echo "Emacs build failed"; exit 1; }
+
+    # Install Emacs
+    echo "Installing Emacs..."
+    make install || { echo "Emacs installation failed"; exit 1; }
+
+    # Verify installation
+    echo "Verifying Emacs installation..."
+    INSTALLED_EMACS_VERSION=$(/usr/local/bin/emacs --version | head -n1 | awk '{print $3}')
+    echo "Installed Emacs version: $INSTALLED_EMACS_VERSION"
+    EXPECTED_EMACS_VERSION="$EMACS_VERSION"
+    echo "Expected Emacs version: $EXPECTED_EMACS_VERSION"
+
+    # Extract major and minor versions for comparison
+    INSTALLED_EMACS_MAIN_VERSION=$(echo "$INSTALLED_EMACS_VERSION" | awk -F. '{print $1"."$2}')
+    EXPECTED_EMACS_MAIN_VERSION=$(echo "$EXPECTED_EMACS_VERSION" | awk -F. '{print $1"."$2}')
+
+    echo "Installed Emacs main version: $INSTALLED_EMACS_MAIN_VERSION"
+    echo "Expected Emacs main version: $EXPECTED_EMACS_MAIN_VERSION"
+
+    if [ "$INSTALLED_EMACS_MAIN_VERSION" = "$EXPECTED_EMACS_MAIN_VERSION" ]; then
+        echo "Emacs $EXPECTED_EMACS_VERSION successfully installed."
+    else
+        echo "Emacs installation verification failed."
+        echo "Expected main version: $EXPECTED_EMACS_MAIN_VERSION, but found main version: $INSTALLED_EMACS_MAIN_VERSION"
+        # You can choose to exit or continue
+        # exit 1
+    fi
+
+    # Fix permissions
+    echo "Fixing ownership of user home directory and /tmp..."
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
+
+    echo "Emacs installation process completed successfully."
+}
+
+install_doom_emacs() {
+    echo "Installing Doom Emacs..."
+
+    # Check if Emacs is installed and version is 26.1 or higher
+    if ! command -v emacs &>/dev/null || ! emacs --version | awk 'NR==1 {exit ($3 < 26.1)}'; then
+        echo "Emacs 26.1 or higher is not installed. Please install it before proceeding."
+        return 1
+    fi
+
+    # Ensure git, ripgrep, and fd are installed
+    sudo apt-get update
+    sudo apt-get install -y ripgrep fd-find || { echo "Failed to install dependencies"; exit 1; }
+
+    # Clone Doom Emacs repository
+    if [ ! -d "$USER_HOME/.emacs.d" ]; then
+        echo "Cloning Doom Emacs repository..."
+        sudo -u "$ACTUAL_USER" git clone --depth 1 https://github.com/doomemacs/doomemacs "$USER_HOME/.emacs.d" || { echo "Failed to clone Doom Emacs"; exit 1; }
+    else
+        echo "Doom Emacs is already cloned in $USER_HOME/.emacs.d"
+    fi
+
+    # Create Doom configuration if it doesn't exist
+    if [ ! -d "$USER_HOME/.doom.d" ]; then
+        echo "Creating Doom configuration directory..."
+        sudo -u "$ACTUAL_USER" mkdir -p "$USER_HOME/.doom.d"
+    fi
+
+    # Add the all-the-icons configuration to config.el
+    CONFIG_FILE="$USER_HOME/.doom.d/config.el"
+    echo "Ensuring all-the-icons is loaded in config.el..."
+    if ! grep -q "(use-package! all-the-icons" "$CONFIG_FILE"; then
+        sudo -u "$ACTUAL_USER" bash -c "echo \"(use-package! all-the-icons :ensure t)\" >> \"$CONFIG_FILE\""
+    fi
+
+    # Let Doom install its own configuration
+    sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" install --force || { echo "Doom Emacs installation failed"; exit 1; }
+
+    # Fix ownership of .emacs.d and .doom.d directories
+    echo "Fixing ownership of .emacs.d and .doom.d directories..."
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.emacs.d" "$USER_HOME/.doom.d" || echo "Failed to change ownership of $USER_HOME/.emacs.d or $USER_HOME/.doom.d"
+
+    # Sync Doom Emacs packages to ensure all-the-icons is installed
+    echo "Syncing Doom Emacs packages..."
+    sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" sync || { echo "Doom Emacs package sync failed"; exit 1; }
+
+    # Install all-the-icons fonts for Doom Emacs
+    echo "Installing all-the-icons fonts for Doom Emacs..."
+    sudo -u "$ACTUAL_USER" emacs --batch --eval '(progn (require '\''all-the-icons) (all-the-icons-install-fonts t))' || { echo "Failed to install all-the-icons fonts"; exit 1; }
+
+    # Add Doom's bin directory to PATH
+    if ! grep -q 'export PATH="$HOME/.emacs.d/bin:$PATH"' "$USER_HOME/.zshrc"; then
+        echo 'Adding Doom Emacs to PATH...'
+        echo 'export PATH="$HOME/.emacs.d/bin:$PATH"' >> "$USER_HOME/.zshrc"
+    fi
+
+    # Optional: Run Doom doctor non-interactively
+    echo "Running Doom Emacs doctor to diagnose potential issues (output will be logged)..."
+    sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" doctor &> "$USER_HOME/doom_doctor.log" || echo "Doom Emacs doctor reported issues (check doom_doctor.log)."
+
+    echo "Doom Emacs installed successfully."
+}
+
+install_nerd_fonts() {
+    echo "Installing all Nerd Fonts..."
+
+    # Ensure the necessary dependencies are installed (e.g., curl, unzip)
+    sudo apt-get update
+    sudo apt-get install -y curl unzip || { echo "Failed to install dependencies"; exit 1; }
+
+    # Download Nerd Fonts repository
+    TEMP_DIR="/tmp/nerd-fonts"
+    if [ ! -d "$TEMP_DIR" ]; then
+        echo "Cloning Nerd Fonts repository..."
+        git clone --depth 1 https://github.com/ryanoasis/nerd-fonts.git "$TEMP_DIR" || { echo "Failed to clone Nerd Fonts"; exit 1; }
+    else
+        echo "Nerd Fonts repository already exists in $TEMP_DIR"
+    fi
+
+    # Install all fonts
+    echo "Installing all Nerd Fonts..."
+    cd "$TEMP_DIR" || { echo "Failed to enter Nerd Fonts directory"; exit 1; }
+    ./install.sh || { echo "Failed to install Nerd Fonts"; exit 1; }
+
+    # Clean up temporary directory
+    echo "Cleaning up temporary files..."
+    rm -rf "$TEMP_DIR"
+
+    # Verify installation
+    if fc-list | grep -i "nerd"; then
+        echo "Nerd Fonts installed successfully!"
+    else
+        echo "Nerd Fonts installation failed."
+        exit 1
+    fi
 }
 
 # Function to kill any running tmux sessions
@@ -1397,6 +1766,18 @@ echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
 install_tpm
 
 echo "Tmux Plugin Manager and plugins installed successfully."
+
+# Install Neovim from source
+install_neovim_from_source
+
+# Install Emacs from source
+install_emacs_from_source
+
+# Install Doom Emacs
+install_doom_emacs
+
+# Install Nerd Fonts
+install_nerd_fonts
 
 # Ensure home directory ownership is correct
 ensure_home_ownership
