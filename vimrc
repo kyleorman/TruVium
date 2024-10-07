@@ -25,10 +25,13 @@ nnoremap <F3> :set invnumber<CR>
 nnoremap <F4> :set invrnu<CR>
 
 " Configure tabs and indentation
-set tabstop=4        " Number of spaces in a tab
-set shiftwidth=4     " Number of spaces for indentation
-set expandtab        " Use spaces instead of tabs
-set autoindent       " Auto-indent new lines
+" set tabstop=4        " Number of spaces in a tab
+" set shiftwidth=4     " Number of spaces for indentation
+" set expandtab        " Use spaces instead of tabs
+" set autoindent       " Auto-indent new lines
+
+" Redraw hotkey
+nnoremap <F5> :redraw!<CR>
 
 " Set clipboard to use the system clipboard
 set clipboard=unnamedplus
@@ -656,7 +659,7 @@ function! FormatVHDL()
         setlocal autoread
         let b:current_file = expand('%')
         write
-        silent execute '!vsg -f ' . shellescape(b:current_file) . ' --fix'
+        silent execute '!vsg -f ' . shellescape(b:current_file) . ' --fix --style jcl'
         edit
         setlocal noautoread
     else
@@ -672,26 +675,26 @@ nnoremap <leader>fv :call FormatVHDL()<CR>
 " =====================================
 
 " Set indentation for VHDL files
-autocmd FileType vhdl setlocal tabstop=2 shiftwidth=2 expandtab smartindent
+autocmd FileType vhd setlocal tabstop=2 shiftwidth=2 expandtab smartindent
 
 " Automatically capitalize VHDL keywords
-function! CapitalizeVHDLKeywords()
-    let keywords = ['entity', 'architecture', 'signal', 'begin', 'end', 'if', 'then', 'else', 'process', 'is', 'port', 'map', 'use', 'library']
-    for keyword in keywords
-        execute 'silent! %s/\<' . keyword . '\>/' . toupper(keyword) . '/g'
-    endfor
-endfunction
-autocmd BufWritePre *.vhdl call CapitalizeVHDLKeywords()
+" function! CapitalizeVHDLKeywords()
+"     let keywords = ['entity', 'architecture', 'signal', 'begin', 'end', 'if', 'then', 'else', 'process', 'is', 'port', 'map', 'use', 'library']
+"     for keyword in keywords
+"         execute 'silent! %s/\<' . keyword . '\>/' . toupper(keyword) . '/g'
+"     endfor
+" endfunction
+" autocmd BufWritePre *.vhd call CapitalizeVHDLKeywords()
 
 " Set comment style for VHDL
-autocmd FileType vhdl setlocal comments=sr:--
+autocmd FileType vhd setlocal comments=sr:--
 
 " Align signals and assignments using vim-easy-align
 nmap ga <Plug>(EasyAlign)
 xmap ga <Plug>(EasyAlign)
 
 " Remove trailing whitespace before saving VHDL files
-autocmd BufWritePre *.vhdl %s/\s\+$//e
+autocmd BufWritePre *.vhd %s/\s\+$//e
 
 " Automatically close VHDL constructs
 inoremap if if <Esc>lA then<Esc>o<Esc>oend if;
