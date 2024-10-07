@@ -704,11 +704,11 @@ install_doom_emacs() {
     fi
 
     # Add the all-the-icons configuration to config.el
-    CONFIG_FILE="$USER_HOME/.doom.d/config.el"
-    echo "Ensuring all-the-icons is loaded in config.el..."
-    if ! grep -q "(use-package! all-the-icons" "$CONFIG_FILE"; then
-        sudo -u "$ACTUAL_USER" bash -c "echo \"(use-package! all-the-icons :ensure t)\" >> \"$CONFIG_FILE\""
-    fi
+    #CONFIG_FILE="$USER_HOME/.doom.d/config.el"
+    #echo "Ensuring all-the-icons is loaded in config.el..."
+    #if ! grep -q "(use-package! all-the-icons" "$CONFIG_FILE"; then
+    #    sudo -u "$ACTUAL_USER" bash -c "echo \"(use-package! all-the-icons :ensure t)\" >> \"$CONFIG_FILE\""
+    #fi
 
     # Let Doom install its own configuration
     sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" install --force || { echo "Doom Emacs installation failed"; exit 1; }
@@ -722,8 +722,8 @@ install_doom_emacs() {
     sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" sync || { echo "Doom Emacs package sync failed"; exit 1; }
 
     # Install all-the-icons fonts for Doom Emacs
-    echo "Installing all-the-icons fonts for Doom Emacs..."
-    sudo -u "$ACTUAL_USER" emacs --batch --eval '(progn (require '\''all-the-icons) (all-the-icons-install-fonts t))' || { echo "Failed to install all-the-icons fonts"; exit 1; }
+    #echo "Installing all-the-icons fonts for Doom Emacs..."
+    #sudo -u "$ACTUAL_USER" emacs --batch --eval '(progn (require '\''all-the-icons) (all-the-icons-install-fonts t))' || { echo "Failed to install all-the-icons fonts"; exit 1; }
 
     # Add Doom's bin directory to PATH
     if ! grep -q 'export PATH="$HOME/.emacs.d/bin:$PATH"' "$USER_HOME/.zshrc"; then
@@ -732,8 +732,8 @@ install_doom_emacs() {
     fi
 
     # Optional: Run Doom doctor non-interactively
-    echo "Running Doom Emacs doctor to diagnose potential issues (output will be logged)..."
-    sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" doctor &> "$USER_HOME/doom_doctor.log" || echo "Doom Emacs doctor reported issues (check doom_doctor.log)."
+    #echo "Running Doom Emacs doctor to diagnose potential issues (output will be logged)..."
+    #sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" doctor &> "$USER_HOME/doom_doctor.log" || echo "Doom Emacs doctor reported issues (check doom_doctor.log)."
 
     echo "Doom Emacs installed successfully."
 }
