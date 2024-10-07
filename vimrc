@@ -18,6 +18,7 @@ syntax on
 " Display line numbers and relative line numbers
 set number
 set relativenumber
+set invrnu
 
 " Toggle relative numbers and numbers on/off
 nnoremap <F3> :set invnumber<CR>
