@@ -3,7 +3,7 @@
   "vm_box_version": "20240823.0.1",
   "box_check_update": true,
   "vm_hostname": "dev-env",
-  "vm_memory": "4096",
+  "vm_memory": "6144",
   "vm_cpus": 2,
   "vb_gui": false,
   "graphics_controller": "vmsvga",
