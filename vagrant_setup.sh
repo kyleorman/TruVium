@@ -1705,6 +1705,36 @@ install_golang() {
     fi
 }
 
+# Function to ensure /tmp has correct permissions
+ensure_tmp_permissions() {
+    echo "Ensuring /tmp has correct permissions and ownership..."
+
+    # Check current permissions and ownership
+    TMP_PERMISSIONS=$(stat -c "%a" /tmp)
+    TMP_OWNER=$(stat -c "%u:%g" /tmp)
+
+    echo "Current /tmp permissions: $TMP_PERMISSIONS"
+    echo "Current /tmp ownership: $TMP_OWNER"
+
+    # Set permissions to 1777 if they are not correct
+    if [ "$TMP_PERMISSIONS" != "1777" ]; then
+        echo "Setting /tmp permissions to 1777..."
+        chmod 1777 /tmp || { echo "Failed to set permissions on /tmp"; exit 1; }
+    else
+        echo "/tmp permissions are already set to 1777."
+    fi
+
+    # Set ownership to root:root if not correct
+    if [ "$TMP_OWNER" != "0:0" ]; then
+        echo "Setting /tmp ownership to root:root..."
+        chown root:root /tmp || { echo "Failed to set ownership on /tmp"; exit 1; }
+    else
+        echo "/tmp ownership is already root:root."
+    fi
+
+    echo "/tmp permissions and ownership ensured."
+}
+
 
 # --- Main Script Execution ---
 
@@ -1783,6 +1813,9 @@ install_ghdl
 
 # Verify GHDL installation
 verify_ghdl
+
+# Ensure /tmp has correct permissions
+ensure_tmp_permissions
 
 # Restart tmux server to apply changes
 restart_tmux_server
