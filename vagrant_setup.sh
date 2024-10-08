@@ -572,7 +572,7 @@ install_lazyvim() {
     LAZYVIM_DIR="$USER_HOME/.config/nvim"
     if [ ! -d "$LAZYVIM_DIR" ]; then
         echo "Cloning LazyVim starter repository..."
-        su - "$ACTUAL_USER" git clone https://github.com/LazyVim/starter "$LAZYVIM_DIR" || {
+        su - "$ACTUAL_USER" -c "git clone https://github.com/LazyVim/starter '$LAZYVIM_DIR'" || {
             echo "Failed to clone LazyVim starter repository"; 
             exit 1;
         }
@@ -583,7 +583,7 @@ install_lazyvim() {
     # Install Neovim plugin manager (lazy.nvim)
     if [ ! -d "$USER_HOME/.local/share/nvim/lazy" ]; then
         echo "Installing lazy.nvim plugin manager..."
-        su - "$ACTUAL_USER" git clone https://github.com/folke/lazy.nvim.git --branch=stable "$USER_HOME/.local/share/nvim/lazy" || {
+        su - "$ACTUAL_USER" -c "git clone https://github.com/folke/lazy.nvim.git --branch=stable '$USER_HOME/.local/share/nvim/lazy'" || {
             echo "Failed to install lazy.nvim"; 
             exit 1;
         }
@@ -596,7 +596,7 @@ install_lazyvim() {
 
     # Optional: Run LazyVim's check health command
     echo "Running :checkhealth to diagnose potential issues..."
-    su - "$ACTUAL_USER" nvim --headless "+Lazy! sync" +qa || echo "Check health reported issues."
+    su - "$ACTUAL_USER" -c "nvim --headless '+Lazy! sync' +qa" || echo "Check health reported issues."
 
     echo "LazyVim installed successfully."
 }
@@ -753,7 +753,7 @@ install_doom_emacs() {
     # Create Doom configuration if it doesn't exist
     if [ ! -d "$USER_HOME/.doom.d" ]; then
         echo "Creating Doom configuration directory..."
-        su - "$ACTUAL_USER" mkdir -p "$USER_HOME/.doom.d"
+        su - "$ACTUAL_USER" -c "mkdir -p $USER_HOME/.doom.d"
     fi
 
     # Add the all-the-icons configuration to config.el
@@ -978,9 +978,10 @@ install_vim_plugins() {
     COLOR_PLUGIN_DIR="$USER_HOME/.vim/pack/colors/start"
 
     # Ensure plugin directories exist
-    mkdir -p "$START_PLUGIN_DIR"
-    mkdir -p "$OPT_PLUGIN_DIR"
-    mkdir -p "$COLOR_PLUGIN_DIR"
+    su - "$ACTUAL_USER" -c "mkdir -p '$START_PLUGIN_DIR'"
+    su - "$ACTUAL_USER" -c "mkdir -p '$OPT_PLUGIN_DIR'"
+    su - "$ACTUAL_USER" -c "mkdir -p '$COLOR_PLUGIN_DIR'"
+
 
     # Clone essential start plugins
     echo "Cloning essential start plugins..."
@@ -1127,7 +1128,7 @@ install_coc_dependencies() {
         chown -R "$ACTUAL_USER:$ACTUAL_USER" "$COC_DIR"
 
         echo "Running 'npm ci' in coc.nvim directory..."
-        su - "$ACTUAL_USER" -c "cd '$COC_DIR' && npm ci" || {
+        sudo -u "$ACTUAL_USER" bash -c "cd '$COC_DIR' && npm ci" || {
             echo "Error: Failed to install dependencies for coc.nvim."
             exit 1
         }
@@ -1147,7 +1148,7 @@ install_coc_dependencies() {
 
         for package in "${NPM_PACKAGES[@]}"; do
             echo "Installing $package..."
-            su - "$ACTUAL_USER" -c "npm install -g '$package'" || {
+            npm install -g "$package" || {
                 echo "Error: Failed to install $package."
                 exit 1
             }
@@ -1185,7 +1186,8 @@ setup_ftdetect_symlinks() {
     echo "Setting up ftdetect symbolic links..."
 
     # Ensure the destination directory exists
-    mkdir -p "$FTDETECT_DEST_DIR"
+    su - "$ACTUAL_USER" -c "mkdir -p '$FTDETECT_DEST_DIR'"
+
 
     # Check if the source directory exists and contains files
     if [ -d "$FTDETECT_SRC_DIR" ] && [ "$(ls -A "$FTDETECT_SRC_DIR")" ]; then
@@ -1219,7 +1221,7 @@ configure_git() {
     echo "Configuring Git..."
 
     if [ -f "$GIT_SETUP_SCRIPT" ] && [ -f "$GIT_SETUP_CONF" ]; then
-        if su - "$ACTUAL_USER" bash "$GIT_SETUP_SCRIPT" --config-file "$GIT_SETUP_CONF" --non-interactive; then
+	if su - "$ACTUAL_USER" -c "bash '$GIT_SETUP_SCRIPT' --config-file '$GIT_SETUP_CONF' --non-interactive"; then
             echo "Git configured successfully."
         else
             echo "Git configuration failed."
@@ -1234,7 +1236,7 @@ configure_git() {
 # Function to install GTKWAVE
 install_gtkwave() {
     echo "Cloning GTKWAVE repository..."
-    su - "$ACTUAL_USER" git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave || { echo "GTKWAVE clone failed"; exit 1; }
+    su - "$ACTUAL_USER" -c "git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave" || { echo "GTKWAVE clone failed"; exit 1; }
 
     cd /tmp/gtkwave || exit
     echo "Building GTKWAVE..."
@@ -1246,7 +1248,8 @@ install_gtkwave() {
 # Function to install GHDL
 install_ghdl() {
     echo "Cloning GHDL repository..."
-    su - "$ACTUAL_USER" git clone https://github.com/ghdl/ghdl.git /tmp/ghdl || { echo "GHDL clone failed"; exit 1; }
+    su - "$ACTUAL_USER" -c "git clone https://github.com/ghdl/ghdl.git /tmp/ghdl" || { echo "GHDL clone failed"; exit 1; }
+
 
     cd /tmp/ghdl || exit
     echo "Building and installing GHDL..."
@@ -1288,7 +1291,7 @@ copy_config_files() {
 
         # Ensure the destination directory exists
         dest_dir=$(dirname "$dest_path")
-        mkdir -p "$dest_dir"
+        su - "$ACTUAL_USER" -c "mkdir -p '$dest_dir'"
 
         if [ -f "$src_path" ]; then
             cp "$src_path" "$dest_path"
@@ -1466,7 +1469,8 @@ install_matlab_language_server() {
     fi
 
     # Clone the MATLAB Language Server repository
-    su - "$ACTUAL_USER" git clone https://github.com/mathworks/MATLAB-language-server.git "$TMP_DIR/MATLAB-language-server" || { echo "Failed to clone MATLAB Language Server"; exit 1; }
+    su - "$ACTUAL_USER" -c "git clone https://github.com/mathworks/MATLAB-language-server.git '$TMP_DIR/MATLAB-language-server'" || { echo 'Failed to clone MATLAB Language Server'; exit 1; }
+
 
     # Build the language server
     cd "$TMP_DIR/MATLAB-language-server" || { echo "Failed to access MATLAB Language Server directory"; exit 1; }
