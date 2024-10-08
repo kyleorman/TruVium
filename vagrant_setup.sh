@@ -745,7 +745,7 @@ install_doom_emacs() {
     # Clone Doom Emacs repository
     if [ ! -d "$USER_HOME/.emacs.d" ]; then
         echo "Cloning Doom Emacs repository..."
-        su - "$ACTUAL_USER" "git clone --depth 1 https://github.com/doomemacs/doomemacs '$USER_HOME/.emacs.d'" || { echo "Failed to clone Doom Emacs"; exit 1; }
+        su - "$ACTUAL_USER" -c "git clone --depth 1 https://github.com/doomemacs/doomemacs '$USER_HOME/.emacs.d'" || { echo "Failed to clone Doom Emacs"; exit 1; }
     else
         echo "Doom Emacs is already cloned in $USER_HOME/.emacs.d"
     fi
