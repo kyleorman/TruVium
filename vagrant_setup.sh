@@ -745,7 +745,7 @@ install_doom_emacs() {
     # Clone Doom Emacs repository
     if [ ! -d "$USER_HOME/.emacs.d" ]; then
         echo "Cloning Doom Emacs repository..."
-        su - "$ACTUAL_USER" git clone --depth 1 https://github.com/doomemacs/doomemacs "$USER_HOME/.emacs.d" || { echo "Failed to clone Doom Emacs"; exit 1; }
+        su - "$ACTUAL_USER" "git clone --depth 1 https://github.com/doomemacs/doomemacs '$USER_HOME/.emacs.d'" || { echo "Failed to clone Doom Emacs"; exit 1; }
     else
         echo "Doom Emacs is already cloned in $USER_HOME/.emacs.d"
     fi
@@ -802,7 +802,7 @@ install_nerd_fonts() {
     TEMP_DIR="/tmp/nerd-fonts"
     if [ ! -d "$TEMP_DIR" ]; then
         echo "Cloning Nerd Fonts repository..."
-        git clone --depth 1 https://github.com/ryanoasis/nerd-fonts.git "$TEMP_DIR" || { echo "Failed to clone Nerd Fonts"; exit 1; }
+        su - "$ACTUAL_USER" -c "git clone --depth 1 https://github.com/ryanoasis/nerd-fonts.git '$TEMP_DIR'" || { echo "Failed to clone Nerd Fonts"; exit 1; }
     else
         echo "Nerd Fonts repository already exists in $TEMP_DIR"
     fi
@@ -898,8 +898,8 @@ clone_plugin() {
         echo "Plugin '$repo' already exists at '$target_dir'. Skipping clone."
     else
         echo "Cloning '$repo' into '$target_dir'..."
-        su - "$ACTUAL_USER" -c git clone --depth=1 "https://github.com/$repo.git" "$target_dir" || {
-            echo "Error: Failed to clone '$repo'."
+        su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$repo.git $target_dir" || {
+            echo "Error: Failed to clone '$repo' into '$target_dir'."
             exit 1
         }
         echo "Successfully cloned '$repo'."
@@ -1083,8 +1083,9 @@ clone_zsh_plugins() {
     echo "Cloning Zsh plugins..."
     ZSH_CUSTOM="${ZSH_CUSTOM:-$USER_HOME/.oh-my-zsh/custom}"
 
-    su - "$ACTUAL_USER" -c git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" || true
-    su - "$ACTUAL_USER" -c git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions" || true
+    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '$ZSH_CUSTOM/plugins/zsh-syntax-highlighting'" || true
+    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions.git '$ZSH_CUSTOM/plugins/zsh-autosuggestions'" || true
+
 
     # Update .zshrc plugins line
     DESIRED_PLUGINS='plugins=(git zsh-syntax-highlighting zsh-autosuggestions)'
@@ -1163,7 +1164,7 @@ install_coc_dependencies() {
 install_fzf() {
     echo "Installing FZF..."
     if [ ! -d "$USER_HOME/.fzf" ]; then
-        su - "$ACTUAL_USER" git clone --depth 1 https://github.com/junegunn/fzf.git "$USER_HOME/.fzf" || { echo "FZF clone failed"; exit 1; }
+        su - "$ACTUAL_USER" -c "git clone --depth 1 https://github.com/junegunn/fzf.git '$USER_HOME/.fzf'" || { echo "FZF clone failed"; exit 1; }
 
         # Ensure .zshrc is owned by the actual user and writable
         chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
