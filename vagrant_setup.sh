@@ -26,6 +26,7 @@ else
 fi
 
 # Export environment variable to indicate the setup script is running
+export ACTUAL_USER
 export SETUP_SCRIPT_RUNNING=true
 
 # Redirect all output to LOGFILE with timestamps
@@ -434,7 +435,7 @@ install_vim_from_source() {
     # Fix permissions (if necessary)
     echo "Fixing ownership of user home directory and /tmp..."
     chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
-    chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
+    #chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
 
     echo "Vim installation process completed successfully."
 
@@ -548,7 +549,7 @@ install_neovim_from_source() {
     # Fix permissions
     echo "Fixing ownership of user home directory and /tmp..."
     chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
-    chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
+    #chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
 
     echo "Neovim installation process completed successfully."
 }
@@ -571,7 +572,7 @@ install_lazyvim() {
     LAZYVIM_DIR="$USER_HOME/.config/nvim"
     if [ ! -d "$LAZYVIM_DIR" ]; then
         echo "Cloning LazyVim starter repository..."
-        sudo -u "$ACTUAL_USER" git clone https://github.com/LazyVim/starter "$LAZYVIM_DIR" || {
+        su - "$ACTUAL_USER" git clone https://github.com/LazyVim/starter "$LAZYVIM_DIR" || {
             echo "Failed to clone LazyVim starter repository"; 
             exit 1;
         }
@@ -582,7 +583,7 @@ install_lazyvim() {
     # Install Neovim plugin manager (lazy.nvim)
     if [ ! -d "$USER_HOME/.local/share/nvim/lazy" ]; then
         echo "Installing lazy.nvim plugin manager..."
-        sudo -u "$ACTUAL_USER" git clone https://github.com/folke/lazy.nvim.git --branch=stable "$USER_HOME/.local/share/nvim/lazy" || {
+        su - "$ACTUAL_USER" git clone https://github.com/folke/lazy.nvim.git --branch=stable "$USER_HOME/.local/share/nvim/lazy" || {
             echo "Failed to install lazy.nvim"; 
             exit 1;
         }
@@ -595,7 +596,7 @@ install_lazyvim() {
 
     # Optional: Run LazyVim's check health command
     echo "Running :checkhealth to diagnose potential issues..."
-    sudo -u "$ACTUAL_USER" nvim --headless "+Lazy! sync" +qa || echo "Check health reported issues."
+    su - "$ACTUAL_USER" nvim --headless "+Lazy! sync" +qa || echo "Check health reported issues."
 
     echo "LazyVim installed successfully."
 }
@@ -722,7 +723,7 @@ install_emacs_from_source() {
     # Fix permissions
     echo "Fixing ownership of user home directory and /tmp..."
     chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
-    chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
+    #chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
 
     echo "Emacs installation process completed successfully."
 }
@@ -744,7 +745,7 @@ install_doom_emacs() {
     # Clone Doom Emacs repository
     if [ ! -d "$USER_HOME/.emacs.d" ]; then
         echo "Cloning Doom Emacs repository..."
-        sudo -u "$ACTUAL_USER" git clone --depth 1 https://github.com/doomemacs/doomemacs "$USER_HOME/.emacs.d" || { echo "Failed to clone Doom Emacs"; exit 1; }
+        su - "$ACTUAL_USER" git clone --depth 1 https://github.com/doomemacs/doomemacs "$USER_HOME/.emacs.d" || { echo "Failed to clone Doom Emacs"; exit 1; }
     else
         echo "Doom Emacs is already cloned in $USER_HOME/.emacs.d"
     fi
@@ -752,18 +753,18 @@ install_doom_emacs() {
     # Create Doom configuration if it doesn't exist
     if [ ! -d "$USER_HOME/.doom.d" ]; then
         echo "Creating Doom configuration directory..."
-        sudo -u "$ACTUAL_USER" mkdir -p "$USER_HOME/.doom.d"
+        su - "$ACTUAL_USER" mkdir -p "$USER_HOME/.doom.d"
     fi
 
     # Add the all-the-icons configuration to config.el
     #CONFIG_FILE="$USER_HOME/.doom.d/config.el"
     #echo "Ensuring all-the-icons is loaded in config.el..."
     #if ! grep -q "(use-package! all-the-icons" "$CONFIG_FILE"; then
-    #    sudo -u "$ACTUAL_USER" bash -c "echo \"(use-package! all-the-icons :ensure t)\" >> \"$CONFIG_FILE\""
+    #    su - "$ACTUAL_USER" bash -c "echo \"(use-package! all-the-icons :ensure t)\" >> \"$CONFIG_FILE\""
     #fi
 
     # Let Doom install its own configuration
-    sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" install --force || { echo "Doom Emacs installation failed"; exit 1; }
+    su - "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" install --force || { echo "Doom Emacs installation failed"; exit 1; }
 
     # Fix ownership of .emacs.d and .doom.d directories
     echo "Fixing ownership of .emacs.d and .doom.d directories..."
@@ -771,11 +772,11 @@ install_doom_emacs() {
 
     # Sync Doom Emacs packages to ensure all-the-icons is installed
     echo "Syncing Doom Emacs packages..."
-    sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" sync || { echo "Doom Emacs package sync failed"; exit 1; }
+    su - "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" sync || { echo "Doom Emacs package sync failed"; exit 1; }
 
     # Install all-the-icons fonts for Doom Emacs
     #echo "Installing all-the-icons fonts for Doom Emacs..."
-    #sudo -u "$ACTUAL_USER" emacs --batch --eval '(progn (require '\''all-the-icons) (all-the-icons-install-fonts t))' || { echo "Failed to install all-the-icons fonts"; exit 1; }
+    #su - "$ACTUAL_USER" emacs --batch --eval '(progn (require '\''all-the-icons) (all-the-icons-install-fonts t))' || { echo "Failed to install all-the-icons fonts"; exit 1; }
 
     # Add Doom's bin directory to PATH
     if ! grep -q 'export PATH="$HOME/.emacs.d/bin:$PATH"' "$USER_HOME/.zshrc"; then
@@ -785,7 +786,7 @@ install_doom_emacs() {
 
     # Optional: Run Doom doctor non-interactively
     #echo "Running Doom Emacs doctor to diagnose potential issues (output will be logged)..."
-    #sudo -u "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" doctor &> "$USER_HOME/doom_doctor.log" || echo "Doom Emacs doctor reported issues (check doom_doctor.log)."
+    #su - "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" doctor &> "$USER_HOME/doom_doctor.log" || echo "Doom Emacs doctor reported issues (check doom_doctor.log)."
 
     echo "Doom Emacs installed successfully."
 }
@@ -840,41 +841,8 @@ restart_tmux_server() {
     echo "Restarting tmux server to apply shell changes..."
     tmux kill-server || true
     tmux start-server
-    tmux new-session -d -s default
+    tmux new-session -d -s default || echo "Default tmux session already exists."
     echo "tmux server restarted with default session."
-}
-
-# Function to set up Zsh and Oh My Zsh
-setup_zsh() {
-    # Backup existing .zshrc if it exists
-    if [ -f "$USER_HOME/.zshrc" ]; then
-        cp "$USER_HOME/.zshrc" "$USER_HOME/.zshrc.bak"
-        echo "Existing .zshrc backed up to $USER_HOME/.zshrc.bak"
-    fi
-    
-	echo "Installing Oh My Zsh for $ACTUAL_USER..."
-	sudo -u "$ACTUAL_USER" bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || { echo "Oh My Zsh installation failed"; return 1; }
-	
-    # Append new configuration to .zshrc with interactive shell check
-    echo "Setting up .zshrc for $ACTUAL_USER..."
-    {
-        echo 'export PATH="$HOME/.local/bin:$PATH"'
-        echo 'export PATH="/usr/bin:$PATH"'
-        echo 'export PATH="$HOME/go/bin:$PATH"'
-        echo 'export PATH="/usr/local/bin:$PATH"'
-        echo 'export PATH="/usr/local/go/bin:$PATH"'
-        echo ''
-        echo 'if [[ $- == *i* ]]; then'  # Check if setup script is not running
-        echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
-        echo '    if tmux ls > /dev/null 2>&1; then'
-        echo '      tmux attach-session -t default'
-        echo '    else'
-        echo '      tmux new-session -s default'
-        echo '    fi'
-        echo '  fi'
-        echo 'fi'
-    } >> "$USER_HOME/.zshrc"
-	
 }
 
 # Function to ensure TPM (Tmux Plugin Manager) is installed
@@ -896,9 +864,6 @@ ensure_tpm_installed() {
 automate_tpm_install() {
     echo "Automating TPM plugin installation..."
 
-    # Ensure TPM is installed
-    ensure_tpm_installed
-
     # Initialize TPM in .tmux.conf if not already present
     if ! grep -q "run '~/.tmux/plugins/tpm/tpm'" "$USER_HOME/.tmux.conf"; then
         echo "Initializing TPM in .tmux.conf..."
@@ -916,14 +881,11 @@ automate_tpm_install() {
 check_tpm_installation() {
     echo "Checking if TPM plugins are installed..."
 
-    # List installed plugins using the absolute path to tmux
-    TMUX_PLUGINS_INSTALLED=$(tmux list-plugins 2>/dev/null || echo "")
-
-    if [ -n "$TMUX_PLUGINS_INSTALLED" ]; then
-        echo "Tmux plugins are installed successfully."
+    # Check if TPM plugin directory exists
+    if [ -d "$USER_HOME/.tmux/plugins/tpm" ]; then
+        echo "TPM and plugins seem to be installed."
     else
-        echo "Tmux plugins installation may have failed."
-        echo "Please open a new tmux session and press <prefix> + I (e.g., Ctrl-b + I) to install the plugins manually."
+        echo "TPM is not installed. Please install TPM and press <prefix> + I to install plugins."
     fi
 }
 
@@ -936,7 +898,7 @@ clone_plugin() {
         echo "Plugin '$repo' already exists at '$target_dir'. Skipping clone."
     else
         echo "Cloning '$repo' into '$target_dir'..."
-        git clone --depth=1 "https://github.com/$repo.git" "$target_dir" || {
+        su - "$ACTUAL_USER" -c git clone --depth=1 "https://github.com/$repo.git" "$target_dir" || {
             echo "Error: Failed to clone '$repo'."
             exit 1
         }
@@ -1066,13 +1028,63 @@ install_vim_plugins() {
     echo "Vim plugins installed and helptags generated successfully."
 }
 
+# Function to install oh-my-zsh
+setup_zsh() {
+    # Backup existing .zshrc if it exists
+    if [ -f "$USER_HOME/.zshrc" ]; then
+        cp "$USER_HOME/.zshrc" "$USER_HOME/.zshrc.bak"
+        echo "Existing .zshrc backed up to $USER_HOME/.zshrc.bak"
+    fi
+
+    echo "Installing Oh My Zsh for $ACTUAL_USER..."
+
+    # Download the Oh My Zsh install script into the user's home directory
+    INSTALL_SCRIPT="$USER_HOME/install_oh_my_zsh.sh"
+    curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -o "$INSTALL_SCRIPT" || {
+        echo "Failed to download Oh My Zsh install script"; exit 1;
+    }
+    chmod +x "$INSTALL_SCRIPT"
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$INSTALL_SCRIPT"
+
+    # Run the install script as the actual user using su -
+    su - "$ACTUAL_USER" -c "sh '$INSTALL_SCRIPT' --unattended" || {
+        echo "Oh My Zsh installation failed"; return 1;
+    }
+
+    # Remove the install script
+    rm "$INSTALL_SCRIPT"
+
+    # Append new configuration to .zshrc with interactive shell check
+    echo "Setting up .zshrc for $ACTUAL_USER..."
+    {
+        echo 'export PATH="$HOME/.local/bin:$PATH"'
+        echo 'export PATH="/usr/bin:$PATH"'
+        echo 'export PATH="$HOME/go/bin:$PATH"'
+        echo 'export PATH="/usr/local/bin:$PATH"'
+        echo 'export PATH="/usr/local/go/bin:$PATH"'
+        echo ''
+        echo 'if [[ $- == *i* ]]; then'  # Check if the shell is interactive
+        echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
+        echo '    if tmux ls > /dev/null 2>&1; then'
+        echo '      tmux attach-session -t default'
+        echo '    else'
+        echo '      tmux new-session -s default'
+        echo '    fi'
+        echo '  fi'
+        echo 'fi'
+    } >> "$USER_HOME/.zshrc"
+
+    # Ensure the .zshrc is owned by the actual user
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
+}
+
 # Function to clone Zsh plugins
 clone_zsh_plugins() {
     echo "Cloning Zsh plugins..."
     ZSH_CUSTOM="${ZSH_CUSTOM:-$USER_HOME/.oh-my-zsh/custom}"
 
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" || true
-    git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions" || true
+    su - "$ACTUAL_USER" -c git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" || true
+    su - "$ACTUAL_USER" -c git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions" || true
 
     # Update .zshrc plugins line
     DESIRED_PLUGINS='plugins=(git zsh-syntax-highlighting zsh-autosuggestions)'
@@ -1114,7 +1126,7 @@ install_coc_dependencies() {
         chown -R "$ACTUAL_USER:$ACTUAL_USER" "$COC_DIR"
 
         echo "Running 'npm ci' in coc.nvim directory..."
-        sudo -u "$ACTUAL_USER" bash -c "cd '$COC_DIR' && npm ci" || {
+        su - "$ACTUAL_USER" -c "cd '$COC_DIR' && npm ci" || {
             echo "Error: Failed to install dependencies for coc.nvim."
             exit 1
         }
@@ -1122,47 +1134,23 @@ install_coc_dependencies() {
 
         echo "Installing global npm packages for language servers..."
 
-        # Install bash-language-server
-        echo "Installing bash-language-server..."
-        npm install -g bash-language-server || {
-            echo "Error: Failed to install bash-language-server."
-            exit 1
-        }
+        NPM_PACKAGES=(
+            bash-language-server
+            @imc-trading/svlangserver
+            yaml-language-server
+            vscode-langservers-extracted
+            typescript
+            typescript-language-server
+            pyright
+        )
 
-        # Install svlangserver
-        echo "Installing svlangserver..."
-        npm install -g @imc-trading/svlangserver || {
-            echo "Error: Failed to install svlangserver."
-            exit 1
-        }
-
-        # Install yaml-language-server
-        echo "Installing yaml-language-server..."
-        npm install -g yaml-language-server || {
-            echo "Error: Failed to install yaml-language-server."
-            exit 1
-        }
-
-        # Install vscode-langservers-extracted (for HTML, CSS, JSON language servers)
-        echo "Installing vscode-langservers-extracted..."
-        npm install -g vscode-langservers-extracted || {
-            echo "Error: Failed to install vscode-langservers-extracted."
-            exit 1
-        }
-
-        # Install typescript-language-server and typescript
-        echo "Installing typescript-language-server and typescript..."
-        npm install -g typescript typescript-language-server || {
-            echo "Error: Failed to install typescript-language-server and typescript."
-            exit 1
-        }
-
-        # Install pyright (Python language server)
-        echo "Installing pyright..."
-        npm install -g pyright || {
-            echo "Error: Failed to install pyright."
-            exit 1
-        }
+        for package in "${NPM_PACKAGES[@]}"; do
+            echo "Installing $package..."
+            su - "$ACTUAL_USER" -c "npm install -g '$package'" || {
+                echo "Error: Failed to install $package."
+                exit 1
+            }
+        done
 
         echo "Global npm packages for language servers installed successfully."
     else
@@ -1175,13 +1163,13 @@ install_coc_dependencies() {
 install_fzf() {
     echo "Installing FZF..."
     if [ ! -d "$USER_HOME/.fzf" ]; then
-        sudo -u "$ACTUAL_USER" git clone --depth 1 https://github.com/junegunn/fzf.git "$USER_HOME/.fzf" || { echo "FZF clone failed"; exit 1; }
+        su - "$ACTUAL_USER" git clone --depth 1 https://github.com/junegunn/fzf.git "$USER_HOME/.fzf" || { echo "FZF clone failed"; exit 1; }
 
         # Ensure .zshrc is owned by the actual user and writable
         chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
         chmod 644 "$USER_HOME/.zshrc"
 
-        sudo -u "$ACTUAL_USER" bash -c "cd '$USER_HOME/.fzf' && ./install --all" || { echo "FZF installation failed"; exit 1; }
+        su - "$ACTUAL_USER" bash -c "cd '$USER_HOME/.fzf' && ./install --all" || { echo "FZF installation failed"; exit 1; }
         echo "FZF installed successfully."
     else
         echo "FZF is already installed."
@@ -1230,7 +1218,7 @@ configure_git() {
     echo "Configuring Git..."
 
     if [ -f "$GIT_SETUP_SCRIPT" ] && [ -f "$GIT_SETUP_CONF" ]; then
-        if sudo -u "$ACTUAL_USER" bash "$GIT_SETUP_SCRIPT" --config-file "$GIT_SETUP_CONF" --non-interactive; then
+        if su - "$ACTUAL_USER" bash "$GIT_SETUP_SCRIPT" --config-file "$GIT_SETUP_CONF" --non-interactive; then
             echo "Git configured successfully."
         else
             echo "Git configuration failed."
@@ -1245,7 +1233,7 @@ configure_git() {
 # Function to install GTKWAVE
 install_gtkwave() {
     echo "Cloning GTKWAVE repository..."
-    sudo -u "$ACTUAL_USER" git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave || { echo "GTKWAVE clone failed"; exit 1; }
+    su - "$ACTUAL_USER" git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave || { echo "GTKWAVE clone failed"; exit 1; }
 
     cd /tmp/gtkwave || exit
     echo "Building GTKWAVE..."
@@ -1257,7 +1245,7 @@ install_gtkwave() {
 # Function to install GHDL
 install_ghdl() {
     echo "Cloning GHDL repository..."
-    sudo -u "$ACTUAL_USER" git clone https://github.com/ghdl/ghdl.git /tmp/ghdl || { echo "GHDL clone failed"; exit 1; }
+    su - "$ACTUAL_USER" git clone https://github.com/ghdl/ghdl.git /tmp/ghdl || { echo "GHDL clone failed"; exit 1; }
 
     cd /tmp/ghdl || exit
     echo "Building and installing GHDL..."
@@ -1477,13 +1465,13 @@ install_matlab_language_server() {
     fi
 
     # Clone the MATLAB Language Server repository
-    sudo -u "$ACTUAL_USER" git clone https://github.com/mathworks/MATLAB-language-server.git "$TMP_DIR/MATLAB-language-server" || { echo "Failed to clone MATLAB Language Server"; exit 1; }
+    su - "$ACTUAL_USER" git clone https://github.com/mathworks/MATLAB-language-server.git "$TMP_DIR/MATLAB-language-server" || { echo "Failed to clone MATLAB Language Server"; exit 1; }
 
     # Build the language server
     cd "$TMP_DIR/MATLAB-language-server" || { echo "Failed to access MATLAB Language Server directory"; exit 1; }
 
     # Set MATLAB_HOME during the build
-    sudo -u "$ACTUAL_USER" bash -c "export MATLAB_HOME='$MATLAB_HOME'; ./gradlew installDist" || { echo "Failed to build MATLAB Language Server"; exit 1; }
+    su - "$ACTUAL_USER" bash -c "export MATLAB_HOME='$MATLAB_HOME'; ./gradlew installDist" || { echo "Failed to build MATLAB Language Server"; exit 1; }
 
     # Copy the built server to /usr/local/share
     mkdir -p /usr/local/share/matlab-language-server
@@ -1743,13 +1731,14 @@ echo "----- Starting Setup Script -----"
 # Execute the internet check
 check_internet_connection
 
+# Ensure /tmp has correct permissions
+ensure_tmp_permissions
+
 # Install essential packages
 install_dependencies
 
-# Install and configure Zsh and Oh My Zsh
-#kill_tmux_sessions
-setup_zsh
-clone_zsh_plugins
+# Copy configuration files
+copy_config_files
 
 # Install GO
 install_golang
@@ -1771,16 +1760,13 @@ install_tmux_from_git
 install_tpm
 
 # Start tmux server and create default session
-start_tmux_server
+#start_tmux_server
 
 # Install Vim from source with dynamic version detection
 install_vim_from_source
 
 # Install Node.js
 install_nodejs
-
-# Copy configuration files
-copy_config_files
 
 # Install FZF after ensuring Zsh is set up
 install_fzf
@@ -1814,11 +1800,13 @@ install_ghdl
 # Verify GHDL installation
 verify_ghdl
 
-# Ensure /tmp has correct permissions
-ensure_tmp_permissions
+# Install and configure Zsh and Oh My Zsh
+kill_tmux_sessions
+setup_zsh
+clone_zsh_plugins
 
 # Restart tmux server to apply changes
-restart_tmux_server
+#restart_tmux_server
 
 # Install Neovim from source
 install_neovim_from_source
