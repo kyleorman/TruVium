@@ -1737,6 +1737,9 @@ remove_system_vim
 remove_outdated_tmux
 install_tmux_from_git
 
+# Install Tmux Plugin Manager and tmux plugins
+install_tpm
+
 # Start tmux server and create default session
 start_tmux_server
 
@@ -1780,9 +1783,6 @@ install_ghdl
 
 # Verify GHDL installation
 verify_ghdl
-
-# Install Tmux Plugin Manager and tmux plugins
-install_tpm
 
 # Restart tmux server to apply changes
 restart_tmux_server
