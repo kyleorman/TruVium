@@ -954,6 +954,7 @@ install_vim_plugins() {
 	"elzr/vim-json"
 	"stephpy/vim-yaml"
 	"vim-python/python-syntax"
+	"liuchengxu/vim-which-key"
 	
     )
 
