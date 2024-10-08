@@ -112,7 +112,10 @@ cleanup() {
         echo "Removing Go tarball..."
         rm /tmp/go.tar.gz || echo "Failed to remove Go tarball"
     fi
-        
+    
+	# Unset the environment variable after setup
+    unset SETUP_SCRIPT_RUNNING
+	
     echo "----- Cleanup Completed -----"
 }
 trap cleanup ERR EXIT
@@ -282,7 +285,7 @@ install_tmux_from_git() {
     # Fix permissions (if necessary)
     echo "Fixing ownership of user home directory and /tmp..."
     chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
-    chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
+    #chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
 
     echo "tmux installation process completed successfully."
 }
@@ -290,8 +293,8 @@ install_tmux_from_git() {
 # Function to start tmux server and create default session
 start_tmux_server() {
     echo "Starting tmux server and creating default session..."
-    sudo -u "$ACTUAL_USER" tmux start-server
-    sudo -u "$ACTUAL_USER" tmux new-session -d -s default || echo "Default tmux session already exists."
+    tmux start-server
+    tmux new-session -d -s default || echo "Default tmux session already exists."
     echo "tmux server started with default session."
 }
 
@@ -499,15 +502,15 @@ install_neovim_from_source() {
     fi
 
     echo "Selected Neovim version tag: $NEOVIM_VERSION_TAG"
-    echo "Expected Neovim version string: $NEOVIM_VERSION"
+    echo "Expected Neovim version string: v$NEOVIM_VERSION"
 
     # Check if the desired version is already checked out
     CURRENT_CHECKOUT=$(git describe --tags --exact-match 2>/dev/null || echo "")
-    if [ "$CURRENT_CHECKOUT" = "$NEOVIM_VERSION_TAG" ]; then
-        echo "Neovim is already checked out at version $NEOVIM_VERSION_TAG."
+    if [ "$CURRENT_CHECKOUT" = "v$NEOVIM_VERSION_TAG" ]; then
+        echo "Neovim is already checked out at version v$NEOVIM_VERSION_TAG."
     else
         # Checkout the desired Neovim version
-        echo "Checking out Neovim version $NEOVIM_VERSION_TAG..."
+        echo "Checking out Neovim version v$NEOVIM_VERSION_TAG..."
         git checkout "$NEOVIM_VERSION_TAG" || { echo "Failed to checkout Neovim version $NEOVIM_VERSION_TAG"; exit 1; }
     fi
 
@@ -523,7 +526,7 @@ install_neovim_from_source() {
     echo "Verifying Neovim installation..."
     INSTALLED_NVIM_VERSION=$(/usr/local/bin/nvim --version | head -n1 | awk '{print $2}')
     echo "Installed Neovim version: $INSTALLED_NVIM_VERSION"
-    EXPECTED_NVIM_VERSION="$NEOVIM_VERSION"
+    EXPECTED_NVIM_VERSION="v$NEOVIM_VERSION"
     echo "Expected Neovim version: $EXPECTED_NVIM_VERSION"
 
     # Extract major and minor versions for comparison
@@ -550,7 +553,55 @@ install_neovim_from_source() {
     echo "Neovim installation process completed successfully."
 }
 
-# Function to install Emacs from source with optional version
+# LazyVim setup (Optional)
+install_lazyvim() {
+    echo "Installing LazyVim..."
+
+    # Ensure Neovim 0.9 or higher is installed
+    if ! command -v nvim &> /dev/null || ! nvim --version | awk 'NR==1 {exit ($2 < 0.9)}'; then
+        echo "Neovim 0.9 or higher is not installed. Please install it before proceeding."
+        return 1
+    fi
+
+    # Ensure git is installed
+    sudo apt-get update
+    sudo apt-get install -y git || { echo "Failed to install git"; exit 1; }
+
+    # Clone the LazyVim starter repository
+    LAZYVIM_DIR="$USER_HOME/.config/nvim"
+    if [ ! -d "$LAZYVIM_DIR" ]; then
+        echo "Cloning LazyVim starter repository..."
+        sudo -u "$ACTUAL_USER" git clone https://github.com/LazyVim/starter "$LAZYVIM_DIR" || {
+            echo "Failed to clone LazyVim starter repository"; 
+            exit 1;
+        }
+    else
+        echo "LazyVim starter repository is already cloned in $LAZYVIM_DIR."
+    fi
+
+    # Install Neovim plugin manager (lazy.nvim)
+    if [ ! -d "$USER_HOME/.local/share/nvim/lazy" ]; then
+        echo "Installing lazy.nvim plugin manager..."
+        sudo -u "$ACTUAL_USER" git clone https://github.com/folke/lazy.nvim.git --branch=stable "$USER_HOME/.local/share/nvim/lazy" || {
+            echo "Failed to install lazy.nvim"; 
+            exit 1;
+        }
+    else
+        echo "lazy.nvim is already installed."
+    fi
+
+    # Ensure proper ownership of the Neovim directories
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.config/nvim" "$USER_HOME/.local/share/nvim"
+
+    # Optional: Run LazyVim's check health command
+    echo "Running :checkhealth to diagnose potential issues..."
+    sudo -u "$ACTUAL_USER" nvim --headless "+Lazy! sync" +qa || echo "Check health reported issues."
+
+    echo "LazyVim installed successfully."
+}
+
+
+# Function to install Emacs from source
 install_emacs_from_source() {
     echo "Installing Emacs from source..."
 
@@ -676,6 +727,7 @@ install_emacs_from_source() {
     echo "Emacs installation process completed successfully."
 }
 
+# Install Doom Emacs (optional)
 install_doom_emacs() {
     echo "Installing Doom Emacs..."
 
@@ -776,7 +828,7 @@ install_nerd_fonts() {
 kill_tmux_sessions() {
     echo "Killing any running tmux sessions before Oh My Zsh installation..."
     if tmux ls &> /dev/null; then
-        sudo -u "$ACTUAL_USER" tmux kill-server
+        tmux kill-server
         echo "tmux server stopped."
     else
         echo "No tmux sessions were running."
@@ -786,40 +838,23 @@ kill_tmux_sessions() {
 # Function to restart tmux server
 restart_tmux_server() {
     echo "Restarting tmux server to apply shell changes..."
-    sudo -u "$ACTUAL_USER" tmux kill-server || true
-    sudo -u "$ACTUAL_USER" tmux start-server
-    sudo -u "$ACTUAL_USER" tmux new-session -d -s default
+    tmux kill-server || true
+    tmux start-server
+    tmux new-session -d -s default
     echo "tmux server restarted with default session."
 }
 
 # Function to set up Zsh and Oh My Zsh
 setup_zsh() {
-    echo "Changing shell to zsh for $ACTUAL_USER..."
-
-    # Change default shell to zsh for the actual user
-    if chsh -s /bin/zsh "$ACTUAL_USER"; then
-        echo "Shell successfully changed to zsh for $ACTUAL_USER."
-    else
-        echo "Failed to change shell for $ACTUAL_USER."
-        return 1
-    fi
-
-    echo "Installing Oh My Zsh for $ACTUAL_USER..."
-
-    # Download Oh My Zsh install script
-    OH_MY_ZSH_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
-    OH_MY_ZSH_SCRIPT="/tmp/install_oh_my_zsh.sh"
-    curl -fsSL "$OH_MY_ZSH_URL" -o "$OH_MY_ZSH_SCRIPT" || { echo "Failed to download Oh My Zsh installer"; exit 1; }
-
-    # Install Oh My Zsh using the official unattended method
-    sudo -u "$ACTUAL_USER" bash "$OH_MY_ZSH_SCRIPT" --unattended || { echo "Oh My Zsh installation failed"; return 1; }
-
     # Backup existing .zshrc if it exists
     if [ -f "$USER_HOME/.zshrc" ]; then
         cp "$USER_HOME/.zshrc" "$USER_HOME/.zshrc.bak"
         echo "Existing .zshrc backed up to $USER_HOME/.zshrc.bak"
     fi
-
+    
+	echo "Installing Oh My Zsh for $ACTUAL_USER..."
+	sudo -u "$ACTUAL_USER" bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || { echo "Oh My Zsh installation failed"; return 1; }
+	
     # Append new configuration to .zshrc with interactive shell check
     echo "Setting up .zshrc for $ACTUAL_USER..."
     {
@@ -829,29 +864,17 @@ setup_zsh() {
         echo 'export PATH="/usr/local/bin:$PATH"'
         echo 'export PATH="/usr/local/go/bin:$PATH"'
         echo ''
-        echo 'if [[ $- == *i* ]]; then'  # Check if shell is interactive
-        echo '  if [ -z "$SETUP_SCRIPT_RUNNING" ]; then'  # Check if setup script is not running
-        echo '    if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then'
-        echo '      if tmux ls &> /dev/null; then'
-        echo '        tmux attach-session -t default'
-        echo '      else'
-        echo '        tmux new-session -s default'
-        echo '      fi'
+        echo 'if [[ $- == *i* ]]; then'  # Check if setup script is not running
+        echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
+        echo '    if tmux ls > /dev/null 2>&1; then'
+        echo '      tmux attach-session -t default'
+        echo '    else'
+        echo '      tmux new-session -s default'
         echo '    fi'
         echo '  fi'
         echo 'fi'
     } >> "$USER_HOME/.zshrc"
-
-    # Set ownership and permissions for .zshrc
-    chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
-    chmod 644 "$USER_HOME/.zshrc"
-
-    sudo -u "$ACTUAL_USER" /usr/local/bin/tmux set-environment -g ZDOTDIR "$USER_HOME/.zsh"
-
-    echo ".zshrc setup complete for $ACTUAL_USER."
-
-    # Unset the environment variable after setup
-    unset SETUP_SCRIPT_RUNNING
+	
 }
 
 # Function to ensure TPM (Tmux Plugin Manager) is installed
@@ -860,7 +883,7 @@ ensure_tpm_installed() {
     TPM_DIR="$USER_HOME/.tmux/plugins/tpm"
     if [ ! -d "$TPM_DIR" ]; then
         echo "Cloning Tmux Plugin Manager (TPM)..."
-        sudo -u "$ACTUAL_USER" git clone https://github.com/tmux-plugins/tpm "$TPM_DIR" || {
+			git clone https://github.com/tmux-plugins/tpm "$TPM_DIR" || {
             echo "Failed to clone TPM."
             exit 1
         }
@@ -885,7 +908,7 @@ automate_tpm_install() {
     fi
 
     # Reload tmux environment and install plugins using the absolute path to tmux
-    sudo -u "$ACTUAL_USER" /usr/local/bin/tmux new-session -d -s tpm_install "/usr/local/bin/tmux source ~/.tmux.conf && ~/.tmux/plugins/tpm/bin/install_plugins"
+    tmux new-session -d -s tpm_install "/usr/local/bin/tmux source ~/.tmux.conf && ~/.tmux/plugins/tpm/bin/install_plugins"
     echo "TPM plugin installation triggered."
 }
 
@@ -894,7 +917,7 @@ check_tpm_installation() {
     echo "Checking if TPM plugins are installed..."
 
     # List installed plugins using the absolute path to tmux
-    TMUX_PLUGINS_INSTALLED=$(sudo -u "$ACTUAL_USER" /usr/local/bin/tmux list-plugins 2>/dev/null || echo "")
+    TMUX_PLUGINS_INSTALLED=$(tmux list-plugins 2>/dev/null || echo "")
 
     if [ -n "$TMUX_PLUGINS_INSTALLED" ]; then
         echo "Tmux plugins are installed successfully."
@@ -1048,8 +1071,8 @@ clone_zsh_plugins() {
     echo "Cloning Zsh plugins..."
     ZSH_CUSTOM="${ZSH_CUSTOM:-$USER_HOME/.oh-my-zsh/custom}"
 
-    sudo -u "$ACTUAL_USER" git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" || true
-    sudo -u "$ACTUAL_USER" git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions" || true
+    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" || true
+    git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions" || true
 
     # Update .zshrc plugins line
     DESIRED_PLUGINS='plugins=(git zsh-syntax-highlighting zsh-autosuggestions)'
@@ -1308,9 +1331,11 @@ install_vim_plugins_all() {
 
 # Function to install and configure TPM and tmux plugins
 install_tpm() {
+	echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
     ensure_tpm_installed
     automate_tpm_install
     check_tpm_installation
+	echo "Tmux Plugin Manager and plugins installed successfully."
 }
 
 # Function to install all dependencies and tools
@@ -1367,7 +1392,6 @@ install_dependencies() {
         xorg \
         openbox \
         xdg-utils \
-        tmux \
         virtualbox-guest-utils \
         virtualbox-guest-x11 \
         python3-dev \
@@ -1692,6 +1716,11 @@ check_internet_connection
 # Install essential packages
 install_dependencies
 
+# Install and configure Zsh and Oh My Zsh
+#kill_tmux_sessions
+setup_zsh
+clone_zsh_plugins
+
 # Install GO
 install_golang
 
@@ -1717,14 +1746,6 @@ install_vim_from_source
 # Install Node.js
 install_nodejs
 
-# Install and configure Zsh and Oh My Zsh
-kill_tmux_sessions
-setup_zsh
-clone_zsh_plugins
-
-# Restart tmux server to apply changes
-restart_tmux_server
-
 # Copy configuration files
 copy_config_files
 
@@ -1744,11 +1765,12 @@ install_coc_dependencies
 #install_matlab
 
 # Install additional language servers
-install_perl_language_server
 #install_matlab_language_server
+install_perl_language_server
 install_texlab
 install_lemminx
 install_go_language_server
+
 
 # Install GTKWAVE
 install_gtkwave
@@ -1759,16 +1781,17 @@ install_ghdl
 # Verify GHDL installation
 verify_ghdl
 
-echo "tmux setup complete."
-
 # Install Tmux Plugin Manager and tmux plugins
-echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
 install_tpm
 
-echo "Tmux Plugin Manager and plugins installed successfully."
+# Restart tmux server to apply changes
+restart_tmux_server
 
 # Install Neovim from source
 install_neovim_from_source
+
+# Install LazyVim
+install_lazyvim
 
 # Install Emacs from source
 install_emacs_from_source
