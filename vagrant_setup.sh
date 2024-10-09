@@ -764,7 +764,7 @@ install_doom_emacs() {
     #fi
 
     # Let Doom install its own configuration
-    su - "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" install --force || { echo "Doom Emacs installation failed"; exit 1; }
+    su - "$ACTUAL_USER" -c "$USER_HOME/.emacs.d/bin/doom install --force" || { echo "Doom Emacs installation failed"; exit 1; }
 
     # Fix ownership of .emacs.d and .doom.d directories
     echo "Fixing ownership of .emacs.d and .doom.d directories..."
@@ -772,7 +772,7 @@ install_doom_emacs() {
 
     # Sync Doom Emacs packages to ensure all-the-icons is installed
     echo "Syncing Doom Emacs packages..."
-    su - "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" sync || { echo "Doom Emacs package sync failed"; exit 1; }
+    su - "$ACTUAL_USER" -c "$USER_HOME/.emacs.d/bin/doom sync" || { echo "Doom Emacs package sync failed"; exit 1; }
 
     # Install all-the-icons fonts for Doom Emacs
     #echo "Installing all-the-icons fonts for Doom Emacs..."
@@ -786,7 +786,7 @@ install_doom_emacs() {
 
     # Optional: Run Doom doctor non-interactively
     #echo "Running Doom Emacs doctor to diagnose potential issues (output will be logged)..."
-    #su - "$ACTUAL_USER" "$USER_HOME/.emacs.d/bin/doom" doctor &> "$USER_HOME/doom_doctor.log" || echo "Doom Emacs doctor reported issues (check doom_doctor.log)."
+    #su - "$ACTUAL_USER" -c "$USER_HOME/.emacs.d/bin/doom doctor &> $USER_HOME/doom_doctor.log" || echo "Doom Emacs doctor reported issues (check doom_doctor.log)."
 
     echo "Doom Emacs installed successfully."
 }
