@@ -1111,7 +1111,7 @@ clone_zsh_plugins() {
 install_python_tools() {
     echo "Installing Python tools..."
     pip3 install --upgrade pip
-    pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker vsg tox ipython jupyter jupyter-console pexpect || { echo "Failed to install Python tools"; exit 1; }
+    pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker vsg tox ipython jupyter jupyter-console meson pexpect || { echo "Failed to install Python tools"; exit 1; }
 }
 
 # Function to install CheckMake via Go
@@ -1441,7 +1441,6 @@ install_dependencies() {
 	maven \
 	tree \
 	copyq \
-	meson \
 	ncurses-term \
         tcl-dev || { echo "Package installation failed"; exit 1; }
 }
