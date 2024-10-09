@@ -451,7 +451,6 @@ install_neovim_from_source() {
 
     # Define variables
     NEOVIM_SRC_DIR="$TMP_DIR/neovim"
-    NEOVIM_INSTALL_PREFIX="$INSTALL_PREFIX"
 
     # Install dependencies
     echo "Installing Neovim build dependencies..."
@@ -779,9 +778,9 @@ install_doom_emacs() {
     #su - "$ACTUAL_USER" emacs --batch --eval '(progn (require '\''all-the-icons) (all-the-icons-install-fonts t))' || { echo "Failed to install all-the-icons fonts"; exit 1; }
 
     # Add Doom's bin directory to PATH
-    if ! grep -q 'export PATH="$HOME/.emacs.d/bin:$PATH"' "$USER_HOME/.zshrc"; then
-        echo 'Adding Doom Emacs to PATH...'
-        echo 'export PATH="$HOME/.emacs.d/bin:$PATH"' >> "$USER_HOME/.zshrc"
+    if ! grep -q "export PATH=\"$HOME/.emacs.d/bin:\$PATH\"" "$USER_HOME/.zshrc"; then
+    echo 'Adding Doom Emacs to PATH...'
+    echo "export PATH=\"$HOME/.emacs.d/bin:\$PATH\"" >> "$USER_HOME/.zshrc"
     fi
 
     # Optional: Run Doom doctor non-interactively
@@ -873,7 +872,7 @@ automate_tpm_install() {
     fi
 
     # Reload tmux environment and install plugins using the absolute path to tmux
-    tmux new-session -d -s tpm_install "/usr/local/bin/tmux source ~/.tmux.conf && ~/.tmux/plugins/tpm/bin/install_plugins"
+    tmux new-session -d -s tpm_install "/usr/local/bin/tmux source ~/.tmux.conf && ~/.tmux/plugins/tpm/bin/install_plugins && /usr/local/bin/tmux source ~/.tmux.conf &&  ~/.tmux/plugins/tpm/bin/update_plugins all && /usr/local/bin/tmux source ~/.tmux.conf"
     echo "TPM plugin installation triggered."
 }
 
@@ -1010,20 +1009,25 @@ install_vim_plugins() {
 
     # Generate helptags for all plugins
     echo "Generating helptags for plugins..."
-    for plugin in "${START_PLUGINS[@]}" "${OPTIONAL_PLUGINS[@]}" "${COLOR_SCHEMES[@]}"; do
+
+    # Generate helptags for start plugins
+    for plugin in "${START_PLUGINS[@]}"; do
         plugin_name=$(basename "$plugin")
         target_path="$START_PLUGIN_DIR/$plugin_name"
+        generate_helptags "$target_path"
+    done
 
-        # Adjust for optional plugins
-        if [[ " ${OPTIONAL_PLUGINS[@]} " =~ " $plugin " ]]; then
-            target_path="$OPT_PLUGIN_DIR/$plugin_name"
-        fi
+    # Generate helptags for optional plugins
+    for plugin in "${OPTIONAL_PLUGINS[@]}"; do
+        plugin_name=$(basename "$plugin")
+        target_path="$OPT_PLUGIN_DIR/$plugin_name"
+        generate_helptags "$target_path"
+    done
 
-        # Adjust for color schemes
-        if [[ " ${COLOR_SCHEMES[@]} " =~ " $plugin " ]]; then
-            target_path="$COLOR_PLUGIN_DIR/$plugin_name"
-        fi
-
+    # Generate helptags for color schemes
+    for plugin in "${COLOR_SCHEMES[@]}"; do
+        plugin_name=$(basename "$plugin")
+        target_path="$COLOR_PLUGIN_DIR/$plugin_name"
         generate_helptags "$target_path"
     done
 
@@ -1064,6 +1068,8 @@ setup_zsh() {
         echo 'export PATH="$HOME/go/bin:$PATH"'
         echo 'export PATH="/usr/local/bin:$PATH"'
         echo 'export PATH="/usr/local/go/bin:$PATH"'
+        echo 'alias emacs="emacs -nw"'
+	echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
         echo ''
         echo 'if [[ $- == *i* ]]; then'  # Check if the shell is interactive
         echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
@@ -1237,25 +1243,59 @@ configure_git() {
 # Function to install GTKWAVE
 install_gtkwave() {
     echo "Cloning GTKWAVE repository..."
-    su - "$ACTUAL_USER" -c "git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave" || { echo "GTKWAVE clone failed"; exit 1; }
+    if ! su - "$ACTUAL_USER" -c "git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave"; then
+        echo "GTKWAVE clone failed"
+        exit 1
+    fi
 
-    cd /tmp/gtkwave || exit
+    cd /tmp/gtkwave || { echo "Failed to navigate to /tmp/gtkwave"; exit 1; }
+
     echo "Building GTKWAVE..."
-    meson setup build && meson compile -C build || { echo "GTKWAVE build failed"; exit 1; }
-    sudo meson install -C build || { echo "GTKWAVE installation failed"; exit 1; }
-    cd ~
+    if ! meson setup build; then
+        echo "GTKWAVE build setup failed"
+        exit 1
+    fi
+
+    if ! meson compile -C build; then
+        echo "GTKWAVE compilation failed"
+        exit 1
+    fi
+
+    if ! sudo meson install -C build; then
+        echo "GTKWAVE installation failed"
+        exit 1
+    fi
+
+    cd ~ || { echo "Failed to navigate to home directory"; exit 1; }
 }
 
 # Function to install GHDL
 install_ghdl() {
     echo "Cloning GHDL repository..."
-    su - "$ACTUAL_USER" -c "git clone https://github.com/ghdl/ghdl.git /tmp/ghdl" || { echo "GHDL clone failed"; exit 1; }
+    if ! su - "$ACTUAL_USER" -c "git clone https://github.com/ghdl/ghdl.git /tmp/ghdl"; then
+        echo "GHDL clone failed"
+        exit 1
+    fi
 
+    cd /tmp/ghdl || { echo "Failed to navigate to /tmp/ghdl"; exit 1; }
 
-    cd /tmp/ghdl || exit
     echo "Building and installing GHDL..."
-    ./configure --prefix=/usr/local && make && sudo make install || { echo "GHDL build or installation failed"; exit 1; }
-    cd ~
+    if ! ./configure --prefix=/usr/local; then
+        echo "GHDL configuration failed"
+        exit 1
+    fi
+
+    if ! make; then
+        echo "GHDL build failed"
+        exit 1
+    fi
+
+    if ! sudo make install; then
+        echo "GHDL installation failed"
+        exit 1
+    fi
+
+    cd ~ || { echo "Failed to navigate to home directory"; exit 1; }
 }
 
 # Function to verify GHDL installation
