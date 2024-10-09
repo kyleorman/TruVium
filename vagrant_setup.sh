@@ -564,8 +564,7 @@ install_lazyvim() {
     fi
 
     # Ensure git is installed
-    sudo apt-get update
-    sudo apt-get install -y git || { echo "Failed to install git"; exit 1; }
+    apt-get update && apt-get install -y git || { echo "Failed to install git"; exit 1; }
 
     # Clone the LazyVim starter repository
     LAZYVIM_DIR="$USER_HOME/.config/nvim"
@@ -738,8 +737,7 @@ install_doom_emacs() {
     fi
 
     # Ensure git, ripgrep, and fd are installed
-    sudo apt-get update
-    sudo apt-get install -y ripgrep fd-find || { echo "Failed to install dependencies"; exit 1; }
+    apt-get update && apt-get install -y ripgrep fd-find || { echo "Failed to install dependencies"; exit 1; }
 
     # Clone Doom Emacs repository
     if [ ! -d "$USER_HOME/.emacs.d" ]; then
@@ -794,8 +792,7 @@ install_nerd_fonts() {
     echo "Installing all Nerd Fonts..."
 
     # Ensure the necessary dependencies are installed (e.g., curl, unzip)
-    sudo apt-get update
-    sudo apt-get install -y curl unzip || { echo "Failed to install dependencies"; exit 1; }
+    apt-get update && apt-get install -y curl unzip || { echo "Failed to install dependencies"; exit 1; }
 
     # Download Nerd Fonts repository
     TEMP_DIR="/tmp/nerd-fonts"
@@ -1114,7 +1111,7 @@ clone_zsh_plugins() {
 install_python_tools() {
     echo "Installing Python tools..."
     pip3 install --upgrade pip
-    pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker vsg tox ipython jupyter jupyter-console meson pexpect || { echo "Failed to install Python tools"; exit 1; }
+    pip3 install flake8 pylint black mypy autopep8 jedi doq hdl-checker vsg tox ipython jupyter jupyter-console pexpect || { echo "Failed to install Python tools"; exit 1; }
 }
 
 # Function to install CheckMake via Go
@@ -1135,7 +1132,7 @@ install_coc_dependencies() {
         chown -R "$ACTUAL_USER:$ACTUAL_USER" "$COC_DIR"
 
         echo "Running 'npm ci' in coc.nvim directory..."
-        sudo -u "$ACTUAL_USER" bash -c "cd '$COC_DIR' && npm ci" || {
+        su - "$ACTUAL_USER" bash -c "cd '$COC_DIR' && npm ci" || {
             echo "Error: Failed to install dependencies for coc.nvim."
             exit 1
         }
@@ -1243,7 +1240,7 @@ configure_git() {
 # Function to install GTKWAVE
 install_gtkwave() {
     echo "Cloning GTKWAVE repository..."
-    if ! su - "$ACTUAL_USER" -c "git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave"; then
+    if ! git clone https://github.com/gtkwave/gtkwave.git /tmp/gtkwave; then
         echo "GTKWAVE clone failed"
         exit 1
     fi
@@ -1261,7 +1258,7 @@ install_gtkwave() {
         exit 1
     fi
 
-    if ! sudo meson install -C build; then
+    if ! meson install -C build; then
         echo "GTKWAVE installation failed"
         exit 1
     fi
@@ -1272,7 +1269,7 @@ install_gtkwave() {
 # Function to install GHDL
 install_ghdl() {
     echo "Cloning GHDL repository..."
-    if ! su - "$ACTUAL_USER" -c "git clone https://github.com/ghdl/ghdl.git /tmp/ghdl"; then
+    if ! git clone https://github.com/ghdl/ghdl.git /tmp/ghdl; then
         echo "GHDL clone failed"
         exit 1
     fi
@@ -1290,7 +1287,7 @@ install_ghdl() {
         exit 1
     fi
 
-    if ! sudo make install; then
+    if ! make install; then
         echo "GHDL installation failed"
         exit 1
     fi
@@ -1329,7 +1326,12 @@ copy_config_files() {
         dest="${CONFIG_FILES[$src]}"
         src_path="$SCRIPT_DIR/$src"
         dest_path="$USER_HOME/$dest"
-
+        
+	if [ -f "$dest_path" ]; then
+	    mv "$dest_path" "${dest_path}.bak"
+            echo "Existing $dest_path backed up to ${dest_path}.bak"
+        fi
+        
         # Ensure the destination directory exists
         dest_dir=$(dirname "$dest_path")
         su - "$ACTUAL_USER" -c "mkdir -p '$dest_dir'"
@@ -1439,6 +1441,8 @@ install_dependencies() {
 	maven \
 	tree \
 	copyq \
+	meson \
+	ncurses-term \
         tcl-dev || { echo "Package installation failed"; exit 1; }
 }
 
@@ -1647,9 +1651,11 @@ install_lemminx() {
         apt-get update
         apt-get install -y maven || { echo "Failed to install Maven"; exit 1; }
     fi
-    if ! command -v java &>/dev/null; then
-        echo "Java is not installed. Installing Java (GraalVM)..."
-        apt-get install -y graalvm-ce-java11 || { echo "Failed to install GraalVM"; exit 1; }
+    
+    JAVA_VERSION=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+    if [[ -z "$JAVA_VERSION" || ! "$JAVA_VERSION" =~ ^11 ]]; then
+        echo "Java 11 is required. Installing OpenJDK 11..."
+        apt-get install -y openjdk-11-jdk || { echo "Failed to install OpenJDK 11"; exit 1; }
     fi
 
     # Clone the LemMinX repository
@@ -1665,7 +1671,8 @@ install_lemminx() {
     cp org.eclipse.lemminx/target/org.eclipse.lemminx-uber.jar /usr/local/bin/lemminx.jar || { echo "Failed to install LemMinX"; exit 1; }
 
     # Add an alias to your .zshrc
-    echo "alias lemminx='java -jar /usr/local/bin/lemminx.jar'" >> ~/.zshrc
+    echo "alias lemminx='java -jar /usr/local/bin/lemminx.jar'" >> "$USER_HOME/.zshrc"
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
 
     echo "LemMinX installed successfully. Restart your terminal or run 'source ~/.zshrc' to use it."
 }
@@ -1877,9 +1884,6 @@ echo "Cleaning up package manager cache..."
 apt-get autoremove -y && apt-get clean
 
 echo "----- Setup Completed Successfully! -----"
-
-# --- Final Cleanup ---
-cleanup
 
 # Remove the trap to prevent cleanup from running again
 trap - ERR EXIT
