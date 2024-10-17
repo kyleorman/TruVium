@@ -1070,7 +1070,7 @@ setup_zsh() {
         echo ''
         echo 'if [[ $- == *i* ]]; then'  # Check if the shell is interactive
         echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
-        echo '    if tmux ls > /dev/null 2>&1; then'
+        echo '    if tmux has-session -t default 2> /dev/null; then'
         echo '      tmux attach-session -t default'
         echo '    else'
         echo '      tmux new-session -s default'
