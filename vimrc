@@ -399,11 +399,31 @@ vmap <leader>go :GBrowse<CR>
 " ======== ALE Configuration ==========
 " =====================================
 
+" Define a custom fixer for Verilog using Verible
+function! FixWithVeribleVerilogFormat(buffer) abort
+    " Get the file path for the current buffer
+    let l:file = expand('%:p')
+    " Construct the command to run Verible on the file
+    let l:command = 'verible-verilog-format --inplace ' . shellescape(l:file)
+    " Run the command and capture output
+    let l:output = system(l:command)
+
+    " Check if Verible ran without errors
+    if v:shell_error
+        echoerr "Verible failed to run: " . l:output
+    else
+        " Reload the file in Vim to reflect changes
+        silent! edit
+        echo "Verible formatting completed successfully."
+    endif
+endfunction
+
 " Define linters for various filetypes
 let g:ale_linters = {
     \   'python': ['flake8', 'pylint', 'mypy'],
     \   'sh': ['shellcheck'],
     \   'make': ['checkmake'],
+    \   'verilog': ['verilator', 'iverilog', 'hdl_checker', 'verible'],
     \   'vhdl': ['hdl_checker', 'ghdl'],
     \   'c': ['clangd'],
     \   'cpp': ['clangd'],
@@ -418,8 +438,12 @@ let g:ale_linters = {
 let g:ale_fixers = {
 \   'python': ['autopep8'],
 \   'sh': ['shfmt'],
+\   'verilog': [function('FixWithVeribleVerilogFormat')],
 \   'make': ['shfmt'],
 \}
+
+" Configure verible formatting
+let g:ale_verilog_verible_verilog_format_options = '--indentation_spaces=4'
 
 " Enable fixing and linting on save
 let g:ale_fix_on_save = 1
@@ -455,6 +479,8 @@ let g:ale_make_checkmake_executable = 'checkmake'
 " Disable ALE's autocompletion
 let g:ale_completion_enabled = 0
 
+" Customize ALE to invoke Emacs Verilog mode
+let g:ale_fixers_emacs_command = 'emacs --batch --eval "(progn (find-file \\"%s\\") (verilog-auto) (save-buffer))"'
 " =====================================
 " ======== CoC Configuration ==========
 " =====================================

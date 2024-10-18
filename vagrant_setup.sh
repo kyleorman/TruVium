@@ -45,7 +45,7 @@ cleanup() {
     fi
     
     # Remove GTKWAVE and GHDL build directories
-    for dir in /tmp/gtkwave /tmp/ghdl /tmp/lemminx /tmp/nerd-fonts; do
+    for dir in /tmp/gtkwave /tmp/ghdl /tmp/lemminx /tmp/nerd-fonts /tmp/doxygen; do
         if [ -d "$dir" ]; then
             echo "Removing directory: $dir"
             rm -rf "$dir" || echo "Failed to remove $dir"
@@ -1529,6 +1529,136 @@ install_matlab_language_server() {
     echo "MATLAB Language Server installed successfully."
 }
 
+# Function to install Verilator from source
+install_verilator() {
+    echo "Installing Verilator..."
+
+    # Install required dependencies, including help2man
+    echo "Installing dependencies..."
+    apt-get update && apt-get install -y git autoconf flex bison make \
+        libfl-dev g++ help2man perl python3 || { echo "Failed to install dependencies"; exit 1; }
+
+    # Clone Verilator repository
+    echo "Cloning Verilator repository..."
+    git clone https://github.com/verilator/verilator.git /tmp/verilator || { echo "Failed to clone Verilator repository"; exit 1; }
+
+    cd /tmp/verilator || { echo "Failed to enter Verilator directory"; exit 1; }
+
+    # Check out the stable branch
+    echo "Checking out stable branch..."
+    git checkout stable || { echo "Failed to checkout stable branch"; exit 1; }
+
+    # Build and install Verilator
+    echo "Building and installing Verilator..."
+    autoconf && ./configure && make -j"$(nproc)" && make install || { echo "Failed to build and install Verilator"; exit 1; }
+
+    echo "Verilator installed successfully."
+}
+
+# Function to install Icarus Verilog from source
+install_iverilog() {
+    echo "Installing Icarus Verilog..."
+
+    # Install required dependencies
+    echo "Installing dependencies..."
+    apt-get update && apt-get install -y git autoconf g++ flex bison libreadline-dev gperf || { echo "Failed to install dependencies"; exit 1; }
+
+    # Clone Icarus Verilog repository
+    echo "Cloning Icarus Verilog repository..."
+    git clone https://github.com/steveicarus/iverilog.git /tmp/iverilog || { echo "Failed to clone Icarus Verilog repository"; exit 1; }
+
+    cd /tmp/iverilog || { echo "Failed to enter Icarus Verilog directory"; exit 1; }
+
+    # Prepare the build system
+    echo "Preparing build system..."
+    sh autoconf.sh || { echo "Failed to run autoconf.sh"; exit 1; }
+
+    # Configure the build
+    echo "Configuring build..."
+    ./configure || { echo "Configuration failed"; exit 1; }
+
+    # Build and install
+    echo "Building Icarus Verilog..."
+    make -j"$(nproc)" || { echo "Icarus Verilog build failed"; exit 1; }
+
+    echo "Installing Icarus Verilog..."
+    make install || { echo "Icarus Verilog installation failed"; exit 1; }
+
+    echo "Icarus Verilog installed successfully."
+}
+
+install_bazel_from_source() {
+    echo "Installing Bazel..."
+
+    # Install necessary dependencies
+    echo "Installing Bazel dependencies..."
+    apt-get update -y
+    apt-get install -y apt-transport-https curl gnupg lsb-release || { echo "Failed to install dependencies"; exit 1; }
+
+    # Add Bazel distribution URI as a package source
+    echo "Adding Bazel distribution URI..."
+    curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor | tee /usr/share/keyrings/bazel-archive-keyring.gpg > /dev/null || { echo "Failed to fetch Bazel GPG key"; exit 1; }
+
+    # Determine Ubuntu distribution codename
+    UBUNTU_CODENAME=$(lsb_release -sc)
+
+    echo "Adding Bazel repository to sources list..."
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list
+
+    # Update package list and install Bazel
+    echo "Installing Bazel..."
+    apt-get update -y && apt-get install -y bazel || { echo "Failed to install Bazel"; exit 1; }
+
+    # Verify installation
+    if bazel --version; then
+        echo "Bazel installed successfully."
+    else
+        echo "Bazel installation failed."
+        exit 1
+    fi
+}
+
+install_verible_from_source() {
+    echo "Installing Verible from source..."
+
+    # Ensure the temporary directory exists
+    mkdir -p "$TMP_DIR"
+    cd "$TMP_DIR" || { echo "Failed to access temporary directory $TMP_DIR"; exit 1; }
+
+    # Install Bazel if it's not already installed
+    if ! command -v bazel &>/dev/null; then
+        echo "Bazel not found, installing Bazel first..."
+        install_bazel_from_source || { echo "Failed to install Bazel"; exit 1; }
+    fi
+
+    # Install Verible dependencies
+    echo "Installing Verible dependencies..."
+    apt-get install -y git autoconf flex bison g++ make libfl-dev curl || { echo "Failed to install dependencies"; exit 1; }
+
+    # Clone Verible repository
+    echo "Cloning Verible repository..."
+    git clone https://github.com/chipsalliance/verible.git /tmp/verible || { echo "Failed to clone Verible repository"; exit 1; }
+    cd /tmp/verible || { echo "Failed to navigate to Verible directory"; exit 1; }
+
+    # Build Verible using Bazel
+    echo "Building Verible..."
+    bazel build //... || { echo "Failed to build Verible"; exit 1; }
+
+    # Install binaries
+    echo "Installing Verible binaries..."
+    cp bazel-bin/verilog/tools/syntax/verible-verilog-syntax /usr/local/bin/
+    cp bazel-bin/verilog/tools/formatter/verible-verilog-format /usr/local/bin/
+    cp bazel-bin/verilog/tools/lint/verible-verilog-lint /usr/local/bin/
+
+    # Verify installation
+    if verible-verilog-format --version; then
+        echo "Verible installed successfully."
+    else
+        echo "Verible installation failed."
+        exit 1
+    fi
+}
+
 install_matlab() {
     echo "Starting MATLAB installation..."
 
@@ -1698,6 +1828,55 @@ ensure_home_ownership() {
     echo "----- Home directory ownership ensured -----"
 }
 
+install_doxygen() {
+    echo "Installing Doxygen..."
+
+    # Install dependencies
+    echo "Installing Doxygen dependencies..."
+    apt-get update -y
+    apt-get install -y build-essential cmake flex bison graphviz git || { echo "Failed to install dependencies"; exit 1; }
+
+    # Check if Doxygen is already installed and its version
+    if command -v doxygen &>/dev/null; then
+        INSTALLED_VERSION=$(doxygen --version)
+        echo "Doxygen version $INSTALLED_VERSION is already installed. Skipping installation."
+        return 0
+    fi
+
+    # Ensure the temporary directory exists
+    mkdir -p "$TMP_DIR"
+    cd "$TMP_DIR" || { echo "Failed to access temporary directory $TMP_DIR"; exit 1; }
+
+    # Clone the Doxygen repository
+    echo "Cloning Doxygen repository..."
+    git clone https://github.com/doxygen/doxygen.git || { echo "Failed to clone Doxygen repository"; exit 1; }
+
+    cd doxygen || { echo "Failed to enter Doxygen source directory"; exit 1; }
+
+    # Optionally, checkout a specific version or tag
+    # For example, to checkout version 1.9.8:
+    # echo "Checking out Doxygen version 1.9.8..."
+    # git checkout Release_1_9_8 || { echo "Failed to checkout Doxygen version 1.9.8"; exit 1; }
+
+    # Build and install Doxygen
+    echo "Building Doxygen..."
+    mkdir build && cd build || { echo "Failed to create build directory"; exit 1; }
+    cmake -G "Unix Makefiles" .. || { echo "CMake configuration failed"; exit 1; }
+    make -j"$(nproc)" || { echo "Doxygen build failed"; exit 1; }
+
+    echo "Installing Doxygen..."
+    make install || { echo "Doxygen installation failed"; exit 1; }
+
+    # Verify installation
+    if command -v doxygen &>/dev/null; then
+        INSTALLED_VERSION=$(doxygen --version)
+        echo "Doxygen version $INSTALLED_VERSION installed successfully."
+    else
+        echo "Doxygen installation failed."
+        exit 1
+    fi
+}
+
 install_golang() {
     echo "Installing the latest stable version of Go Programming Language..."
 
@@ -1835,13 +2014,19 @@ install_coc_dependencies
 # Install MATLAB
 #install_matlab
 
+# Install Doxygen
+install_doxygen
+
 # Install additional language servers
 #install_matlab_language_server
 install_perl_language_server
 install_texlab
 install_lemminx
 install_go_language_server
-
+install_verilator
+install_iverilog
+install_bazel_from_source
+install_verible_from_source
 
 # Install GTKWAVE
 install_gtkwave

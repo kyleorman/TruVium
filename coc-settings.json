@@ -1,9 +1,17 @@
 {
   "languageserver": {
-	"texlab": {
+    "texlab": {
       "command": "texlab",
-      "filetypes": ["tex", "bib", "plaintex", "latex"],
-      "rootPatterns": ["texlab-config.toml", ".git/"],
+      "filetypes": [
+        "tex",
+        "bib",
+        "plaintex",
+        "latex"
+      ],
+      "rootPatterns": [
+        "texlab-config.toml",
+        ".git/"
+      ],
       "settings": {
         "texlab": {
           "build": {
@@ -11,38 +19,78 @@
           },
           "forwardSearch": {
             "executable": "evince",
-            "args": ["%p"]
+            "args": [
+              "%p"
+            ]
           }
         }
       }
     },
     "hdlChecker": {
       "command": "hdl_checker",
-      "args": ["--lsp"],
-      "filetypes": ["vhdl", "verilog", "systemverilog"],
-	  "initializationOptions": {
+      "args": [
+        "--lsp"
+      ],
+      "filetypes": [
+        "vhdl",
+        "verilog",
+        "systemverilog"
+      ],
+      "initializationOptions": {
         "settings": {
           "configuration": "${env:HOME}/.vim/hdl_checker.json"
         }
       }
     },
     "svlangserver": {
-      "command": "svlangserver",
-      "filetypes": ["systemverilog", "verilog"]
+      "verilog": {
+        "command": "svlangserver",
+        "args": [
+          "--stdio"
+        ],
+        "filetypes": [
+          "systemverilog",
+          "verilog"
+        ],
+        "rootPatterns": [
+          ".git/",
+          ".verilator.lint"
+        ],
+        "initializationOptions": {
+          "formatter": {
+            "execute": false
+          }
+        }
+      }
     },
     "perl": {
       "command": "perl",
-      "args": ["-MPerl::LanguageServer", "-e", "Perl::LanguageServer::run", "--", "--stdio"],
-      "filetypes": ["perl"]
+      "args": [
+        "-MPerl::LanguageServer",
+        "-e",
+        "Perl::LanguageServer::run",
+        "--",
+        "--stdio"
+      ],
+      "filetypes": [
+        "perl"
+      ]
     },
     "matlab": {
       "command": "java",
-      "args": ["-jar", "/usr/local/share/matlab-language-server/matlab-language-server.jar"],
-      "filetypes": ["matlab"]
+      "args": [
+        "-jar",
+        "/usr/local/share/matlab-language-server/matlab-language-server.jar"
+      ],
+      "filetypes": [
+        "matlab"
+      ]
     },
     "xml": {
       "command": "lemminx",
-      "filetypes": ["xml"]
+      "filetypes": [
+        "xml"
+      ]
     }
   },
   "snippets.enable": false,
