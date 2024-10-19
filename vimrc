@@ -176,26 +176,340 @@ nnoremap <Leader>vz :VimuxZoomRunner<CR>
 " ======== Airline Configuration =======
 " =====================================
 
+" --- Default Configuration ---
 " Enable Powerline fonts for Airline
-let g:airline_powerline_fonts = 1
+" let g:airline_powerline_fonts = 1
 
 " Enable all status line sections in vim-airline
-let g:airline#extensions#tabline#enabled = 1  " Enable tabline
-let g:airline#extensions#tabline#formatter = 'default'  " Use default tabline
-let g:airline_section_a = '%{airline#util#prepend(airline#parts#mode(), 0)}'
-let g:airline_section_b = '%{airline#util#prepend(airline#parts#branch(), 0)}'
-let g:airline_section_c = '%f'
-let g:airline_section_x = '%{airline#util#prepend(airline#parts#filetype(), 0)}'
-let g:airline_section_y = '%{airline#util#prepend(airline#parts#readonly(), 0)}'
-let g:airline_section_z = '%l:%v'
+" let g:airline#extensions#tabline#enabled = 1  " Enable tabline
+" let g:airline#extensions#tabline#formatter = 'default'  " Use default tabline
+" let g:airline_section_a = '%{airline#util#prepend(airline#parts#mode(), 0)}'
+" let g:airline_section_b = '%{airline#util#prepend(airline#parts#branch(), 0)}'
+" let g:airline_section_c = '%f'
+" let g:airline_section_x = '%{airline#util#prepend(airline#parts#filetype(), 0)}'
+" let g:airline_section_y = '%{airline#util#prepend(airline#parts#readonly(), 0)}'
+" let g:airline_section_z = '%l:%v'
 
 " Customizing the information displayed in the Airline status line
+" let g:airline_section_a = airline#section#create(['mode'])
+" let g:airline_section_b = airline#section#create(['branch', 'hunks'])
+" let g:airline_section_c = airline#section#create(['%f'])
+" let g:airline_section_x = airline#section#create(['%{&fileencoding?&fileencoding:&encoding}'])
+" let g:airline_section_y = airline#section#create(['fileformat', 'filetype'])
+" let g:airline_section_z = airline#section#create(['%l/%L:%c'])
+
+" ========== Complete Options ==========
+
+" --- Basic Setup ---
+" Enable vim-airline and configure basic settings.
+
+" --- Powerline Fonts ---
+" Enable Powerline fonts for special symbols.
+" Requires a Powerline-patched font installed on your system.
+let g:airline_powerline_fonts = 1
+
+" --- Theme Selection ---
+" Set the Airline theme.
+" Choose from the built-in themes or install additional ones.
+" let g:airline_theme = 'onedark'  " Replace 'onedark' with your preferred theme.
+
+" If you want to use additional themes, install 'vim-airline-themes'.
+" 'vim-airline/vim-airline-themes'
+" Then you can set the theme:
+" let g:airline_theme = 'gruvbox'
+
+" --- Git Integration ---
+" Display the current Git branch in the status line.
+" Requires 'vim-fugitive' or a similar Git plugin.
+" 'tpope/vim-fugitive'
+
+" Enable Git branch extension.
+let g:airline#extensions#branch#enabled = 1
+
+" --- File Encoding and Format Display ---
+" Show file encoding and format in the status line.
+let g:airline_section_y = '%{&fileencoding?&fileencoding:&encoding} [%{&fileformat}]'
+
+" --- Cursor Position and Progress ---
+" Display the cursor's line and column numbers and file progress.
+let g:airline_section_z = 'Ln %l, Col %c [%p%%]'
+
+" --- Customizing Status Line Sections ---
+" Customize the sections displayed in the status line.
+
+" Section A: Mode Indicator
 let g:airline_section_a = airline#section#create(['mode'])
-let g:airline_section_b = airline#section#create(['branch', 'hunks'])
+
+" Section B: Git Branch and Read-only Status
+let g:airline_section_b = airline#section#create(['branch', 'readonly'])
+
+" Section C: File Name
 let g:airline_section_c = airline#section#create(['%f'])
-let g:airline_section_x = airline#section#create(['%{&fileencoding?&fileencoding:&encoding}'])
-let g:airline_section_y = airline#section#create(['fileformat', 'filetype'])
-let g:airline_section_z = airline#section#create(['%l/%L:%c'])
+
+" Section X: File Type
+let g:airline_section_x = airline#section#create(['filetype'])
+
+" Section Y: File Encoding and Format (already set above)
+" Section Z: Cursor Position and Progress (already set above)
+
+" --- Enabling Extensions ---
+" vim-airline comes with various extensions to enhance functionality.
+
+" Enable Tabline for buffer management.
+" This displays open buffers at the top, allowing quick navigation.
+let g:airline#extensions#tabline#enabled = 1
+
+" Show buffer numbers in Tabline.
+let g:airline#extensions#tabline#buffer_nr_show = 1
+
+" Set Tabline formatter to display unique tail of file paths.
+let g:airline#extensions#tabline#formatter = 'unique_tail'
+
+" --- Integrate with Other Plugins ---
+
+" 1. Asynchronous Lint Engine (ALE) Integration
+" Requires 'dense-analysis/ale' plugin.
+" 'dense-analysis/ale'
+" Enable ALE extension.
+let g:airline#extensions#ale#enabled = 1
+
+" 2. Coc.nvim Integration (Conquer of Completion)
+" Requires 'neoclide/coc.nvim' plugin.
+" 'neoclide/coc.nvim', {'branch': 'release'}
+" Enable Coc.nvim extension.
+let g:airline#extensions#coc#enabled = 1
+
+" 3. Git Gutter Integration
+" Shows git diff signs in the gutter.
+" Requires 'airblade/vim-gitgutter' or 'mhinz/vim-signify'.
+" 'airblade/vim-gitgutter'
+" Enable Git Gutter extension.
+let g:airline#extensions#hunks#enabled = 1
+
+" 4. NERDTree Integration
+" Requires 'preservim/nerdtree'.
+" 'preservim/nerdtree'
+" Enable NERDTree statusline integration.
+let g:airline#extensions#nerdtree_statusline = 1
+
+" --- Whitespace Detection ---
+" Highlight trailing whitespace.
+let g:airline#extensions#whitespace#enabled = 1
+
+" --- Virtual Environment Display ---
+" Show active Python virtual environment.
+let g:airline#extensions#virtualenv#enabled = 1
+
+" --- Custom Symbols and Separators ---
+" Customize the visual separators and symbols used in the status line.
+
+" Use Unicode characters as separators (requires a Powerline-compatible font).
+let g:airline_left_sep = ''
+let g:airline_left_alt_sep = ''
+let g:airline_right_sep = ''
+let g:airline_right_alt_sep = ''
+
+" Or set custom separators.
+" let g:airline_left_sep = '▶'
+" let g:airline_left_alt_sep = '»'
+" let g:airline_right_sep = '◀'
+" let g:airline_right_alt_sep = '«'
+
+" --- Mode-Specific Highlighting ---
+" Highlight the status line based on the current mode.
+let g:airline_mode_map = {
+      \ '__' : '-',
+      \ 'n'  : 'NORMAL',
+      \ 'i'  : 'INSERT',
+      \ 'R'  : 'REPLACE',
+      \ 'c'  : 'COMMAND',
+      \ 'v'  : 'VISUAL',
+      \ 'V'  : 'V-LINE',
+      \ 's'  : 'SELECT',
+      \ 'S'  : 'S-LINE',
+      \ 't'  : 'TERMINAL'
+      \ }
+
+" --- Performance Optimization ---
+" If experiencing lag, consider optimizing performance.
+
+" Disable unused extensions to improve performance.
+" let g:airline#extensions#keymap#enabled = 0
+" let g:airline#extensions#paste#enabled = 0
+" let g:airline#extensions#tagbar#enabled = 0
+" let g:airline#extensions#ctrlp#enabled = 0
+" let g:airline#extensions#commandt#enabled = 0
+
+" Reduce the frequency of status line updates.
+" let g:airline_refresh_always = 0
+
+" Enable asynchronous updates for smoother UI experience.
+let g:airline_async = 1
+
+" --- Battery Status and Date-Time Display ---
+" Add battery status and current date-time to the status line.
+
+" Requires 'vim-battery' plugin.
+" 'justinmk/vim-battery'
+
+" Display battery status in the warning section.
+" let g:airline_section_warning = '%{battery#capacity_string()}'
+
+" Ensure 'warning' section is displayed.
+" let g:airline#extensions#default#layout = [
+"       [ 'a', 'b', 'c' ],
+"       [ 'warning', 'x', 'y', 'z' ]
+" ]
+
+" Display date and time in section Z.
+let g:airline_section_z = '%l:%c %p%% %{strftime("%a %b %d, %H:%M")}'
+
+" --- Conditional Theme Switching ---
+" Change the Airline theme based on the current mode or file type.
+
+" Function to switch themes based on conditions.
+" function! AirlineThemeSwitch()
+"     if &filetype ==# 'python'
+"         let g:airline_theme = 'luna'
+"     elseif mode() ==# 'i'
+"         let g:airline_theme = 'wombat'
+"     else
+"         let g:airline_theme = 'onedark'
+"     endif
+"     execute 'AirlineTheme ' . g:airline_theme
+" endfunction
+
+" Call the function on specific events.
+" autocmd InsertEnter,BufEnter * call AirlineThemeSwitch()
+" autocmd InsertLeave,BufLeave * call AirlineThemeSwitch()
+
+" Note: Ensure all themes used are installed.
+
+" --- Tmux Integration ---
+" Integrate vim-airline with tmux to have matching status lines.
+
+" Requires 'edkolev/tmuxline.vim' plugin.
+" 'edkolev/tmuxline.vim'
+
+" Enable tmuxline integration.
+let g:airline#extensions#tmuxline#enabled = 1
+
+" Automatically apply tmuxline configuration when Airline theme changes.
+autocmd User AirlineTheme call airline#extensions#tmuxline#apply()
+
+" Note:
+" - You need to run Vim inside a tmux session.
+" - Powerline fonts should be set in your terminal and tmux.
+
+" --- EasyMotion Integration ---
+" Provides quick navigation within Vim.
+" Requires 'easymotion/vim-easymotion' plugin.
+" 'easymotion/vim-easymotion'
+" Enable EasyMotion extension.
+let g:airline#extensions#easymotion#enabled = 1
+
+" --- Tagbar Integration ---
+" Displays tags in a sidebar.
+" Requires 'preservim/tagbar' plugin.
+" 'preservim/tagbar'
+" Enable Tagbar extension.
+let g:airline#extensions#tagbar#enabled = 1
+
+" --- Bufferline Integration ---
+" Better buffer/tab line.
+" Requires 'bling/vim-bufferline' plugin.
+" 'bling/vim-bufferline'
+" Enable Bufferline extension.
+let g:airline#extensions#bufferline#enabled = 1
+
+" --- Undotree Integration ---
+" Visualize undo history.
+" Requires 'mbbill/undotree' plugin.
+" 'mbbill/undotree'
+" Enable Undotree extension.
+let g:airline#extensions#undotree#enabled = 1
+
+" --- Syntastic Integration ---
+" If using Syntastic instead of ALE.
+" Requires 'vim-syntastic/syntastic' plugin.
+" 'vim-syntastic/syntastic'
+" Enable Syntastic extension.
+let g:airline#extensions#syntastic#enabled = 1
+
+" --- Quickfix Integration ---
+" Enhances the quickfix window.
+let g:airline#extensions#quickfix#enabled = 1
+
+" --- Custom Themes ---
+" Create and use custom Airline themes.
+
+" To create a custom theme:
+" 1. Copy an existing theme from 'autoload/airline/themes/'.
+" 2. Modify it to your liking.
+" 3. Save it as 'my_custom_theme.vim' in the same directory.
+
+" Set your custom theme.
+" let g:airline_theme = 'my_custom_theme'
+
+" --- Key Mappings for Airline Features ---
+" You can set up key mappings to switch themes or toggle extensions.
+
+" Example: Mapping to switch to the next Airline theme.
+" nnoremap <leader>tn :AirlineNextTheme<CR>
+
+" --- Additional Tips ---
+
+" Install required plugins using your plugin manager.
+" For example, with vim-plug:
+"
+" call plug#begin('~/.vim/plugged')
+" Plug 'vim-airline/vim-airline'
+" Plug 'vim-airline/vim-airline-themes'
+" Plug 'tpope/vim-fugitive'
+" Plug 'dense-analysis/ale'
+" Plug 'neoclide/coc.nvim', {'branch': 'release'}
+" Plug 'airblade/vim-gitgutter'
+" Plug 'preservim/nerdtree'
+" Plug 'justinmk/vim-battery'
+" Plug 'edkolev/tmuxline.vim'
+" Plug 'easymotion/vim-easymotion'
+" Plug 'preservim/tagbar'
+" Plug 'bling/vim-bufferline'
+" Plug 'mbbill/undotree'
+" Plug 'vim-syntastic/syntastic'
+" call plug#end()
+"
+" Then run :PlugInstall in Vim to install the plugins.
+
+" --- Final Notes ---
+
+" 1. Powerline Fonts:
+"    - Install a Powerline-patched font.
+"    - Configure your terminal to use the Powerline font.
+
+" 2. Performance Considerations:
+"    - Disable unnecessary extensions.
+"    - Use minimal themes if experiencing lag.
+
+" 3. Customization:
+"    - Adjust the configurations to match your workflow.
+"    - Combine elements from different sections as needed.
+
+" 4. Keep Plugins Updated:
+"    - Regularly update vim-airline and other plugins.
+
+" 5. Conflicts:
+"    - If using both ALE and Coc.nvim, configure them to avoid conflicts.
+"      For example, disable ALE's autocompletion if Coc.nvim handles it:
+"      let g:ale_completion_enabled = 0
+
+" 6. Documentation:
+"    - Consult vim-airline's help files for more information.
+"    - Use :help airline in Vim.
+
+" =====================================
+" ======== End of vim-airline Configuration =========
+" =====================================
 
 " Automatically save the current Airline theme when Vim exits
 autocmd VimLeave * call SaveAirlineThemeToFile()
@@ -212,27 +526,27 @@ let g:airline_themes = [
 \ 'base16_bespin', 'base16_black_metal', 'base16_black_metal_bathory', 'base16_black_metal_burzum', 'base16_black_metal_dark_funeral',
 \ 'base16_black_metal_gorgoroth', 'base16_black_metal_immortal', 'base16_black_metal_khold', 'base16_black_metal_marduk', 'base16_black_metal_mayhem',
 \ 'base16_black_metal_nile', 'base16_black_metal_venom', 'base16_brewer', 'base16_bright', 'base16_brogrammer', 'base16_brushtrees_dark',
-\ 'base16_brushtrees', 'base16_chalk', 'base16_circus', 'base16_classic_dark', 'base16_classic_light', 'base16_codeschool', 'base16_colors', 
+\ 'base16_brushtrees', 'base16_chalk', 'base16_circus', 'base16_classic_dark', 'base16_classic_light', 'base16_codeschool', 'base16_colors'
 \ 'base16_cupcake', 'base16_cupertino', 'base16_darktooth', 'base16_decaf', 'base16_default_dark', 'base16_default_light', 'base16_dracula',
 \ 'base16_edge_dark', 'base16_edge_light', 'base16_eighties', 'base16_embers', 'base16_espresso', 'base16_flat', 'base16_framer', 'base16_fruit_soda',
 \ 'base16_gigavolt', 'base16_github', 'base16_google_dark', 'base16_google_light', 'base16_grayscale_dark', 'base16_grayscale_light',
 \ 'base16_gruvbox_dark_hard', 'base16_gruvbox_dark_medium', 'base16_gruvbox_dark_pale', 'base16_gruvbox_dark_soft', 'base16_gruvbox_light_hard',
-\ 'base16_gruvbox_light_medium', 'base16_gruvbox_light_soft', 'base16_harmonic16', 'base16_harmonic_dark', 'base16_harmonic_light', 
-\ 'base16_heetch_light', 'base16_heetch', 'base16_helios', 'base16_hopscotch', 'base16_horizon_dark', 'base16_horizon_light', 
-\ 'base16_horizon_terminal_dark', 'base16_horizon_terminal_light', 'base16_ia_dark', 'base16_ia_light', 'base16_icy', 'base16_irblack', 
-\ 'base16_isotope', 'base16_londontube', 'base16_macintosh', 'base16_marrakesh', 'base16_material_darker', 'base16_material_lighter', 
-\ 'base16_material_palenight', 'base16_material', 'base16_material_vivid', 'base16_materia', 'base16_mellow_purple', 'base16_mexico_light', 
-\ 'base16_mocha', 'base16_monokai', 'base16_nord', 'base16_nova', 'base16_oceanicnext', 'base16_ocean', 'base16_onedark', 'base16_one_light', 
-\ 'base16_outrun_dark', 'base16_papercolor_dark', 'base16_papercolor_light', 'base16_paraiso', 'base16_phd', 'base16_pico', 'base16_pop', 
-\ 'base16_porple', 'base16_railscasts', 'base16_rebecca', 'base16_sandcastle', 'base16_seti', 'base16_shapeshifter', 'base16_shell', 
-\ 'base16_snazzy', 'base16_solarflare', 'base16_solarized_dark', 'base16_solarized_light', 'base16_solarized', 'base16_spacemacs', 
-\ 'base16_summerfruit_dark', 'base16_summerfruit_light', 'base16_synth_midnight_dark', 'base16_tomorrow_night_eighties', 'base16_tomorrow_night', 
-\ 'base16_tomorrow', 'base16_tube', 'base16_twilight', 'base16_unikitty_dark', 'base16_unikitty_light', 'base16_vim', 'base16_woodland', 
-\ 'base16_xcode_dusk', 'base16_zenburn', 'behelit', 'biogoo', 'blood_red', 'bubblegum', 'cobalt2', 'cool', 'cyberpunk', 'dark_minimal', 
-\ 'desertink', 'deus', 'distinguished', 'durant', 'fairyfloss', 'fruit_punch', 'google_dark', 'google_light', 'hybridline', 'hybrid', 
-\ 'jellybeans', 'jet', 'kalisi', 'kolor', 'laederon', 'lessnoise', 'lighthaus', 'light', 'lucius', 'luna', 'minimalist', 'molokai', 
+\ 'base16_gruvbox_light_medium', 'base16_gruvbox_light_soft', 'base16_harmonic16', 'base16_harmonic_dark', 'base16_harmonic_light',
+\ 'base16_heetch_light', 'base16_heetch', 'base16_helios', 'base16_hopscotch', 'base16_horizon_dark', 'base16_horizon_light',
+\ 'base16_horizon_terminal_dark', 'base16_horizon_terminal_light', 'base16_ia_dark', 'base16_ia_light', 'base16_icy', 'base16_irblack',
+\ 'base16_isotope', 'base16_londontube', 'base16_macintosh', 'base16_marrakesh', 'base16_material_darker', 'base16_material_lighter',
+\ 'base16_material_palenight', 'base16_material', 'base16_material_vivid', 'base16_materia', 'base16_mellow_purple', 'base16_mexico_light',
+\ 'base16_mocha', 'base16_monokai', 'base16_nord', 'base16_nova', 'base16_oceanicnext', 'base16_ocean', 'base16_onedark', 'base16_one_light',
+\ 'base16_outrun_dark', 'base16_papercolor_dark', 'base16_papercolor_light', 'base16_paraiso', 'base16_phd', 'base16_pico', 'base16_pop',
+\ 'base16_porple', 'base16_railscasts', 'base16_rebecca', 'base16_sandcastle', 'base16_seti', 'base16_shapeshifter', 'base16_shell',
+\ 'base16_snazzy', 'base16_solarflare', 'base16_solarized_dark', 'base16_solarized_light', 'base16_solarized', 'base16_spacemacs',
+\ 'base16_summerfruit_dark', 'base16_summerfruit_light', 'base16_synth_midnight_dark', 'base16_tomorrow_night_eighties', 'base16_tomorrow_night',
+\ 'base16_tomorrow', 'base16_tube', 'base16_twilight', 'base16_unikitty_dark', 'base16_unikitty_light', 'base16_vim', 'base16_woodland',
+\ 'base16_xcode_dusk', 'base16_zenburn', 'behelit', 'biogoo', 'blood_red', 'bubblegum', 'cobalt2', 'cool', 'cyberpunk', 'dark_minimal',
+\ 'desertink', 'deus', 'distinguished', 'durant', 'fairyfloss', 'fruit_punch', 'google_dark', 'google_light', 'hybridline', 'hybrid',
+\ 'jellybeans', 'jet', 'kalisi', 'kolor', 'laederon', 'lessnoise', 'lighthaus', 'light', 'lucius', 'luna', 'minimalist', 'molokai',
 \ 'monochrome', 'murmur', 'night_owl', 'nord_minimal', 'onedark', 'ouo', 'owo', 'papercolor', 'peaksea', 'powerlineish', 'qwq', 'ravenpower',
-\ 'raven', 'seagull', 'selenized_bw', 'selenized', 'seoul256', 'serene', 'sierra', 'silver', 'simple', 'soda', 'solarized_flood', 'solarized', 
+\ 'raven', 'seagull', 'selenized_bw', 'selenized', 'seoul256', 'serene', 'sierra', 'silver', 'simple', 'soda', 'solarized_flood', 'solarized',
 \ 'sol', 'supernova', 'term_light', 'term', 'tomorrow', 'transparent', 'ubaryd', 'understated', 'violet', 'wombat', 'xtermlight', 'zenburn'
 \ ]
 
@@ -399,31 +713,11 @@ vmap <leader>go :GBrowse<CR>
 " ======== ALE Configuration ==========
 " =====================================
 
-" Define a custom fixer for Verilog using Verible
-function! FixWithVeribleVerilogFormat(buffer) abort
-    " Get the file path for the current buffer
-    let l:file = expand('%:p')
-    " Construct the command to run Verible on the file
-    let l:command = 'verible-verilog-format --inplace ' . shellescape(l:file)
-    " Run the command and capture output
-    let l:output = system(l:command)
-
-    " Check if Verible ran without errors
-    if v:shell_error
-        echoerr "Verible failed to run: " . l:output
-    else
-        " Reload the file in Vim to reflect changes
-        silent! edit
-        echo "Verible formatting completed successfully."
-    endif
-endfunction
-
 " Define linters for various filetypes
 let g:ale_linters = {
     \   'python': ['flake8', 'pylint', 'mypy'],
     \   'sh': ['shellcheck'],
     \   'make': ['checkmake'],
-    \   'verilog': ['verilator', 'iverilog', 'hdl_checker', 'verible'],
     \   'vhdl': ['hdl_checker', 'ghdl'],
     \   'c': ['clangd'],
     \   'cpp': ['clangd'],
@@ -438,12 +732,8 @@ let g:ale_linters = {
 let g:ale_fixers = {
 \   'python': ['autopep8'],
 \   'sh': ['shfmt'],
-\   'verilog': [function('FixWithVeribleVerilogFormat')],
 \   'make': ['shfmt'],
 \}
-
-" Configure verible formatting
-let g:ale_verilog_verible_verilog_format_options = '--indentation_spaces=4'
 
 " Enable fixing and linting on save
 let g:ale_fix_on_save = 1
@@ -479,8 +769,6 @@ let g:ale_make_checkmake_executable = 'checkmake'
 " Disable ALE's autocompletion
 let g:ale_completion_enabled = 0
 
-" Customize ALE to invoke Emacs Verilog mode
-let g:ale_fixers_emacs_command = 'emacs --batch --eval "(progn (find-file \\"%s\\") (verilog-auto) (save-buffer))"'
 " =====================================
 " ======== CoC Configuration ==========
 " =====================================
@@ -733,18 +1021,18 @@ inoremap proc process(<Esc>li) is<Esc>o<Esc>oend process;
 " Define available color schemes
 let g:color_schemes = [
 \ '256_noir', 'abstract', 'afterglow', 'alduin', 'anderson', 'angr', 'apprentice',
-\ 'archery', 'atom', 'ayu', 'carbonized-dark', 'carbonized-light', 'challenger_deep', 
-\ 'deep-space', 'deus', 'dogrun', 'flattened_dark', 'flattened_light', 'focuspoint', 
-\ 'fogbell_light', 'fogbell_lite', 'fogbell', 'github', 'gotham256', 'gotham', 
+\ 'archery', 'atom', 'ayu', 'carbonized-dark', 'carbonized-light', 'challenger_deep',
+\ 'deep-space', 'deus', 'dogrun', 'flattened_dark', 'flattened_light', 'focuspoint',
+\ 'fogbell_light', 'fogbell_lite', 'fogbell', 'github', 'gotham256', 'gotham',
 \ 'gruvbox', 'happy_hacking', 'hybrid_material', 'hybrid_reverse', 'hybrid', 'iceberg',
 \ 'jellybeans', 'lightning', 'lucid', 'lucius', 'materialbox', 'meta5', 'minimalist',
-\ 'molokai', 'molokayo', 'mountaineer-grey', 'mountaineer-light', 'mountaineer', 
-\ 'nord', 'oceanic_material', 'OceanicNextLight', 'OceanicNext', 'one-dark', 'onedark', 
-\ 'onehalfdark', 'onehalflight', 'one', 'orange-moon', 'orbital', 'paramount', 
-\ 'parsec', 'pink-moon', 'purify', 'pyte', 'rdark-terminal2', 'scheakur', 'seoul256-light', 
+\ 'molokai', 'molokayo', 'mountaineer-grey', 'mountaineer-light', 'mountaineer',
+\ 'nord', 'oceanic_material', 'OceanicNextLight', 'OceanicNext', 'one-dark', 'onedark',
+\ 'onehalfdark', 'onehalflight', 'one', 'orange-moon', 'orbital', 'paramount',
+\ 'parsec', 'pink-moon', 'purify', 'pyte', 'rdark-terminal2', 'scheakur', 'seoul256-light',
 \ 'seoul256', 'sierra', 'snow', 'solarized8_flat', 'solarized8_high', 'solarized8_low',
 \ 'solarized8', 'sonokai', 'spacecamp_lite', 'spacecamp', 'space-vim-dark', 'stellarized',
-\ 'sunbather', 'tender', 'termschool', 'twilight256', 'two-firewatch', 'wombat256mod', 
+\ 'sunbather', 'tender', 'termschool', 'twilight256', 'two-firewatch', 'wombat256mod',
 \ 'yellow-moon'
 \ ]
 
