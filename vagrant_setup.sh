@@ -955,7 +955,7 @@ install_vim_plugins() {
 	"edkolev/tmuxline.vim"
 	"airblade/vim-gitgutter"
 	"bling/vim-bufferline"
-	"mbbill/undotree.git"
+	"mbbill/undotree"
     )
 
     OPTIONAL_PLUGINS=(
