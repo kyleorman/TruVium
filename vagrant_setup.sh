@@ -951,7 +951,11 @@ install_vim_plugins() {
 	"stephpy/vim-yaml"
 	"vim-python/python-syntax"
 	"liuchengxu/vim-which-key"
-	
+	"mkitt/tabline.vim"
+	"edkolev/tmuxline.vim"
+	"airblade/vim-gitgutter"
+	"bling/vim-bufferline"
+	"mbbill/undotree"
     )
 
     OPTIONAL_PLUGINS=(
