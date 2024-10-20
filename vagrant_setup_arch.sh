@@ -6,10 +6,15 @@ set -eEuo pipefail
 IFS=$'\n\t'
 
 # --- Configuration Variables ---
-SCRIPT_DIR="/vagrant"  # Directory where the script is being executed
+SCRIPT_DIR="/vagrant"  # Adjust this if needed
 LOGFILE="/var/log/setup-script.log"
 TMP_DIR="/tmp/setup_script_install"
 INSTALL_PREFIX="/usr/local"
+NODE_VERSION="${NODE_VERSION:-lts}"  # Default Node.js version
+TMUX_VERSION="3.3a"
+VIM_VERSION="9.0"
+NEOVIM_VERSION="0.9.0"
+EMACS_VERSION="29.1"
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
@@ -38,7 +43,7 @@ cleanup() {
     else
         echo "Temporary directory $TMP_DIR does not exist. Skipping."
     fi
-    
+
     # Unset the environment variable after setup
     unset SETUP_SCRIPT_RUNNING
 
@@ -72,323 +77,345 @@ check_internet_connection() {
     fi
 }
 
+# Enable community repo
+ensure_community_repo_enabled() {
+    echo "Ensuring that the [community] repository is enabled..."
+
+    PACMAN_CONF="/etc/pacman.conf"
+
+    # Check if [community] is already enabled
+    if grep -Pzoq '\[community\]\nInclude = /etc/pacman.d/mirrorlist' "$PACMAN_CONF"; then
+        echo "[community] repository is already enabled."
+    else
+        echo "[community] repository is not enabled. Enabling it now."
+
+        # Backup the original pacman.conf
+        sudo cp "$PACMAN_CONF" "${PACMAN_CONF}.bak"
+
+        # Uncomment the [community] repository
+        sudo sed -i '/#\[community\]/,/^#Include = \/etc\/pacman\.d\/mirrorlist/ s/^#//' "$PACMAN_CONF"
+
+        # Verify the changes
+        if grep -Pzoq '\[community\]\nInclude = /etc/pacman.d/mirrorlist' "$PACMAN_CONF"; then
+            echo "[community] repository has been enabled successfully."
+            # Update package databases
+            sudo pacman -Syy
+        else
+            echo "Failed to enable [community] repository. Restoring original pacman.conf."
+            sudo mv "${PACMAN_CONF}.bak" "$PACMAN_CONF"
+            exit 1
+        fi
+    fi
+}
+
+
 # Function to install essential packages
 install_dependencies() {
     echo "Installing essential packages..."
     pacman -Syu --noconfirm
-    pacman -S --noconfirm \
-        autoconf \
-        automake \
-        pkgconf \
-        libevent \
-        ncurses \
+    pacman -S --noconfirm --needed \
         base-devel \
         git \
-        bison \
-        ninja \
-        curl \
+        zsh \
         wget \
+        curl \
+        vim \
+        neovim \
+        tmux \
         python \
         python-pip \
-        python-pipenv \
         lua \
         cmake \
-        zsh \
         perl \
-        gcc-ada \
-        zlib \
-        gperf \
+        gcc \
         flex \
-        desktop-file-utils \
+        bison \
+        gperf \
         gtk3 \
         gtk4 \
-        judy \
-        bzip2 \
-        gobject-introspection \
         ctags \
         htop \
-        vagrant \
-        virtualbox-guest-utils \
         shellcheck \
         pandoc \
-        ttf-powerline-symbols \
         grep \
         sed \
         bc \
         xclip \
         acpi \
-        passwd \
         xorg-xauth \
         xorg-server \
         openbox \
         xdg-utils \
-        python \
-        lua \
-        perl \
-        ruby \
         clang \
-        perl-app-cpanminus \
         jdk11-openjdk \
         maven \
         tree \
         copyq \
-        ncurses \
         tcl \
+        ripgrep \
+        fd \
+        npm \
+        nodejs \
+        go \
+        fd \
+        fzf \
         || { echo "Package installation failed"; exit 1; }
 }
 
-# Function to install tmux via pacman
-install_tmux_via_pacman() {
-    echo "Installing tmux via pacman..."
-    pacman -S --noconfirm tmux
+# Function to install packages from AUR using yay
+install_aur_packages() {
+    echo "Installing AUR packages..."
+    su - "$ACTUAL_USER" -c "command -v yay >/dev/null 2>&1 || (git clone https://aur.archlinux.org/yay.git $TMP_DIR/yay && cd $TMP_DIR/yay && makepkg -si --noconfirm)"
+    su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed \
+        nerd-fonts-complete \
+        perl-language-server \
+        ghdl \
+        gtkwave \
+        texlab \
+        verilator \
+        iverilog \
+        bazel \
+        lemminx \
+        emacs-nativecomp \
+        || { echo 'AUR package installation failed'; exit 1; }"
 }
 
-# Function to install Vim via pacman
-install_vim_via_pacman() {
-    echo "Installing Vim via pacman..."
-    pacman -S --noconfirm vim
+install_verible() {
+    echo "Installing Verible..."
+    su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed verible" || {
+        echo "Warning: Failed to install Verible via AUR. Skipping."
+        return 0
+    }
 }
 
-# Function to install Neovim via pacman
-install_neovim_via_pacman() {
-    echo "Installing Neovim via pacman..."
-    pacman -S --noconfirm neovim
-}
-
-# Function to install Emacs via pacman
-install_emacs_via_pacman() {
-    echo "Installing Emacs via pacman..."
-    pacman -S --noconfirm emacs
-}
-
-# Function to install Node.js via pacman
-install_nodejs_via_pacman() {
-    echo "Installing Node.js via pacman..."
-    pacman -S --noconfirm nodejs npm
-}
-
-# Function to install Go via pacman
-install_golang_via_pacman() {
-    echo "Installing Go via pacman..."
-    pacman -S --noconfirm go
-}
-
-# Function to install Doxygen via pacman
-install_doxygen_via_pacman() {
-    echo "Installing Doxygen via pacman..."
-    pacman -S --noconfirm doxygen
-}
-
-# Function to install FZF via pacman
-install_fzf_via_pacman() {
-    echo "Installing FZF via pacman..."
-    pacman -S --noconfirm fzf
-}
-
-# Function to install GTKWAVE via pacman
-install_gtkwave_via_pacman() {
-    echo "Installing GTKWAVE via pacman..."
-    pacman -S --noconfirm gtkwave
-}
-
-# Function to install GHDL via pacman
-install_ghdl_via_pacman() {
-    echo "Installing GHDL via pacman..."
-    pacman -S --noconfirm ghdl
-}
-
-# Function to install language servers
-install_language_servers() {
-    echo "Installing language servers..."
-
+# Function to install Node.js (already installed via pacman)
+install_nodejs() {
+    echo "Node.js is already installed via pacman."
+    # Update npm to the latest version
     npm install -g npm
-
-    # Install npm-based language servers
-    npm install -g bash-language-server @imc-trading/svlangserver yaml-language-server vscode-langservers-extracted typescript typescript-language-server pyright
-
-    # Install TexLab via pacman
-    pacman -S --noconfirm texlab
-
-    # Install Perl Language Server
-    echo "Installing Perl Language Server via cpanminus..."
-    cpanm Perl::LanguageServer || { echo "Failed to install Perl::LanguageServer"; exit 1; }
-
-    # Install Go Language Server
-    echo "Installing Go Language Server (gopls)..."
-    su - "$ACTUAL_USER" -c "go install golang.org/x/tools/gopls@latest" || { echo "Failed to install gopls"; exit 1; }
 }
 
-# Function to install Python tools
+# Function to install Go (already installed via pacman)
+install_golang() {
+    echo "Go is already installed via pacman."
+}
+
+# Function to install Python tools via pacman and pip
 install_python_tools() {
-    echo "Installing Python tools..."
-    pip install --upgrade pip
-    pip install flake8 pylint black mypy autopep8 jedi doq hdl-checker vsg tox ipython jupyter jupyter-console meson pexpect || { echo "Failed to install Python tools"; exit 1; }
+    echo "Installing Python tools via pacman and yay..."
+
+    # List of Python packages to install
+    PYTHON_PACKAGES=(
+        flake8
+        python-pylint
+        python-black
+        mypy
+        autopep8
+        python-jedi
+        python-tox
+        ipython
+        jupyterlab
+        python-pexpect
+        meson
+    )
+
+    MISSING_PACKAGES=()
+    AUR_PACKAGES=()
+
+    # First, try to install packages via pacman
+    for package in "${PYTHON_PACKAGES[@]}"; do
+        if ! pacman -Qi "$package" &>/dev/null; then
+            echo "Attempting to install $package via pacman..."
+            if ! pacman -S --noconfirm --needed "$package"; then
+                echo "Package $package not found in official repositories."
+                MISSING_PACKAGES+=("$package")
+            else
+                echo "Package $package installed via pacman."
+            fi
+        else
+            echo "Package $package is already installed."
+        fi
+    done
+
+    # Attempt to install missing packages via yay (AUR)
+    if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
+        echo "Attempting to install missing packages via yay: ${MISSING_PACKAGES[*]}"
+        for package in "${MISSING_PACKAGES[@]}"; do
+            if su - "$ACTUAL_USER" -c "yay -Ss ^$package$" &>/dev/null; then
+                AUR_PACKAGES+=("$package")
+            else
+                echo "Package $package not found in AUR."
+            fi
+        done
+
+        if [ ${#AUR_PACKAGES[@]} -ne 0 ]; then
+            echo "Installing packages from AUR: ${AUR_PACKAGES[*]}"
+            su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed ${AUR_PACKAGES[*]}" || {
+                echo "Failed to install some Python tools via yay"; exit 1;
+            }
+        fi
+
+        # For any packages still missing, consider installing via pipx
+        REMAINING_PACKAGES=()
+        for package in "${MISSING_PACKAGES[@]}"; do
+            if ! pacman -Qi "$package" &>/dev/null && ! su - "$ACTUAL_USER" -c "yay -Qi $package" &>/dev/null; then
+                REMAINING_PACKAGES+=("$package")
+            fi
+        done
+
+        if [ ${#REMAINING_PACKAGES[@]} -ne 0 ]; then
+            echo "Installing remaining Python tools via pipx: ${REMAINING_PACKAGES[*]}"
+            # Ensure pipx is installed
+            pacman -S --noconfirm --needed python-pipx
+            for package in "${REMAINING_PACKAGES[@]}"; do
+                su - "$ACTUAL_USER" -c "pipx install ${package#python-}" || {
+                    echo "Failed to install $package via pipx"; exit 1;
+                }
+            done
+        fi
+    fi
+
+    # Install additional Python applications via pipx
+    echo "Installing additional Python applications via pipx..."
+    su - "$ACTUAL_USER" -c "pipx install doq" || { echo "Failed to install doq via pipx"; exit 1; }
+    su - "$ACTUAL_USER" -c "pipx install vsg" || { echo "Failed to install vsg via pipx"; exit 1; }
+    su - "$ACTUAL_USER" -c "pipx install hdl-checker" || { echo "Failed to install hdl-checker via pipx"; exit 1; }
+
+    # Ensure pipx binary directory is in PATH
+    if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$USER_HOME/.zshrc"; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$USER_HOME/.zshrc"
+    fi
 }
 
 # Function to install CheckMake via Go
 install_checkmake() {
     echo "Installing CheckMake via Go..."
     su - "$ACTUAL_USER" -c "go install github.com/mrtazz/checkmake/cmd/checkmake@latest" || { echo "CheckMake installation failed"; exit 1; }
-    echo 'export PATH="$HOME/go/bin:$PATH"' >> "$USER_HOME/.zshrc"
+
+    # Ensure GOPATH/bin is in PATH
+    if ! grep -q 'export PATH="$HOME/go/bin:$PATH"' "$USER_HOME/.zshrc"; then
+        echo 'export PATH="$HOME/go/bin:$PATH"' >> "$USER_HOME/.zshrc"
+    fi
+}
+
+# Function to install tmux (check version, use pacman or compile from source)
+install_tmux() {
+    echo "Installing tmux..."
+    # Check if tmux is installed and its version
+    if command -v tmux &>/dev/null; then
+        INSTALLED_TMUX_VERSION=$(tmux -V | awk '{print $2}')
+        if [ "$INSTALLED_TMUX_VERSION" = "$TMUX_VERSION" ]; then
+            echo "tmux $TMUX_VERSION is already installed."
+            return 0
+        else
+            echo "tmux version $INSTALLED_TMUX_VERSION is installed. Installing tmux $TMUX_VERSION from source."
+            pacman -Rsn --noconfirm tmux
+        fi
+    fi
+
+    # Install dependencies
+    pacman -S --noconfirm --needed \
+        libevent \
+        ncurses \
+        git \
+        automake \
+        autoconf \
+        pkg-config \
+        || { echo "Failed to install tmux dependencies"; exit 1; }
+
+    # Clone tmux source and compile
+    mkdir -p "$TMP_DIR"
+    cd "$TMP_DIR"
+    git clone https://github.com/tmux/tmux.git
+    cd tmux
+    git checkout "$TMUX_VERSION"
+    sh autogen.sh
+    ./configure && make -j"$(nproc)"
+    make install || { echo "tmux installation failed"; exit 1; }
+
+    # Verify installation
+    if tmux -V | grep -q "$TMUX_VERSION"; then
+        echo "tmux $TMUX_VERSION installed successfully."
+    else
+        echo "tmux installation verification failed."
+        exit 1
+    fi
+}
+
+# Function to install Vim (use pacman)
+install_vim() {
+    echo "Installing Vim..."
+    pacman -S --noconfirm --needed vim
+    # Verify installation
+    if command -v vim &>/dev/null; then
+        echo "Vim installed successfully."
+    else
+        echo "Vim installation failed."
+        exit 1
+    fi
+}
+
+# Function to install Emacs (installed via AUR emacs-nativecomp)
+install_emacs() {
+    echo "Installing Emacs..."
+    # Verify installation
+    if command -v emacs &>/dev/null; then
+        echo "Emacs installed successfully."
+    else
+        echo "Emacs installation failed."
+        exit 1
+    fi
+}
+
+# Function to install additional tools via pacman or yay
+install_additional_tools() {
+    echo "Installing additional tools..."
+    # Verilator, Icarus Verilog, Bazel, Verible, GTKWAVE, GHDL, Doxygen
+    pacman -S --noconfirm --needed \
+        verilator \
+        iverilog \
+        doxygen \
+        gtkwave \
+        ghdl \
+        || { echo "Failed to install additional tools via pacman"; exit 1; }
+    su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed bazel verible" || { echo "Failed to install additional tools via yay"; exit 1; }
+}
+
+# Function to install language servers
+install_language_servers() {
+    echo "Installing language servers..."
+    # Perl Language Server is installed via yay
+    # LemMinX (XML Language Server)
+    su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed lemminx" || { echo "Failed to install lemminx via yay"; exit 1; }
+    # Go Language Server
+    su - "$ACTUAL_USER" -c "go install golang.org/x/tools/gopls@latest" || { echo "Failed to install gopls"; exit 1; }
 }
 
 # Function to install Tmux Plugin Manager and tmux plugins
 install_tpm() {
     echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
-    ensure_tpm_installed
-    automate_tpm_install
-    check_tpm_installation
-    echo "Tmux Plugin Manager and plugins installed successfully."
-}
-
-# Function to ensure TPM (Tmux Plugin Manager) is installed
-ensure_tpm_installed() {
-    echo "Verifying Tmux Plugin Manager (TPM) installation..."
     TPM_DIR="$USER_HOME/.tmux/plugins/tpm"
     if [ ! -d "$TPM_DIR" ]; then
-        echo "Cloning Tmux Plugin Manager (TPM)..."
-        su - "$ACTUAL_USER" -c "git clone https://github.com/tmux-plugins/tpm '$TPM_DIR'" || {
-            echo "Failed to clone TPM."
-            exit 1
-        }
-    else
-        echo "TPM is already installed."
+        su - "$ACTUAL_USER" -c "git clone https://github.com/tmux-plugins/tpm '$TPM_DIR'" || { echo "Failed to clone TPM"; exit 1; }
     fi
-}
-
-# Function to automate TPM's plugin installation
-automate_tpm_install() {
-    echo "Automating TPM plugin installation..."
 
     # Initialize TPM in .tmux.conf if not already present
-    if ! grep -q "run '~/.tmux/plugins/tpm/tpm'" "$USER_HOME/.tmux.conf"; then
-        echo "Initializing TPM in .tmux.conf..."
-        echo "run '~/.tmux/plugins/tpm/tpm'" >> "$USER_HOME/.tmux.conf"
-    else
-        echo "TPM initialization already present in .tmux.conf."
+    if ! grep -q "run -b '~/.tmux/plugins/tpm/tpm'" "$USER_HOME/.tmux.conf"; then
+        echo "run -b '~/.tmux/plugins/tpm/tpm'" >> "$USER_HOME/.tmux.conf"
     fi
 
-    # Reload tmux environment and install plugins using the absolute path to tmux
-    tmux new-session -d -s tpm_install "/usr/bin/tmux source ~/.tmux.conf && ~/.tmux/plugins/tpm/bin/install_plugins && /usr/bin/tmux source ~/.tmux.conf &&  ~/.tmux/plugins/tpm/bin/update_plugins all && /usr/bin/tmux source ~/.tmux.conf"
-    echo "TPM plugin installation triggered."
-}
-
-# Function to check if TPM plugins are installed
-check_tpm_installation() {
-    echo "Checking if TPM plugins are installed..."
-
-    # Check if TPM plugin directory exists
-    if [ -d "$USER_HOME/.tmux/plugins/tpm" ]; then
-        echo "TPM and plugins seem to be installed."
-    else
-        echo "TPM is not installed. Please install TPM and press <prefix> + I to install plugins."
-    fi
-}
-
-# Function to kill any running tmux sessions
-kill_tmux_sessions() {
-    echo "Killing any running tmux sessions before Oh My Zsh installation..."
-    if tmux ls &> /dev/null; then
-        tmux kill-server
-        echo "tmux server stopped."
-    else
-        echo "No tmux sessions were running."
-    fi
-}
-
-# Function to install oh-my-zsh
-setup_zsh() {
-    # Backup existing .zshrc if it exists
-    if [ -f "$USER_HOME/.zshrc" ]; then
-        cp "$USER_HOME/.zshrc" "$USER_HOME/.zshrc.bak"
-        echo "Existing .zshrc backed up to $USER_HOME/.zshrc.bak"
-    fi
-
-    echo "Installing Oh My Zsh for $ACTUAL_USER..."
-
-    # Download the Oh My Zsh install script into the user's home directory
-    INSTALL_SCRIPT="$USER_HOME/install_oh_my_zsh.sh"
-    curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -o "$INSTALL_SCRIPT" || {
-        echo "Failed to download Oh My Zsh install script"; exit 1;
-    }
-    chmod +x "$INSTALL_SCRIPT"
-    chown "$ACTUAL_USER:$ACTUAL_USER" "$INSTALL_SCRIPT"
-
-    # Run the install script as the actual user using su -
-    su - "$ACTUAL_USER" -c "sh '$INSTALL_SCRIPT' --unattended" || {
-        echo "Oh My Zsh installation failed"; return 1;
-    }
-
-    # Remove the install script
-    rm "$INSTALL_SCRIPT"
-
-    # Append new configuration to .zshrc with interactive shell check
-    echo "Setting up .zshrc for $ACTUAL_USER..."
-    {
-        echo 'export PATH="$HOME/.local/bin:$PATH"'
-        echo 'export PATH="/usr/bin:$PATH"'
-        echo 'export PATH="$HOME/go/bin:$PATH"'
-        echo 'export PATH="/usr/local/bin:$PATH"'
-        echo 'export PATH="/usr/local/go/bin:$PATH"'
-        echo 'alias emacs="emacs -nw"'
-        echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
-        echo ''
-        echo 'if [[ $- == *i* ]]; then'  # Check if the shell is interactive
-        echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
-        echo '    if tmux has-session -t default 2> /dev/null; then'
-        echo '      tmux attach-session -t default'
-        echo '    else'
-        echo '      tmux new-session -s default'
-        echo '    fi'
-        echo '  fi'
-        echo 'fi'
-    } >> "$USER_HOME/.zshrc"
-
-    # Ensure the .zshrc is owned by the actual user
-    chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
-}
-
-# Function to clone Zsh plugins
-clone_zsh_plugins() {
-    echo "Cloning Zsh plugins..."
-    ZSH_CUSTOM="${ZSH_CUSTOM:-$USER_HOME/.oh-my-zsh/custom}"
-
-    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '$ZSH_CUSTOM/plugins/zsh-syntax-highlighting'" || true
-    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions.git '$ZSH_CUSTOM/plugins/zsh-autosuggestions'" || true
-
-    # Update .zshrc plugins line
-    DESIRED_PLUGINS='plugins=(git zsh-syntax-highlighting zsh-autosuggestions)'
-    if grep -q "^plugins=" "$USER_HOME/.zshrc"; then
-        sed -i "s/^plugins=.*/$DESIRED_PLUGINS/" "$USER_HOME/.zshrc"
-    else
-        sed -i "/^source .*oh-my-zsh.sh/a $DESIRED_PLUGINS" "$USER_HOME/.zshrc"
-    fi
-
-    echo "Plugins configured in .zshrc."
-
-    # Ensure correct ownership and permissions
-    chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
-    chmod 644 "$USER_HOME/.zshrc"
-}
-
-# Function to install FZF via pacman
-install_fzf_via_pacman() {
-    echo "Installing FZF via pacman..."
-    pacman -S --noconfirm fzf
-}
-
-# Function to install Vim plugins
-install_vim_plugins_all() {
-    install_vim_plugins
-    setup_ftdetect_symlinks
+    # Install tmux plugins
+    su - "$ACTUAL_USER" -c "tmux start-server; tmux new-session -d; ~/.tmux/plugins/tpm/bin/install_plugins; tmux kill-server" || { echo "Failed to install tmux plugins"; exit 1; }
 }
 
 # Function to install Vim plugins
 install_vim_plugins() {
-    echo "Starting Vim plugin installation..."
+    echo "Installing Vim plugins..."
+    PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/start"
+    su - "$ACTUAL_USER" -c "mkdir -p '$PLUGIN_DIR'"
 
-    # Define plugin arrays
-    START_PLUGINS=(
+    # List of plugins
+    PLUGINS=(
         "preservim/nerdtree"
         "preservim/vimux"
         "christoomey/vim-tmux-navigator"
@@ -426,193 +453,85 @@ install_vim_plugins() {
         "mbbill/undotree"
     )
 
-    OPTIONAL_PLUGINS=(
-        "klen/python-mode"
-        "suoto/hdl_checker"
-        "vim-perl/vim-perl"
-        "octol/vim-cpp-enhanced-highlight"
-        "nsf/gocode"
-        "daeyun/vim-matlab"
-    )
+    for plugin in "${PLUGINS[@]}"; do
+        plugin_name=$(basename "$plugin")
+        plugin_path="$PLUGIN_DIR/$plugin_name"
+        if [ ! -d "$plugin_path" ]; then
+            su - "$ACTUAL_USER" -c "git clone https://github.com/$plugin.git '$plugin_path'" || { echo "Failed to clone $plugin"; exit 1; }
+        fi
+    done
 
-    COLOR_SCHEMES=(
-        "altercation/vim-colors-solarized"
-        "rafi/awesome-vim-colorschemes"
-    )
+    # Generate helptags
+    su - "$ACTUAL_USER" -c "vim -u NONE -c 'helptags ALL' -c q"
 
-    # Define plugin directories
-    START_PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/start"
-    OPT_PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/opt"
+    # Install color schemes
     COLOR_PLUGIN_DIR="$USER_HOME/.vim/pack/colors/start"
-
-    # Ensure plugin directories exist
-    su - "$ACTUAL_USER" -c "mkdir -p '$START_PLUGIN_DIR'"
-    su - "$ACTUAL_USER" -c "mkdir -p '$OPT_PLUGIN_DIR'"
     su - "$ACTUAL_USER" -c "mkdir -p '$COLOR_PLUGIN_DIR'"
-
-    # Clone essential start plugins
-    echo "Cloning essential start plugins..."
-    for plugin in "${START_PLUGINS[@]}"; do
-        plugin_name=$(basename "$plugin")
-        target_path="$START_PLUGIN_DIR/$plugin_name"
-        clone_plugin "$plugin" "$target_path"
-    done
-
-    # Clone optional plugins
-    echo "Cloning optional plugins..."
-    for plugin in "${OPTIONAL_PLUGINS[@]}"; do
-        plugin_name=$(basename "$plugin")
-        target_path="$OPT_PLUGIN_DIR/$plugin_name"
-        clone_plugin "$plugin" "$target_path"
-    done
-
-    # Clone color schemes
-    echo "Cloning color schemes..."
-    for color in "${COLOR_SCHEMES[@]}"; do
-        color_name=$(basename "$color")
-        target_path="$COLOR_PLUGIN_DIR/$color_name"
-        clone_plugin "$color" "$target_path"
-    done
-
-    # Generate helptags for all plugins
-    echo "Generating helptags for plugins..."
-
-    # Generate helptags for start plugins
-    for plugin in "${START_PLUGINS[@]}"; do
-        plugin_name=$(basename "$plugin")
-        target_path="$START_PLUGIN_DIR/$plugin_name"
-        generate_helptags "$target_path"
-    done
-
-    # Generate helptags for optional plugins
-    for plugin in "${OPTIONAL_PLUGINS[@]}"; do
-        plugin_name=$(basename "$plugin")
-        target_path="$OPT_PLUGIN_DIR/$plugin_name"
-        generate_helptags "$target_path"
-    done
-
-    # Generate helptags for color schemes
-    for plugin in "${COLOR_SCHEMES[@]}"; do
-        plugin_name=$(basename "$plugin")
-        target_path="$COLOR_PLUGIN_DIR/$plugin_name"
-        generate_helptags "$target_path"
-    done
-
-    echo "Vim plugins installed and helptags generated successfully."
+    su - "$ACTUAL_USER" -c "git clone https://github.com/altercation/vim-colors-solarized.git '$COLOR_PLUGIN_DIR/vim-colors-solarized'" || true
+    su - "$ACTUAL_USER" -c "git clone https://github.com/rafi/awesome-vim-colorschemes.git '$COLOR_PLUGIN_DIR/awesome-vim-colorschemes'" || true
 }
 
-# Function to clone a Git repository if it doesn't already exist
-clone_plugin() {
-    local repo="$1"
-    local target_dir="$2"
+# Function to install and configure Zsh and Oh My Zsh
+install_zsh() {
+    echo "Installing Oh My Zsh..."
+    su - "$ACTUAL_USER" -c "sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" --unattended"
 
-    if [ -d "$target_dir" ]; then
-        echo "Plugin '$repo' already exists at '$target_dir'. Skipping clone."
-    else
-        echo "Cloning '$repo' into '$target_dir'..."
-        su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$repo.git $target_dir" || {
-            echo "Error: Failed to clone '$repo' into '$target_dir'."
-            exit 1
-        }
-        echo "Successfully cloned '$repo'."
-    fi
+    # Install Zsh plugins
+    ZSH_CUSTOM="$USER_HOME/.oh-my-zsh/custom"
+    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '$ZSH_CUSTOM/plugins/zsh-syntax-highlighting'" || true
+    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions.git '$ZSH_CUSTOM/plugins/zsh-autosuggestions'" || true
+
+    # Update .zshrc
+    sed -i 's/plugins=(git)/plugins=(git zsh-syntax-highlighting zsh-autosuggestions)/' "$USER_HOME/.zshrc"
+
+    # Add custom PATH entries
+    {
+        echo 'export PATH="$HOME/.local/bin:$PATH"'
+        echo 'export PATH="$HOME/go/bin:$PATH"'
+    } >> "$USER_HOME/.zshrc"
 }
 
-# Function to generate helptags for a Vim plugin
-generate_helptags() {
-    local plugin_dir="$1"
-    local doc_dir="$plugin_dir/doc"
-
-    if [ -d "$doc_dir" ]; then
-        echo "Generating helptags for plugin at '$plugin_dir'..."
-        vim -u NONE -c "helptags $doc_dir" -c "qa!" || {
-            echo "Warning: Failed to generate helptags for '$plugin_dir'."
-        }
-    fi
+# Function to install coc.nvim dependencies
+install_coc_dependencies() {
+    echo "Installing coc.nvim dependencies..."
+    su - "$ACTUAL_USER" -c "cd '$USER_HOME/.vim/pack/plugins/start/coc.nvim' && npm install" || { echo "Failed to install coc.nvim dependencies"; exit 1; }
 }
 
-# Function to set up ftdetect symlinks
-setup_ftdetect_symlinks() {
-    FTDETECT_SRC_DIR="$START_PLUGIN_DIR/ultisnips/ftdetect"
-    FTDETECT_DEST_DIR="$USER_HOME/.vim/ftdetect"
-
-    echo "Setting up ftdetect symbolic links..."
-
-    # Ensure the destination directory exists
-    su - "$ACTUAL_USER" -c "mkdir -p '$FTDETECT_DEST_DIR'"
-
-    # Check if the source directory exists and contains files
-    if [ -d "$FTDETECT_SRC_DIR" ] && [ "$(ls -A "$FTDETECT_SRC_DIR")" ]; then
-        for src_file in "$FTDETECT_SRC_DIR"/*; do
-            # Extract the filename
-            filename="$(basename "$src_file")"
-            dest_file="$FTDETECT_DEST_DIR/$filename"
-
-            # Check if the destination symlink already exists
-            if [ -L "$dest_file" ]; then
-                echo "Symlink for $filename already exists. Skipping."
-            elif [ -e "$dest_file" ]; then
-                echo "A file named $filename exists and is not a symlink. Skipping to avoid overwriting."
-            else
-                # Create the symbolic link
-                ln -s "$src_file" "$dest_file" && \
-                    echo "Created symlink: $dest_file -> $src_file" || \
-                    echo "Failed to create symlink for $filename"
-            fi
-        done
-    else
-        echo "No ftdetect files found in $FTDETECT_SRC_DIR. Skipping symlink creation."
-    fi
+# Function to install Nerd Fonts (already installed via nerd-fonts-complete)
+install_nerd_fonts() {
+    echo "Nerd Fonts are already installed via nerd-fonts-complete package."
 }
 
 # Function to copy configuration files
 copy_config_files() {
-    echo "Copying configuration files to user home directory..."
-
-    # Declare an associative array of source and destination files
-    declare -A CONFIG_FILES=(
-        ["vimrc"]=".vimrc"
-        ["tmux.conf"]=".tmux.conf"
-        ["tmux_keys.sh"]=".tmux_keys.sh"
-        ["coc-settings.json"]=".vim/coc-settings.json"
-        ["hdl_checker.json"]=".vim/hdl_checker.json"
-        ["airline_theme.conf"]=".vim/airline_theme.conf"
-        ["color_scheme.conf"]=".vim/color_scheme.conf"
+    echo "Copying configuration files..."
+    CONFIG_FILES=(
+        "vimrc"
+        "tmux.conf"
+        "tmux_keys.sh"
+        "coc-settings.json"
+        "hdl_checker.json"
+        "airline_theme.conf"
+        "color_scheme.conf"
     )
 
-    for src in "${!CONFIG_FILES[@]}"; do
-        dest="${CONFIG_FILES[$src]}"
-        src_path="$SCRIPT_DIR/$src"
-        dest_path="$USER_HOME/$dest"
-        
-        if [ -f "$dest_path" ]; then
-            mv "$dest_path" "${dest_path}.bak"
-            echo "Existing $dest_path backed up to ${dest_path}.bak"
-        fi
-        
-        # Ensure the destination directory exists
-        dest_dir=$(dirname "$dest_path")
-        su - "$ACTUAL_USER" -c "mkdir -p '$dest_dir'"
-
-        if [ -f "$src_path" ]; then
-            cp "$src_path" "$dest_path"
-            chown "$ACTUAL_USER:$ACTUAL_USER" "$dest_path"
-            chmod 644 "$dest_path"
-            echo "$src copied successfully to $dest_path."
+    for config in "${CONFIG_FILES[@]}"; do
+        src="$SCRIPT_DIR/$config"
+        dest="$USER_HOME/.$config"
+        if [ -f "$src" ]; then
+            cp "$src" "$dest"
+            chown "$ACTUAL_USER:$ACTUAL_USER" "$dest"
         else
-            echo "Warning: $src not found in $SCRIPT_DIR. Skipping copy."
+            echo "Configuration file $src not found."
         fi
     done
 
     # Copy 'yank' to /usr/local/bin
-    echo "Copying 'yank' to /usr/local/bin..."
     if [ -f "$SCRIPT_DIR/yank" ]; then
         cp "$SCRIPT_DIR/yank" "/usr/local/bin/yank"
-        chown root:root "/usr/local/bin/yank"
-        chmod 755 "/usr/local/bin/yank"
-        echo "'yank' copied successfully to /usr/local/bin."
+        chmod +x "/usr/local/bin/yank"
     else
-        echo "Warning: 'yank' not found in $SCRIPT_DIR. Skipping copy."
+        echo "'yank' script not found."
     fi
 }
 
@@ -624,53 +543,10 @@ configure_git() {
     echo "Configuring Git..."
 
     if [ -f "$GIT_SETUP_SCRIPT" ] && [ -f "$GIT_SETUP_CONF" ]; then
-        if su - "$ACTUAL_USER" -c "bash '$GIT_SETUP_SCRIPT' --config-file '$GIT_SETUP_CONF' --non-interactive"; then
-            echo "Git configured successfully."
-        else
-            echo "Git configuration failed."
-            exit 1
-        fi
+        su - "$ACTUAL_USER" -c "bash '$GIT_SETUP_SCRIPT' --config-file '$GIT_SETUP_CONF' --non-interactive" || { echo "Git configuration failed"; exit 1; }
     else
-        echo "Error: Git setup scripts or configuration files are missing."
-        exit 1
+        echo "Git setup script or configuration file not found."
     fi
-}
-
-# Function to install coc.nvim dependencies
-install_coc_dependencies() {
-    echo "Installing dependencies for coc.nvim..."
-
-    COC_DIR="$USER_HOME/.vim/pack/plugins/start/coc.nvim"
-
-    if [ -d "$COC_DIR" ]; then
-        echo "Changing ownership of coc.nvim directory to $ACTUAL_USER..."
-        chown -R "$ACTUAL_USER:$ACTUAL_USER" "$COC_DIR"
-
-        echo "Running 'npm ci' in coc.nvim directory..."
-        su - "$ACTUAL_USER" bash -c "cd '$COC_DIR' && npm ci" || {
-            echo "Error: Failed to install dependencies for coc.nvim."
-            exit 1
-        }
-        echo "Dependencies for coc.nvim installed successfully."
-    else
-        echo "Error: coc.nvim directory not found at '$COC_DIR'."
-        exit 1
-    fi
-}
-
-# Function to ensure the home directory is owned by the actual user
-ensure_home_ownership() {
-    echo "----- Ensuring ownership of home directory -----"
-    
-    echo "Setting ownership of home directory to $ACTUAL_USER..."
-    if chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME"; then
-        echo "Ownership of $USER_HOME set to $ACTUAL_USER successfully."
-    else
-        echo "Error: Failed to set ownership for $USER_HOME."
-        exit 1
-    fi
-    
-    echo "----- Home directory ownership ensured -----"
 }
 
 # Function to install LazyVim
@@ -684,7 +560,7 @@ install_lazyvim() {
     fi
 
     # Ensure git is installed
-    pacman -S --noconfirm git || { echo "Failed to install git"; exit 1; }
+    pacman -S --noconfirm --needed git || { echo "Failed to install git"; exit 1; }
 
     # Clone the LazyVim starter repository
     LAZYVIM_DIR="$USER_HOME/.config/nvim"
@@ -719,7 +595,7 @@ install_lazyvim() {
     echo "LazyVim installed successfully."
 }
 
-# Install Doom Emacs (optional)
+# Function to install Doom Emacs
 install_doom_emacs() {
     echo "Installing Doom Emacs..."
 
@@ -730,7 +606,7 @@ install_doom_emacs() {
     fi
 
     # Ensure git, ripgrep, and fd are installed
-    pacman -S --noconfirm ripgrep fd || { echo "Failed to install dependencies"; exit 1; }
+    pacman -S --noconfirm --needed ripgrep fd || { echo "Failed to install dependencies"; exit 1; }
 
     # Clone Doom Emacs repository
     if [ ! -d "$USER_HOME/.emacs.d" ]; then
@@ -743,7 +619,7 @@ install_doom_emacs() {
     # Create Doom configuration if it doesn't exist
     if [ ! -d "$USER_HOME/.doom.d" ]; then
         echo "Creating Doom configuration directory..."
-        su - "$ACTUAL_USER" -c "mkdir -p $USER_HOME/.doom.d"
+        su - "$ACTUAL_USER" -c "mkdir -p '$USER_HOME/.doom.d'"
     fi
 
     # Let Doom install its own configuration
@@ -760,14 +636,10 @@ install_doom_emacs() {
     echo "Doom Emacs installed successfully."
 }
 
-# Function to install Nerd Fonts
-install_nerd_fonts() {
-    echo "Installing Nerd Fonts..."
-
-    # Install nerd-fonts via pacman
-    pacman -S --noconfirm nerd-fonts-complete || { echo "Failed to install Nerd Fonts"; exit 1; }
-
-    echo "Nerd Fonts installed successfully."
+# Function to ensure home directory ownership is correct
+ensure_home_ownership() {
+    echo "Ensuring home directory ownership is correct..."
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME"
 }
 
 # --- Main Script Execution ---
@@ -777,14 +649,26 @@ echo "----- Starting Setup Script -----"
 # Execute the internet check
 check_internet_connection
 
+# Enable community repo
+ensure_community_repo_enabled
+
 # Install essential packages
 install_dependencies
+
+# Install AUR packages using yay
+install_aur_packages
+
+# Install verible
+#install_verible
 
 # Copy configuration files
 copy_config_files
 
-# Install Go via pacman
-install_golang_via_pacman
+# Install Node.js
+install_nodejs
+
+# Install Go
+install_golang
 
 # Install Python tools
 install_python_tools
@@ -792,23 +676,37 @@ install_python_tools
 # Install CheckMake via Go
 install_checkmake
 
-# Install tmux via pacman
-install_tmux_via_pacman
+# Install tmux
+install_tmux
 
 # Install Tmux Plugin Manager and tmux plugins
 install_tpm
 
-# Install Vim via pacman
-install_vim_via_pacman
-
-# Install Node.js via pacman
-install_nodejs_via_pacman
-
-# Install FZF via pacman
-install_fzf_via_pacman
+# Install Vim
+install_vim
 
 # Install Vim plugins
-install_vim_plugins_all
+install_vim_plugins
+
+# Install Emacs
+install_emacs
+
+# Install Doom Emacs
+install_doom_emacs
+
+# Install Neovim (already installed via pacman)
+
+# Install LazyVim
+install_lazyvim
+
+# Install additional tools
+install_additional_tools
+
+# Install language servers
+install_language_servers
+
+# Install and configure Zsh and Oh My Zsh
+install_zsh
 
 # Configure Git
 configure_git
@@ -816,57 +714,12 @@ configure_git
 # Install coc.nvim dependencies
 install_coc_dependencies
 
-# Install Doxygen via pacman
-install_doxygen_via_pacman
-
-# Install additional language servers
-install_language_servers
-
-# Install GTKWAVE via pacman
-install_gtkwave_via_pacman
-
-# Install GHDL via pacman
-install_ghdl_via_pacman
-
-# Verify GHDL installation
-verify_ghdl() {
-    echo "Verifying GHDL installation..."
-    if command -v ghdl &>/dev/null; then
-        ghdl --version || { echo "GHDL verification failed"; exit 1; }
-        echo "GHDL verified successfully."
-    else
-        echo "GHDL command not found after installation."
-        exit 1
-    fi
-}
-verify_ghdl
-
-# Install and configure Zsh and Oh My Zsh
-kill_tmux_sessions
-setup_zsh
-clone_zsh_plugins
-
-# Install Neovim via pacman
-install_neovim_via_pacman
-
-# Install LazyVim
-install_lazyvim
-
-# Install Emacs via pacman
-install_emacs_via_pacman
-
-# Install Doom Emacs
-install_doom_emacs
-
-# Install Nerd Fonts
-install_nerd_fonts
-
 # Ensure home directory ownership is correct
 ensure_home_ownership
 
 # Clean up package manager cache
 echo "Cleaning up package manager cache..."
-pacman -Scc --noconfirm
+pacman -Scc --noconfirm || true
 
 echo "----- Setup Completed Successfully! -----"
 
