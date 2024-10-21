@@ -1398,7 +1398,7 @@ install_dependencies() {
         python3-pip \
         python3-venv \
         pipenv \
-	lua5.4 \
+		lua5.4 \
         cmake \
         zsh \
         make \
