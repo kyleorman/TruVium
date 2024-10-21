@@ -11,7 +11,7 @@ LOGFILE="/var/log/setup-script.log"
 TMP_DIR="/tmp/setup_script_install"
 INSTALL_PREFIX="/usr/local"
 NODE_VERSION="${NODE_VERSION:-lts}"  # Default Node.js version
-TMUX_VERSION="3.3a"
+TMUX_VERSION="3.5a"
 VIM_VERSION="9.0"
 NEOVIM_VERSION="0.9.0"
 EMACS_VERSION="29.1"
@@ -83,31 +83,29 @@ ensure_community_repo_enabled() {
 
     PACMAN_CONF="/etc/pacman.conf"
 
+    # Backup the original pacman.conf
+    cp "$PACMAN_CONF" "${PACMAN_CONF}.bak"
+
     # Check if [community] is already enabled
-    if grep -Pzoq '\[community\]\nInclude = /etc/pacman.d/mirrorlist' "$PACMAN_CONF"; then
+    if grep -q "^\[community\]" "$PACMAN_CONF"; then
         echo "[community] repository is already enabled."
+        return
+    fi
+
+    # Add the [community] repository to the end of pacman.conf
+    echo -e "\n[community]\nInclude = /etc/pacman.d/mirrorlist" >> "$PACMAN_CONF"
+
+    # Verify the changes
+    if grep -q "^\[community\]" "$PACMAN_CONF"; then
+        echo "[community] repository has been enabled successfully."
+        # Update package databases
+        pacman -Syy
     else
-        echo "[community] repository is not enabled. Enabling it now."
-
-        # Backup the original pacman.conf
-        sudo cp "$PACMAN_CONF" "${PACMAN_CONF}.bak"
-
-        # Uncomment the [community] repository
-        sudo sed -i '/#\[community\]/,/^#Include = \/etc\/pacman\.d\/mirrorlist/ s/^#//' "$PACMAN_CONF"
-
-        # Verify the changes
-        if grep -Pzoq '\[community\]\nInclude = /etc/pacman.d/mirrorlist' "$PACMAN_CONF"; then
-            echo "[community] repository has been enabled successfully."
-            # Update package databases
-            sudo pacman -Syy
-        else
-            echo "Failed to enable [community] repository. Restoring original pacman.conf."
-            sudo mv "${PACMAN_CONF}.bak" "$PACMAN_CONF"
-            exit 1
-        fi
+        echo "Failed to enable [community] repository. Restoring original pacman.conf."
+        mv "${PACMAN_CONF}.bak" "$PACMAN_CONF"
+        exit 1
     fi
 }
-
 
 # Function to install essential packages
 install_dependencies() {
@@ -200,9 +198,22 @@ install_golang() {
     echo "Go is already installed via pacman."
 }
 
-# Function to install Python tools via pacman and pip
+# Function to install Python tools via pacman, yay, and pipx
 install_python_tools() {
-    echo "Installing Python tools via pacman and yay..."
+    echo "Installing Python tools via pacman, yay, and pipx as needed..."
+
+    # Ensure pipx is installed so it's available
+    if ! pacman -Qi python-pipx &>/dev/null; then
+        echo "Installing pipx..."
+        pacman -S --noconfirm --needed python-pipx || { echo "Failed to install pipx"; exit 1; }
+    else
+        echo "pipx is already installed."
+    fi
+
+    # Ensure pipx binary directory is in PATH
+    if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$USER_HOME/.zshrc"; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$USER_HOME/.zshrc"
+    fi
 
     # List of Python packages to install
     PYTHON_PACKAGES=(
@@ -217,10 +228,12 @@ install_python_tools() {
         jupyterlab
         python-pexpect
         meson
+        doq
+        vsg
+        hdl-checker
     )
 
     MISSING_PACKAGES=()
-    AUR_PACKAGES=()
 
     # First, try to install packages via pacman
     for package in "${PYTHON_PACKAGES[@]}"; do
@@ -239,9 +252,10 @@ install_python_tools() {
 
     # Attempt to install missing packages via yay (AUR)
     if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
-        echo "Attempting to install missing packages via yay: ${MISSING_PACKAGES[*]}"
+        AUR_PACKAGES=()
         for package in "${MISSING_PACKAGES[@]}"; do
-            if su - "$ACTUAL_USER" -c "yay -Ss ^$package$" &>/dev/null; then
+            echo "Checking if $package is available in the AUR..."
+            if su - "$ACTUAL_USER" -c "yay -Ss ^$package$" | grep -q "^aur/$package"; then
                 AUR_PACKAGES+=("$package")
             else
                 echo "Package $package not found in AUR."
@@ -255,36 +269,63 @@ install_python_tools() {
             }
         fi
 
-        # For any packages still missing, consider installing via pipx
-        REMAINING_PACKAGES=()
+        # Update MISSING_PACKAGES after attempting AUR installations
+        NEW_MISSING_PACKAGES=()
         for package in "${MISSING_PACKAGES[@]}"; do
             if ! pacman -Qi "$package" &>/dev/null && ! su - "$ACTUAL_USER" -c "yay -Qi $package" &>/dev/null; then
-                REMAINING_PACKAGES+=("$package")
+                NEW_MISSING_PACKAGES+=("$package")
             fi
         done
+        MISSING_PACKAGES=("${NEW_MISSING_PACKAGES[@]}")
+    fi
 
-        if [ ${#REMAINING_PACKAGES[@]} -ne 0 ]; then
-            echo "Installing remaining Python tools via pipx: ${REMAINING_PACKAGES[*]}"
-            # Ensure pipx is installed
-            pacman -S --noconfirm --needed python-pipx
-            for package in "${REMAINING_PACKAGES[@]}"; do
-                su - "$ACTUAL_USER" -c "pipx install ${package#python-}" || {
+    # Install remaining packages via pipx if necessary
+    if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
+        echo "Installing remaining Python tools via pipx: ${MISSING_PACKAGES[*]}"
+        for package in "${MISSING_PACKAGES[@]}"; do
+            if [[ "$package" == "hdl-checker" ]]; then
+                echo "Not Installing hdl-checker using Python 3.11..."
+                #install_hdl_checker_with_pyenv
+            else
+                # Remove 'python-' prefix if present for pipx installation
+                pipx_package="${package#python-}"
+                su - "$ACTUAL_USER" -c "pipx install $pipx_package" || {
                     echo "Failed to install $package via pipx"; exit 1;
                 }
-            done
-        fi
+            fi
+        done
+    fi
+}
+
+# Function to install hdl-checker using pyenv with Python 3.11
+install_hdl_checker_with_pyenv() {
+    echo "Installing pyenv to manage Python versions..."
+
+    # Ensure pyenv is installed
+    if ! command -v pyenv &>/dev/null; then
+        curl https://pyenv.run | bash || { echo "Failed to install pyenv"; exit 1; }
+
+        # Add pyenv to zshrc
+        echo 'export PATH="$HOME/.pyenv/bin:$PATH"' >> "$USER_HOME/.zshrc"
+        echo 'eval "$(pyenv init --path)"' >> "$USER_HOME/.zshrc"
+        echo 'eval "$(pyenv init -)"' >> "$USER_HOME/.zshrc"
+        echo 'eval "$(pyenv virtualenv-init -)"' >> "$USER_HOME/.zshrc"
+        source "$USER_HOME/.zshrc"
     fi
 
-    # Install additional Python applications via pipx
-    echo "Installing additional Python applications via pipx..."
-    su - "$ACTUAL_USER" -c "pipx install doq" || { echo "Failed to install doq via pipx"; exit 1; }
-    su - "$ACTUAL_USER" -c "pipx install vsg" || { echo "Failed to install vsg via pipx"; exit 1; }
-    su - "$ACTUAL_USER" -c "pipx install hdl-checker" || { echo "Failed to install hdl-checker via pipx"; exit 1; }
+    # Install Python 3.11 using pyenv
+    su - "$ACTUAL_USER" -c "pyenv install 3.11.5 || pyenv rehash"
 
-    # Ensure pipx binary directory is in PATH
-    if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$USER_HOME/.zshrc"; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$USER_HOME/.zshrc"
-    fi
+    # Set global Python 3.11 for pipx hdl-checker installation
+    su - "$ACTUAL_USER" -c "pyenv global 3.11.5"
+
+    # Install hdl-checker via pipx using Python 3.11
+    su - "$ACTUAL_USER" -c "pipx install hdl-checker" || {
+        echo "Failed to install hdl-checker using Python 3.11"; exit 1;
+    }
+
+    # Reset global Python back to system default after installation
+    su - "$ACTUAL_USER" -c "pyenv global system"
 }
 
 # Function to install CheckMake via Go
@@ -342,51 +383,9 @@ install_tmux() {
     fi
 }
 
-# Function to install Vim (use pacman)
-install_vim() {
-    echo "Installing Vim..."
-    pacman -S --noconfirm --needed vim
-    # Verify installation
-    if command -v vim &>/dev/null; then
-        echo "Vim installed successfully."
-    else
-        echo "Vim installation failed."
-        exit 1
-    fi
-}
-
-# Function to install Emacs (installed via AUR emacs-nativecomp)
-install_emacs() {
-    echo "Installing Emacs..."
-    # Verify installation
-    if command -v emacs &>/dev/null; then
-        echo "Emacs installed successfully."
-    else
-        echo "Emacs installation failed."
-        exit 1
-    fi
-}
-
-# Function to install additional tools via pacman or yay
-install_additional_tools() {
-    echo "Installing additional tools..."
-    # Verilator, Icarus Verilog, Bazel, Verible, GTKWAVE, GHDL, Doxygen
-    pacman -S --noconfirm --needed \
-        verilator \
-        iverilog \
-        doxygen \
-        gtkwave \
-        ghdl \
-        || { echo "Failed to install additional tools via pacman"; exit 1; }
-    su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed bazel verible" || { echo "Failed to install additional tools via yay"; exit 1; }
-}
-
-# Function to install language servers
-install_language_servers() {
-    echo "Installing language servers..."
-    # Perl Language Server is installed via yay
-    # LemMinX (XML Language Server)
-    su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed lemminx" || { echo "Failed to install lemminx via yay"; exit 1; }
+# Function to install go language server
+install_go_language_server() {
+    echo "Installing go language server..."
     # Go Language Server
     su - "$ACTUAL_USER" -c "go install golang.org/x/tools/gopls@latest" || { echo "Failed to install gopls"; exit 1; }
 }
@@ -487,7 +486,22 @@ install_zsh() {
     # Add custom PATH entries
     {
         echo 'export PATH="$HOME/.local/bin:$PATH"'
+        echo 'export PATH="/usr/bin:$PATH"'
         echo 'export PATH="$HOME/go/bin:$PATH"'
+        echo 'export PATH="/usr/local/bin:$PATH"'
+        echo 'export PATH="/usr/local/go/bin:$PATH"'
+        echo 'alias emacs="emacs -nw"'
+		echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
+        echo ''
+        echo 'if [[ $- == *i* ]]; then'  # Check if the shell is interactive
+        echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
+        echo '    if tmux has-session -t default 2> /dev/null; then'
+        echo '      tmux attach-session -t default'
+        echo '    else'
+        echo '      tmux new-session -s default'
+        echo '    fi'
+        echo '  fi'
+        echo 'fi'
     } >> "$USER_HOME/.zshrc"
 }
 
@@ -677,33 +691,22 @@ install_python_tools
 install_checkmake
 
 # Install tmux
-install_tmux
+#install_tmux
 
 # Install Tmux Plugin Manager and tmux plugins
 install_tpm
 
-# Install Vim
-install_vim
-
 # Install Vim plugins
 install_vim_plugins
-
-# Install Emacs
-install_emacs
 
 # Install Doom Emacs
 install_doom_emacs
 
-# Install Neovim (already installed via pacman)
-
 # Install LazyVim
 install_lazyvim
 
-# Install additional tools
-install_additional_tools
-
-# Install language servers
-install_language_servers
+# Install go language server
+install_go_language_server
 
 # Install and configure Zsh and Oh My Zsh
 install_zsh
