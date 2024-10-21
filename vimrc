@@ -526,7 +526,7 @@ let g:airline_themes = [
 \ 'base16_bespin', 'base16_black_metal', 'base16_black_metal_bathory', 'base16_black_metal_burzum', 'base16_black_metal_dark_funeral',
 \ 'base16_black_metal_gorgoroth', 'base16_black_metal_immortal', 'base16_black_metal_khold', 'base16_black_metal_marduk', 'base16_black_metal_mayhem',
 \ 'base16_black_metal_nile', 'base16_black_metal_venom', 'base16_brewer', 'base16_bright', 'base16_brogrammer', 'base16_brushtrees_dark',
-\ 'base16_brushtrees', 'base16_chalk', 'base16_circus', 'base16_classic_dark', 'base16_classic_light', 'base16_codeschool', 'base16_colors'
+\ 'base16_brushtrees', 'base16_chalk', 'base16_circus', 'base16_classic_dark', 'base16_classic_light', 'base16_codeschool', 'base16_colors',
 \ 'base16_cupcake', 'base16_cupertino', 'base16_darktooth', 'base16_decaf', 'base16_default_dark', 'base16_default_light', 'base16_dracula',
 \ 'base16_edge_dark', 'base16_edge_light', 'base16_eighties', 'base16_embers', 'base16_espresso', 'base16_flat', 'base16_framer', 'base16_fruit_soda',
 \ 'base16_gigavolt', 'base16_github', 'base16_google_dark', 'base16_google_light', 'base16_grayscale_dark', 'base16_grayscale_light',
