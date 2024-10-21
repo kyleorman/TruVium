@@ -9,12 +9,6 @@ IFS=$'\n\t'
 SCRIPT_DIR="/vagrant"  # Adjust this if needed
 LOGFILE="/var/log/setup-script.log"
 TMP_DIR="/tmp/setup_script_install"
-INSTALL_PREFIX="/usr/local"
-NODE_VERSION="${NODE_VERSION:-lts}"  # Default Node.js version
-TMUX_VERSION="3.5a"
-VIM_VERSION="9.0"
-NEOVIM_VERSION="0.9.0"
-EMACS_VERSION="29.1"
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
@@ -339,50 +333,6 @@ install_checkmake() {
     fi
 }
 
-# Function to install tmux (check version, use pacman or compile from source)
-install_tmux() {
-    echo "Installing tmux..."
-    # Check if tmux is installed and its version
-    if command -v tmux &>/dev/null; then
-        INSTALLED_TMUX_VERSION=$(tmux -V | awk '{print $2}')
-        if [ "$INSTALLED_TMUX_VERSION" = "$TMUX_VERSION" ]; then
-            echo "tmux $TMUX_VERSION is already installed."
-            return 0
-        else
-            echo "tmux version $INSTALLED_TMUX_VERSION is installed. Installing tmux $TMUX_VERSION from source."
-            pacman -Rsn --noconfirm tmux
-        fi
-    fi
-
-    # Install dependencies
-    pacman -S --noconfirm --needed \
-        libevent \
-        ncurses \
-        git \
-        automake \
-        autoconf \
-        pkg-config \
-        || { echo "Failed to install tmux dependencies"; exit 1; }
-
-    # Clone tmux source and compile
-    mkdir -p "$TMP_DIR"
-    cd "$TMP_DIR"
-    git clone https://github.com/tmux/tmux.git
-    cd tmux
-    git checkout "$TMUX_VERSION"
-    sh autogen.sh
-    ./configure && make -j"$(nproc)"
-    make install || { echo "tmux installation failed"; exit 1; }
-
-    # Verify installation
-    if tmux -V | grep -q "$TMUX_VERSION"; then
-        echo "tmux $TMUX_VERSION installed successfully."
-    else
-        echo "tmux installation verification failed."
-        exit 1
-    fi
-}
-
 # Function to install go language server
 install_go_language_server() {
     echo "Installing go language server..."
@@ -689,9 +639,6 @@ install_python_tools
 
 # Install CheckMake via Go
 install_checkmake
-
-# Install tmux
-#install_tmux
 
 # Install Tmux Plugin Manager and tmux plugins
 install_tpm
