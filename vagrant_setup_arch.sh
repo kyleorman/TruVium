@@ -446,12 +446,10 @@ install_tpm() {
 
 # Function to install Vim plugins
 install_vim_plugins() {
-    echo "Installing Vim plugins..."
-    PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/start"
-    su - "$ACTUAL_USER" -c "mkdir -p '$PLUGIN_DIR'"
+    echo "Starting Vim plugin installation..."
 
-    # List of plugins (removed 'ale' to avoid duplication with 'coc.nvim')
-    PLUGINS=(
+    # Define plugin arrays
+    START_PLUGINS=(
         "preservim/nerdtree"
         "preservim/vimux"
         "christoomey/vim-tmux-navigator"
@@ -463,7 +461,7 @@ install_vim_plugins() {
         "easymotion/vim-easymotion"
         "tpope/vim-fugitive"
         "tpope/vim-rhubarb"
-	"dense-analysis/ale"
+        "dense-analysis/ale"
         "neoclide/coc.nvim"
         "tpope/vim-surround"
         "SirVer/ultisnips"
@@ -474,7 +472,7 @@ install_vim_plugins() {
         "davidhalter/jedi-vim"
         "heavenshell/vim-pydocstring"
         "mrtazz/checkmake"
-	"vim-syntastic/syntastic"
+        "vim-syntastic/syntastic"
         "jpalardy/vim-slime"
         "lervag/vimtex"
         "pangloss/vim-javascript"
@@ -489,24 +487,144 @@ install_vim_plugins() {
         "mbbill/undotree"
     )
 
-    for plugin in "${PLUGINS[@]}"; do
+    OPTIONAL_PLUGINS=(
+        "klen/python-mode"
+        "suoto/hdl_checker"
+        "vim-perl/vim-perl"
+        "octol/vim-cpp-enhanced-highlight"
+        "nsf/gocode"
+        "daeyun/vim-matlab"
+    )
+
+    COLOR_SCHEMES=(
+        "altercation/vim-colors-solarized"
+        "rafi/awesome-vim-colorschemes"
+    )
+
+    # Define plugin directories
+    START_PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/start"
+    OPT_PLUGIN_DIR="$USER_HOME/.vim/pack/plugins/opt"
+    COLOR_PLUGIN_DIR="$USER_HOME/.vim/pack/colors/start"
+
+    # Ensure plugin directories exist
+    su - "$ACTUAL_USER" -c "mkdir -p '$START_PLUGIN_DIR'"
+    su - "$ACTUAL_USER" -c "mkdir -p '$OPT_PLUGIN_DIR'"
+    su - "$ACTUAL_USER" -c "mkdir -p '$COLOR_PLUGIN_DIR'"
+
+    # Clone essential start plugins
+    echo "Cloning essential start plugins..."
+    for plugin in "${START_PLUGINS[@]}"; do
         plugin_name=$(basename "$plugin")
-        plugin_path="$PLUGIN_DIR/$plugin_name"
-        if [ ! -d "$plugin_path" ]; then
-            su - "$ACTUAL_USER" -c "git clone https://github.com/$plugin.git '$plugin_path'" || { echo "Failed to clone $plugin"; exit 1; }
-        else
-            echo "Plugin $plugin is already installed."
-        fi
+        target_path="$START_PLUGIN_DIR/$plugin_name"
+        clone_plugin "$plugin" "$target_path"
     done
 
-    # Generate helptags
-    su - "$ACTUAL_USER" -c "vim -u NONE -c 'helptags ALL' -c q"
+    # Clone optional plugins
+    echo "Cloning optional plugins..."
+    for plugin in "${OPTIONAL_PLUGINS[@]}"; do
+        plugin_name=$(basename "$plugin")
+        target_path="$OPT_PLUGIN_DIR/$plugin_name"
+        clone_plugin "$plugin" "$target_path"
+    done
 
-    # Install color schemes
-    COLOR_PLUGIN_DIR="$USER_HOME/.vim/pack/colors/start"
-    su - "$ACTUAL_USER" -c "mkdir -p '$COLOR_PLUGIN_DIR'"
-    su - "$ACTUAL_USER" -c "git clone https://github.com/altercation/vim-colors-solarized.git '$COLOR_PLUGIN_DIR/vim-colors-solarized'" || echo "Failed to clone vim-colors-solarized."
-    su - "$ACTUAL_USER" -c "git clone https://github.com/rafi/awesome-vim-colorschemes.git '$COLOR_PLUGIN_DIR/awesome-vim-colorschemes'" || echo "Failed to clone awesome-vim-colorschemes."
+    # Clone color schemes
+    echo "Cloning color schemes..."
+    for color in "${COLOR_SCHEMES[@]}"; do
+        color_name=$(basename "$color")
+        target_path="$COLOR_PLUGIN_DIR/$color_name"
+        clone_plugin "$color" "$target_path"
+    done
+
+    # Generate helptags for all plugins
+    echo "Generating helptags for plugins..."
+
+    # Generate helptags for start plugins
+    for plugin in "${START_PLUGINS[@]}"; do
+        plugin_name=$(basename "$plugin")
+        target_path="$START_PLUGIN_DIR/$plugin_name"
+        generate_helptags "$target_path"
+    done
+
+    # Generate helptags for optional plugins
+    for plugin in "${OPTIONAL_PLUGINS[@]}"; do
+        plugin_name=$(basename "$plugin")
+        target_path="$OPT_PLUGIN_DIR/$plugin_name"
+        generate_helptags "$target_path"
+    done
+
+    # Generate helptags for color schemes
+    for plugin in "${COLOR_SCHEMES[@]}"; do
+        plugin_name=$(basename "$plugin")
+        target_path="$COLOR_PLUGIN_DIR/$plugin_name"
+        generate_helptags "$target_path"
+    done
+
+    setup_ftdetect_symlinks
+    echo "Vim plugins installed and helptags generated successfully."
+}
+
+# Function to clone a Git repository if it doesn't already exist
+clone_plugin() {
+    local repo="$1"
+    local target_dir="$2"
+
+    if [ -d "$target_dir" ]; then
+        echo "Plugin '$repo' already exists at '$target_dir'. Skipping clone."
+    else
+        echo "Cloning '$repo' into '$target_dir'..."
+        su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$repo.git $target_dir" || {
+            echo "Error: Failed to clone '$repo' into '$target_dir'."
+            exit 1
+        }
+        echo "Successfully cloned '$repo'."
+    fi
+}
+
+# Function to generate helptags for a Vim plugin
+generate_helptags() {
+    local plugin_dir="$1"
+    local doc_dir="$plugin_dir/doc"
+
+    if [ -d "$doc_dir" ]; then
+        echo "Generating helptags for plugin at '$plugin_dir'..."
+        vim -u NONE -c "helptags $doc_dir" -c "qa!" || {
+            echo "Warning: Failed to generate helptags for '$plugin_dir'."
+        }
+    fi
+}
+
+# Function to set up ftdetect symlinks
+setup_ftdetect_symlinks() {
+    FTDETECT_SRC_DIR="$START_PLUGIN_DIR/ultisnips/ftdetect"
+    FTDETECT_DEST_DIR="$USER_HOME/.vim/ftdetect"
+
+    echo "Setting up ftdetect symbolic links..."
+
+    # Ensure the destination directory exists
+    su - "$ACTUAL_USER" -c "mkdir -p '$FTDETECT_DEST_DIR'"
+
+    # Check if the source directory exists and contains files
+    if [ -d "$FTDETECT_SRC_DIR" ] && [ "$(ls -A "$FTDETECT_SRC_DIR")" ]; then
+        for src_file in "$FTDETECT_SRC_DIR"/*; do
+            # Extract the filename
+            filename="$(basename "$src_file")"
+            dest_file="$FTDETECT_DEST_DIR/$filename"
+
+            # Check if the destination symlink already exists
+            if [ -L "$dest_file" ]; then
+                echo "Symlink for $filename already exists. Skipping."
+            elif [ -e "$dest_file" ]; then
+                echo "A file named $filename exists and is not a symlink. Skipping to avoid overwriting."
+            else
+                # Create the symbolic link
+                ln -s "$src_file" "$dest_file" && \
+                    echo "Created symlink: $dest_file -> $src_file" || \
+                    echo "Failed to create symlink for $filename"
+            fi
+        done
+    else
+        echo "No ftdetect files found in $FTDETECT_SRC_DIR. Skipping symlink creation."
+    fi
 }
 
 # Function to install and configure Zsh and Oh My Zsh
