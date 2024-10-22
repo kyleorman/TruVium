@@ -915,7 +915,30 @@ install_hdl_checker_with_pipx() {
     rm -rf "$HCL_TMP_DIR" || echo "Failed to remove temporary directory $HCL_TMP_DIR"
 }
 
+# Configure X11 Forwarding
+configure_ssh_x11_forwarding() {
+    SSH_CONFIG="/etc/ssh/sshd_config"
+    
+    echo "Configuring SSH for X11 forwarding..."
 
+    # Check if the file already contains the required settings and add them if not
+    if ! grep -q "^X11Forwarding yes" "$SSH_CONFIG"; then
+        echo "X11Forwarding yes" | sudo tee -a "$SSH_CONFIG" > /dev/null
+    fi
+
+    if ! grep -q "^X11DisplayOffset 10" "$SSH_CONFIG"; then
+        echo "X11DisplayOffset 10" | sudo tee -a "$SSH_CONFIG" > /dev/null
+    fi
+
+    if ! grep -q "^X11UseLocalhost yes" "$SSH_CONFIG"; then
+        echo "X11UseLocalhost yes" | sudo tee -a "$SSH_CONFIG" > /dev/null
+    fi
+
+    # Restart the SSH service to apply changes
+    sudo systemctl restart sshd
+
+    echo "X11 forwarding configuration applied and SSH service restarted."
+}
 
 # Function to ensure home directory ownership is correct
 ensure_home_ownership() {
@@ -977,6 +1000,9 @@ configure_git
 
 # Install coc.nvim dependencies
 install_coc_dependencies
+
+# Configure X11 Forwarding
+configure_ssh_x11_forwarding
 
 # Ensure home directory ownership is correct
 ensure_home_ownership
