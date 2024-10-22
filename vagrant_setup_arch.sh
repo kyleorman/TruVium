@@ -153,8 +153,6 @@ install_dependencies() {
         npm \
         nodejs \
         go \
-        jdk11-openjdk \  # Remove if not needed
-        maven \          # Remove if not needed
         || { echo "Package installation failed"; exit 1; }
 }
 
@@ -192,19 +190,19 @@ install_aur_packages() {
     done
 }
 
-# Function to install Python tools via pacman, yay, and pipx
+# Function to install Python tools via pacman, yay, and pip3
 install_python_tools() {
-    echo "Installing Python tools via pacman, yay, and pipx as needed..."
+    echo "Installing Python tools via pacman, yay, and pip3 as needed..."
 
-    # Ensure pipx is installed via pacman
-    if ! pacman -Qi python-pipx &>/dev/null; then
-        echo "Installing pipx..."
-        pacman -S --noconfirm --needed python-pipx || { echo "Failed to install pipx"; exit 1; }
+    # Ensure pip3 is installed via pacman
+    if ! pacman -Qi python-pip3 &>/dev/null; then
+        echo "Installing pip3..."
+        pacman -S --noconfirm --needed python-pip3 || { echo "Failed to install pip3"; exit 1; }
     else
-        echo "pipx is already installed."
+        echo "pip3 is already installed."
     fi
 
-    # Ensure pipx binary directory is in PATH
+    # Ensure pip3 binary directory is in PATH
     if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$USER_HOME/.zshrc"; then
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$USER_HOME/.zshrc"
     fi
@@ -212,18 +210,19 @@ install_python_tools() {
     # List of Python packages to install
     PYTHON_PACKAGES=(
         flake8
-        pylint
-        black
+        python-pylint
+        python-black
         mypy
         autopep8
-        jedi
-        tox
+        python-jedi
+        python-tox
         ipython
         jupyterlab
-        pexpect
+        python-pexpect
         meson
         doq
         vsg
+		hdl-checker
     )
 
     MISSING_PACKAGES=()
@@ -281,19 +280,15 @@ install_python_tools() {
         MISSING_PACKAGES=("${NEW_MISSING_PACKAGES[@]}")
     fi
 
-    # Install remaining packages via pipx if necessary
+    # Install remaining packages via pip3 if necessary
     if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
-        echo "Installing remaining Python tools via pipx: ${MISSING_PACKAGES[*]}"
+        echo "Installing remaining Python tools via pip3: ${MISSING_PACKAGES[*]}"
         for package in "${MISSING_PACKAGES[@]}"; do
-            if [[ "$package" == "hdl-checker" ]]; then
-                echo "Not Installing hdl-checker using pipx. Please install manually if needed."
-            else
-                # Remove 'python-' prefix if present for pipx installation
-                pipx_package="${package#python-}"
-                su - "$ACTUAL_USER" -c "pipx install $pipx_package" || {
-                    echo "Failed to install $package via pipx"; exit 1;
-                }
-            fi
+			# Remove 'python-' prefix if present for pip3 installation
+			pip3_package="${package#python-}"
+			su - "$ACTUAL_USER" -c "pip3 install $pip3_package" || {
+				echo "Failed to install $package via pip3"; exit 1;
+			}
         done
     fi
 }
@@ -314,8 +309,8 @@ install_verible_from_source() {
 
     # Install Verible dependencies
     echo "Installing Verible dependencies..."
-    apt-get install -y git autoconf flex bison g++ make libfl-dev curl || { echo "Failed to install dependencies"; exit 1; }
-
+	sudo pacman -S --needed --noconfirm git autoconf flex bison gcc make libtool curl || { echo "Failed to install dependencies"; exit 1; }
+	
     # Clone Verible repository
     echo "Cloning Verible repository..."
     git clone https://github.com/chipsalliance/verible.git /tmp/verible || { echo "Failed to clone Verible repository"; exit 1; }
