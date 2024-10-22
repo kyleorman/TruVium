@@ -190,22 +190,9 @@ install_aur_packages() {
     done
 }
 
-# Function to install Python tools via pacman, yay, and pip3
+# Function to install Python tools via pacman, yay (AUR), and pipx as needed
 install_python_tools() {
-    echo "Installing Python tools via pacman, yay, and pip3 as needed..."
-
-    # Ensure pip3 is installed via pacman
-    if ! pacman -Qi python-pip3 &>/dev/null; then
-        echo "Installing pip3..."
-        pacman -S --noconfirm --needed python-pip3 || { echo "Failed to install pip3"; exit 1; }
-    else
-        echo "pip3 is already installed."
-    fi
-
-    # Ensure pip3 binary directory is in PATH
-    if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$USER_HOME/.zshrc"; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$USER_HOME/.zshrc"
-    fi
+    echo "Starting installation of Python tools via pacman, yay (AUR), and pipx..."
 
     # List of Python packages to install
     PYTHON_PACKAGES=(
@@ -220,77 +207,166 @@ install_python_tools() {
         jupyterlab
         python-pexpect
         meson
-        doq
-        vsg
-		hdl-checker
+        python-doq
+        python-vsg
     )
 
     MISSING_PACKAGES=()
 
-    # First, try to install packages via pacman
-    for package in "${PYTHON_PACKAGES[@]}"; do
-        if ! pacman -Qi "$package" &>/dev/null; then
-            echo "Attempting to install $package via pacman..."
-            if ! pacman -S --noconfirm --needed "$package"; then
-                echo "Package $package not found in official repositories."
-                MISSING_PACKAGES+=("$package")
-            else
-                echo "Package $package installed via pacman."
-            fi
+    # Function to install a package via pacman
+    install_via_pacman() {
+        local package="$1"
+        echo "Attempting to install '$package' via pacman..."
+        if pacman -S --noconfirm --needed "$package"; then
+            echo "Successfully installed '$package' via pacman."
+            return 0
         else
-            echo "Package $package is already installed."
+            echo "Package '$package' not found in official repositories."
+            return 1
+        fi
+    }
+
+    # Function to check and install AUR packages via yay
+    install_via_yay() {
+        local package="$1"
+        echo "Checking if '$package' is available in the AUR..."
+        if su - "$ACTUAL_USER" -c "yay -Ss ^$package$" | grep -q "^aur/$package"; then
+            echo "Installing '$package' from AUR..."
+            local retry=3
+            while (( retry > 0 )); do
+                if su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed $package"; then
+                    echo "Successfully installed '$package' via yay."
+                    return 0
+                else
+                    echo "Failed to install '$package' via yay. Retries left: $((retry-1))"
+                    ((retry--))
+                    sleep 2
+                fi
+            done
+            echo "Failed to install '$package' from AUR after multiple attempts."
+            return 1
+        else
+            echo "Package '$package' not found in AUR."
+            return 1
+        fi
+    }
+
+    # Function to install a package via pipx
+    install_via_pipx() {
+        local package="$1"
+        # Remove 'python-' prefix if present for pipx installation
+        local pipx_package="${package#python-}"
+        echo "Installing '$pipx_package' via pipx..."
+        if su - "$ACTUAL_USER" -c "pipx install $pipx_package"; then
+            echo "Successfully installed '$pipx_package' via pipx."
+            return 0
+        else
+            echo "Failed to install '$pipx_package' via pipx."
+            return 1
+        fi
+    }
+
+    # Iterate over each Python package
+    for package in "${PYTHON_PACKAGES[@]}"; do
+        if pacman -Qi "$package" &>/dev/null; then
+            echo "Package '$package' is already installed via pacman."
+        else
+            if ! install_via_pacman "$package"; then
+                MISSING_PACKAGES+=("$package")
+            fi
         fi
     done
 
-    # Attempt to install missing packages via yay (AUR)
+    # Attempt to install missing packages via AUR
     if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
         AUR_PACKAGES=()
         for package in "${MISSING_PACKAGES[@]}"; do
-            echo "Checking if $package is available in the AUR..."
-            if su - "$ACTUAL_USER" -c "yay -Ss ^$package$" | grep -q "^aur/$package"; then
-                AUR_PACKAGES+=("$package")
+            # Check if package is already installed via yay
+            if su - "$ACTUAL_USER" -c "yay -Qi $package" &>/dev/null; then
+                echo "Package '$package' is already installed via yay."
             else
-                echo "Package $package not found in AUR."
+                AUR_PACKAGES+=("$package")
             fi
         done
 
-        if [ ${#AUR_PACKAGES[@]} -ne 0 ]; then
-            echo "Installing packages from AUR: ${AUR_PACKAGES[*]}"
-            for package in "${AUR_PACKAGES[@]}"; do
-                retry=3
-                until su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed $package"; do
-                    ((retry--))
-                    if [ $retry -le 0 ]; then
-                        echo "Failed to install AUR package: $package after multiple attempts."
-                        exit 1
-                    fi
-                    echo "Retrying installation of $package... ($retry attempts left)"
-                    sleep 2
-                done
-            done
+        # Clear MISSING_PACKAGES to re-evaluate after AUR installation attempts
+        MISSING_PACKAGES=()
+
+        for package in "${AUR_PACKAGES[@]}"; do
+            if ! install_via_yay "$package"; then
+                MISSING_PACKAGES+=("$package")
+            fi
+        done
+    fi
+
+    # Install remaining packages via pipx
+    if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
+        echo "Attempting to install remaining packages via pipx: ${MISSING_PACKAGES[*]}"
+
+        # Check if pipx is installed
+        if ! command -v pipx &>/dev/null; then
+            echo "pipx not found. Installing pipx..."
+            if ! su - "$ACTUAL_USER" -c "python3 -m pip install --user pipx"; then
+                echo "Failed to install pipx via pip. Falling back to virtual environment."
+                install_python_tools_in_venv "${MISSING_PACKAGES[@]}"
+                return
+            fi
+            if ! su - "$ACTUAL_USER" -c "python3 -m pipx ensurepath"; then
+                echo "Failed to ensure pipx path. Falling back to virtual environment."
+                install_python_tools_in_venv "${MISSING_PACKAGES[@]}"
+                return
+            fi
         fi
 
-        # Update MISSING_PACKAGES after attempting AUR installations
-        NEW_MISSING_PACKAGES=()
+        # Install each missing package via pipx
         for package in "${MISSING_PACKAGES[@]}"; do
-            if ! pacman -Qi "$package" &>/dev/null && ! su - "$ACTUAL_USER" -c "yay -Qi $package" &>/dev/null; then
-                NEW_MISSING_PACKAGES+=("$package")
+            if ! install_via_pipx "$package"; then
+                echo "Attempting to install '$package' via pipx in a virtual environment as a last resort."
+                install_python_tools_in_venv "$package"
             fi
         done
-        MISSING_PACKAGES=("${NEW_MISSING_PACKAGES[@]}")
     fi
 
-    # Install remaining packages via pip3 if necessary
-    if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
-        echo "Installing remaining Python tools via pip3: ${MISSING_PACKAGES[*]}"
-        for package in "${MISSING_PACKAGES[@]}"; do
-			# Remove 'python-' prefix if present for pip3 installation
-			pip3_package="${package#python-}"
-			su - "$ACTUAL_USER" -c "pip3 install $pip3_package" || {
-				echo "Failed to install $package via pip3"; exit 1;
-			}
-        done
+    echo "Python tools installation process completed."
+}
+
+# Fallback function to use virtual environment and pipx to install Python tools
+install_python_tools_in_venv() {
+    local packages=("$@")
+    echo "Falling back to virtual environment for Python tools installation..."
+
+    # Define virtual environment directory
+    VENV_DIR="$USER_HOME/.venv"
+
+    # Create a virtual environment if it doesn't exist
+    if ! su - "$ACTUAL_USER" -c "test -d $VENV_DIR"; then
+        echo "Creating virtual environment at '$VENV_DIR'..."
+        su - "$ACTUAL_USER" -c "python3 -m venv $VENV_DIR" || {
+            echo "Failed to create virtual environment."
+            exit 1
+        }
+    else
+        echo "Virtual environment already exists at '$VENV_DIR'."
     fi
+
+    # Install pipx within the virtual environment
+    echo "Installing pipx in the virtual environment..."
+    su - "$ACTUAL_USER" -c "$VENV_DIR/bin/pip install pipx" || {
+        echo "Failed to install pipx in the virtual environment."
+        exit 1
+    }
+
+    # Activate the virtual environment and install the packages via pipx
+    echo "Activating virtual environment and installing packages via pipx..."
+    for package in "${packages[@]}"; do
+        local pipx_package="${package#python-}"
+        su - "$ACTUAL_USER" -c "source $VENV_DIR/bin/activate && pipx install $pipx_package" || {
+            echo "Failed to install '$pipx_package' via pipx in the virtual environment."
+            exit 1
+        }
+    done
+
+    echo "Successfully installed packages via virtual environment."
 }
 
 # Install Verible
@@ -301,15 +377,9 @@ install_verible_from_source() {
     mkdir -p "$TMP_DIR"
     cd "$TMP_DIR" || { echo "Failed to access temporary directory $TMP_DIR"; exit 1; }
 
-    # Install Bazel if it's not already installed
-    if ! command -v bazel &>/dev/null; then
-        echo "Bazel not found, installing Bazel first..."
-        install_bazel_from_source || { echo "Failed to install Bazel"; exit 1; }
-    fi
-
     # Install Verible dependencies
     echo "Installing Verible dependencies..."
-	sudo pacman -S --needed --noconfirm git autoconf flex bison gcc make libtool curl || { echo "Failed to install dependencies"; exit 1; }
+	pacman -S --noconfirm --needed git autoconf flex bison gcc make libtool curl || { echo "Failed to install dependencies"; exit 1; }
 	
     # Clone Verible repository
     echo "Cloning Verible repository..."
@@ -540,11 +610,11 @@ configure_git() {
 install_lazyvim() {
     echo "Installing LazyVim..."
 
-    # Ensure Neovim 0.9 or higher is installed
-    if ! command -v nvim &> /dev/null || ! nvim --version | grep -q '^NVIM v0\.[9-9]'; then
-        echo "Neovim 0.9 or higher is not installed. Please install it before proceeding."
-        exit 1
-    fi
+	# Ensure Neovim 0.9 or higher is installed
+	if ! command -v nvim &> /dev/null || ! nvim --version | grep -q '^NVIM v0\.\([9-9]\|1[0-9]\)'; then
+		echo "Neovim 0.9 or higher is not installed. Please install it before proceeding."
+		exit 1
+	fi
 
     # Clone the LazyVim starter repository if not already present
     LAZYVIM_DIR="$USER_HOME/.config/nvim"
@@ -620,37 +690,88 @@ install_doom_emacs() {
     echo "Doom Emacs installed successfully."
 }
 
-# Function to install hdl-checker from source on Arch Linux
-install_hdl_checker_from_source() {
-    echo "Installing hdl-checker from source on Arch Linux..."
+# Install hdl_checker
+install_hdl_checker_with_pipx() {
+    echo "Installing hdl_checker using pipx..."
+
+    # Define a separate temporary directory for hdl_checker installation
+    HCL_TMP_DIR="/tmp/hdl_checker_install"
 
     # Ensure the temporary directory exists
-    mkdir -p "$TMP_DIR"
-    cd "$TMP_DIR" || { echo "Failed to access temporary directory $TMP_DIR"; exit 1; }
+    mkdir -p "$HCL_TMP_DIR" || { echo "Failed to create temporary directory $HCL_TMP_DIR"; exit 1; }
+    cd "$HCL_TMP_DIR" || { echo "Failed to access temporary directory $HCL_TMP_DIR"; exit 1; }
 
     # Install necessary dependencies using pacman
-    echo "Installing dependencies for hdl-checker..."
-    sudo pacman -S --noconfirm --needed python-setuptools python-pip python-wheel git base-devel || {
+    echo "Installing dependencies for hdl_checker..."
+    sudo pacman -S --noconfirm --needed python-setuptools python-pip python-wheel git base-devel python-pipx || {
         echo "Failed to install dependencies"; exit 1;
     }
 
-    # Clone the hdl-checker repository
-    echo "Cloning hdl-checker repository..."
-    git clone https://github.com/suoto/hdl-checker.git /tmp/hdl-checker || { echo "Failed to clone hdl-checker repository"; exit 1; }
-    cd /tmp/hdl-checker || { echo "Failed to navigate to hdl-checker directory"; exit 1; }
+    # Ensure pipx path as ACTUAL_USER
+    echo "Ensuring pipx path..."
+    su - "$ACTUAL_USER" -c "python3 -m pipx ensurepath" || { echo "Failed to ensure pipx path"; exit 1; }
 
-    # Build and install hdl-checker
-    echo "Building and installing hdl-checker..."
-    python3 setup.py install --user || { echo "Failed to build and install hdl-checker"; exit 1; }
+    # Determine the user's shell and corresponding rc file
+    USER_SHELL=$(getent passwd "$ACTUAL_USER" | cut -d: -f7)
+    SHELL_RC=""
+
+    case "$USER_SHELL" in
+        */zsh)
+            SHELL_RC="$USER_HOME/.zshrc"
+            ;;
+        */bash)
+            SHELL_RC="$USER_HOME/.bashrc"
+            ;;
+        *)
+            SHELL_RC="$USER_HOME/.bashrc"
+            ;;
+    esac
+
+    # Add ~/.local/bin to PATH in the user's shell config if not already present
+    if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$SHELL_RC"; then
+        echo "Adding ~/.local/bin to PATH in $SHELL_RC..."
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
+    fi
+
+    # Clone the hdl_checker repository
+    echo "Cloning hdl_checker repository..."
+    git clone https://github.com/suoto/hdl_checker.git || { echo "Failed to clone hdl_checker repository"; exit 1; }
+    cd hdl_checker || { echo "Failed to navigate to hdl_checker directory"; exit 1; }
+
+    # Fix Git dubious ownership warning by marking the directory as safe
+    echo "Marking the Git directory as safe..."
+    git config --global --add safe.directory "$HCL_TMP_DIR/hdl_checker"
+
+    # Ensure the user has ownership of the cloned repository
+    echo "Fixing ownership of the cloned repository..."
+    sudo chown -R "$ACTUAL_USER:$ACTUAL_USER" "$HCL_TMP_DIR/hdl_checker"
+
+    # Apply patches if necessary
+    echo "Checking if patches are required for versioneer.py..."
+    if grep -q 'SafeConfigParser' versioneer.py || grep -q 'readfp' versioneer.py; then
+        echo "Applying patches for Python 3 compatibility..."
+        sed -i 's/SafeConfigParser/ConfigParser/g' versioneer.py
+        sed -i 's/readfp/read_file/g' versioneer.py
+    fi
+
+    # Additional fix for escape sequence warning
+    echo "Fixing escape sequences in versioneer.py..."
+    sed -i 's/\\s/\\\\s/g' versioneer.py
+
+    # Install hdl_checker using pipx as ACTUAL_USER
+    echo "Installing hdl_checker using pipx..."
+    su - "$ACTUAL_USER" -c "pipx install '$HCL_TMP_DIR/hdl_checker'" || { echo "Failed to install hdl_checker via pipx"; exit 1; }
 
     # Verify installation
-    if command -v hdl-checker &>/dev/null; then
-        echo "hdl-checker installed successfully."
-    else
-        echo "hdl-checker installation failed."
-        exit 1
-    fi
+    echo "Verifying hdl_checker installation..."
+    su - "$ACTUAL_USER" -c "command -v hdl_checker" >/dev/null 2>&1 && echo "hdl_checker installed successfully." || { echo "hdl_checker installation failed."; exit 1; }
+
+    # Clean up temporary directory
+    echo "Cleaning up temporary files..."
+    rm -rf "$HCL_TMP_DIR" || echo "Failed to remove temporary directory $HCL_TMP_DIR"
 }
+
+
 
 # Function to ensure home directory ownership is correct
 ensure_home_ownership() {
@@ -702,7 +823,7 @@ install_lazyvim
 install_go_language_server
 
 # Install hdl_checker
-install_hdl_checker_from_source
+install_hdl_checker_with_pipx
 
 # Install and configure Zsh and Oh My Zsh
 install_zsh
