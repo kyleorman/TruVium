@@ -683,42 +683,58 @@ install_coc_dependencies() {
 # Function to copy configuration files
 copy_config_files() {
     echo "Copying configuration files..."
-    CONFIG_FILES=(
+
+    DOT_FILES=(
         "vimrc"
         "tmux.conf"
         "tmux_keys.sh"
+    )
+
+    VIM_FILES=(
         "coc-settings.json"
         "hdl_checker.json"
         "airline_theme.conf"
         "color_scheme.conf"
     )
 
-    for config in "${CONFIG_FILES[@]}"; do
-        src="$SCRIPT_DIR/$config"
-        dest="$USER_HOME/.$config"
+    # Copy dot-prefixed files to home directory
+    for file in "${DOT_FILES[@]}"; do
+        src="$SCRIPT_DIR/$file"
+        dest="$USER_HOME/.$file"  # Prepend a dot for these files
         if [ -f "$src" ]; then
-            # Backup existing config if it exists
-            if [ -f "$dest" ]; then
-                cp "$dest" "${dest}.bak"
-                echo "Backup of existing $dest created at ${dest}.bak"
-            fi
+            # Backup if exists
+            [ -f "$dest" ] && cp "$dest" "$dest.bak" && echo "Backup of $dest created."
             cp "$src" "$dest"
             chown "$ACTUAL_USER:$ACTUAL_USER" "$dest"
-            echo "Copied $config to $dest."
+            echo "Copied $file to $dest."
         else
-            echo "Configuration file $src not found."
+            echo "$file not found in $src."
         fi
     done
 
-    # Copy 'yank' to /usr/local/bin
-    if [ -f "$SCRIPT_DIR/yank" ]; then
-        cp "$SCRIPT_DIR/yank" "/usr/local/bin/yank"
-        chmod +x "/usr/local/bin/yank"
-        echo "Copied 'yank' script to /usr/local/bin."
-    else
-        echo "'yank' script not found."
+    # Ensure .vim directory exists
+    if [ ! -d "$USER_HOME/.vim" ]; then
+        mkdir -p "$USER_HOME/.vim"
+        chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.vim"
+        echo "Created .vim directory."
     fi
+
+    # Copy files to .vim directory
+    for file in "${VIM_FILES[@]}"; do
+        src="$SCRIPT_DIR/$file"
+        dest="$USER_HOME/.vim/$file"
+        if [ -f "$src" ]; then
+            # Backup if exists
+            [ -f "$dest" ] && cp "$dest" "$dest.bak" && echo "Backup of $dest created."
+            cp "$src" "$dest"
+            chown "$ACTUAL_USER:$ACTUAL_USER" "$dest"
+            echo "Copied $file to $dest."
+        else
+            echo "$file not found in $src."
+        fi
+    done
 }
+
 
 # Function to configure Git
 configure_git() {

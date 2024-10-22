@@ -54,11 +54,6 @@ set backspace=indent,eol,start
 " Leader key configuration (must be set before any mappings that use <leader>)
 let mapleader = ","
 
-" Enable 256 colors for Vim when running inside tmux
-"if $TERM =~ 'tmux-256colors'
-"  set t_Co=256
-"endif
-
 let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
 let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 
@@ -66,6 +61,9 @@ let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 if has("termguicolors")
   set termguicolors
 endif
+
+" Set default background to dark
+set background=dark
 
 " Disable arrow keys in Normal and Visual Modes to encourage use of hjkl
 nnoremap <Up> <Nop>
@@ -325,6 +323,7 @@ let g:airline_mode_map = {
       \ 'c'  : 'C',
       \ 'v'  : 'V',
       \ 'V'  : 'V-L',
+      \ "\<C-v>"  : 'V-B',
       \ 's'  : 'S',
       \ 'S'  : 'S-L',
       \ 't'  : 'T'
@@ -512,7 +511,7 @@ let g:airline#extensions#quickfix#enabled = 1
 " =====================================
 
 " Automatically save the current Airline theme when Vim exits
-autocmd VimLeave * call SaveAirlineThemeToFile()
+"autocmd VimLeave * call SaveAirlineThemeToFile()
 
 " Define available Airline themes
 let g:airline_themes = [
@@ -1084,6 +1083,22 @@ if filereadable(expand('~/.vim/color_scheme.conf'))
         call LoadColorScheme(g:current_color_scheme)
     endif
 endif
+
+" Function to toggle between dark and light background
+function! ToggleBackground()
+    if &background == 'dark'
+        set background=light
+        echo "Background set to light"
+    else
+        set background=dark
+        echo "Background set to dark"
+    endif
+endfunction
+
+" Map <leader>tb to the ToggleBackground function
+nnoremap <leader>tb :call ToggleBackground()<CR>
+
+
 
 " =====================================
 " ======== CoC Extensions Installation ====
