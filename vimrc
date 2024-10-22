@@ -319,15 +319,15 @@ let g:airline_right_alt_sep = ''
 " Highlight the status line based on the current mode.
 let g:airline_mode_map = {
       \ '__' : '-',
-      \ 'n'  : 'NORMAL',
-      \ 'i'  : 'INSERT',
-      \ 'R'  : 'REPLACE',
-      \ 'c'  : 'COMMAND',
-      \ 'v'  : 'VISUAL',
-      \ 'V'  : 'V-LINE',
-      \ 's'  : 'SELECT',
-      \ 'S'  : 'S-LINE',
-      \ 't'  : 'TERMINAL'
+      \ 'n'  : 'N',
+      \ 'i'  : 'I',
+      \ 'R'  : 'R',
+      \ 'c'  : 'C',
+      \ 'v'  : 'V',
+      \ 'V'  : 'V-L',
+      \ 's'  : 'S',
+      \ 'S'  : 'S-L',
+      \ 't'  : 'T'
       \ }
 
 " --- Performance Optimization ---

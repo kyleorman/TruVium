@@ -463,6 +463,7 @@ install_vim_plugins() {
         "easymotion/vim-easymotion"
         "tpope/vim-fugitive"
         "tpope/vim-rhubarb"
+	"dense-analysis/ale"
         "neoclide/coc.nvim"
         "tpope/vim-surround"
         "SirVer/ultisnips"
@@ -473,6 +474,7 @@ install_vim_plugins() {
         "davidhalter/jedi-vim"
         "heavenshell/vim-pydocstring"
         "mrtazz/checkmake"
+	"vim-syntastic/syntastic"
         "jpalardy/vim-slime"
         "lervag/vimtex"
         "pangloss/vim-javascript"
@@ -518,11 +520,19 @@ install_zsh() {
     su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions.git '$ZSH_CUSTOM/plugins/zsh-autosuggestions'" || echo "Failed to clone zsh-autosuggestions."
 
     # Update .zshrc plugins if not already updated
-    if grep -q "plugins=(git" "$USER_HOME/.zshrc"; then
-        sed -i 's/plugins=(git/plugins=(git zsh-syntax-highlighting zsh-autosuggestions)/' "$USER_HOME/.zshrc"
+    if grep -q "plugins=(" "$USER_HOME/.zshrc"; then
+        # Check if the plugins already contain the necessary entries
+        if ! grep -q "zsh-syntax-highlighting" "$USER_HOME/.zshrc"; then
+	    sed -i 's/plugins=(/plugins=(zsh-syntax-highlighting /' "$USER_HOME/.zshrc"
+        fi
+        if ! grep -q "zsh-autosuggestions" "$USER_HOME/.zshrc"; then
+	    sed -i 's/plugins=(/plugins=(zsh-autosuggestions /' "$USER_HOME/.zshrc"
+        fi
     else
+        # If no plugins line exists, add it
         echo "plugins=(git zsh-syntax-highlighting zsh-autosuggestions)" >> "$USER_HOME/.zshrc"
     fi
+
 
     # Add custom PATH entries and aliases if not already present
     {
