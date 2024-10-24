@@ -1070,7 +1070,7 @@ setup_zsh() {
         echo 'export PATH="/usr/local/bin:$PATH"'
         echo 'export PATH="/usr/local/go/bin:$PATH"'
         echo 'alias emacs="emacs -nw"'
-	echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
+		echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
         echo ''
         echo 'if [[ $- == *i* ]]; then'  # Check if the shell is interactive
         echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
@@ -1398,7 +1398,7 @@ install_dependencies() {
         python3-pip \
         python3-venv \
         pipenv \
-	lua5.4 \
+		lua5.4 \
         cmake \
         zsh \
         make \
