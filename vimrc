@@ -54,11 +54,6 @@ set backspace=indent,eol,start
 " Leader key configuration (must be set before any mappings that use <leader>)
 let mapleader = ","
 
-" Enable 256 colors for Vim when running inside tmux
-"if $TERM =~ 'tmux-256colors'
-"  set t_Co=256
-"endif
-
 let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
 let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 
@@ -66,6 +61,9 @@ let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 if has("termguicolors")
   set termguicolors
 endif
+
+" Set default background to dark
+set background=dark
 
 " Disable arrow keys in Normal and Visual Modes to encourage use of hjkl
 nnoremap <Up> <Nop>
@@ -319,15 +317,16 @@ let g:airline_right_alt_sep = ''
 " Highlight the status line based on the current mode.
 let g:airline_mode_map = {
       \ '__' : '-',
-      \ 'n'  : 'NORMAL',
-      \ 'i'  : 'INSERT',
-      \ 'R'  : 'REPLACE',
-      \ 'c'  : 'COMMAND',
-      \ 'v'  : 'VISUAL',
-      \ 'V'  : 'V-LINE',
-      \ 's'  : 'SELECT',
-      \ 'S'  : 'S-LINE',
-      \ 't'  : 'TERMINAL'
+      \ 'n'  : 'N',
+      \ 'i'  : 'I',
+      \ 'R'  : 'R',
+      \ 'c'  : 'C',
+      \ 'v'  : 'V',
+      \ 'V'  : 'V-L',
+      \ "\<C-v>"  : 'V-B',
+      \ 's'  : 'S',
+      \ 'S'  : 'S-L',
+      \ 't'  : 'T'
       \ }
 
 " --- Performance Optimization ---
@@ -512,7 +511,7 @@ let g:airline#extensions#quickfix#enabled = 1
 " =====================================
 
 " Automatically save the current Airline theme when Vim exits
-autocmd VimLeave * call SaveAirlineThemeToFile()
+"autocmd VimLeave * call SaveAirlineThemeToFile()
 
 " Define available Airline themes
 let g:airline_themes = [
@@ -526,7 +525,7 @@ let g:airline_themes = [
 \ 'base16_bespin', 'base16_black_metal', 'base16_black_metal_bathory', 'base16_black_metal_burzum', 'base16_black_metal_dark_funeral',
 \ 'base16_black_metal_gorgoroth', 'base16_black_metal_immortal', 'base16_black_metal_khold', 'base16_black_metal_marduk', 'base16_black_metal_mayhem',
 \ 'base16_black_metal_nile', 'base16_black_metal_venom', 'base16_brewer', 'base16_bright', 'base16_brogrammer', 'base16_brushtrees_dark',
-\ 'base16_brushtrees', 'base16_chalk', 'base16_circus', 'base16_classic_dark', 'base16_classic_light', 'base16_codeschool', 'base16_colors'
+\ 'base16_brushtrees', 'base16_chalk', 'base16_circus', 'base16_classic_dark', 'base16_classic_light', 'base16_codeschool', 'base16_colors',
 \ 'base16_cupcake', 'base16_cupertino', 'base16_darktooth', 'base16_decaf', 'base16_default_dark', 'base16_default_light', 'base16_dracula',
 \ 'base16_edge_dark', 'base16_edge_light', 'base16_eighties', 'base16_embers', 'base16_espresso', 'base16_flat', 'base16_framer', 'base16_fruit_soda',
 \ 'base16_gigavolt', 'base16_github', 'base16_google_dark', 'base16_google_light', 'base16_grayscale_dark', 'base16_grayscale_light',
@@ -607,9 +606,9 @@ if filereadable(expand('~/.vim/airline_theme.conf'))
 endif
 
 " Custom key mappings for Airline theme cycling and saving
-nnoremap <leader>an :call PrevAirlineTheme()<CR>
-nnoremap <leader>ap :call NextAirlineTheme()<CR>
-nnoremap <leader>as :call SaveAirlineThemeToFile()<CR>
+nnoremap <leader>na :call PrevAirlineTheme()<CR>
+nnoremap <leader>pa :call NextAirlineTheme()<CR>
+nnoremap <leader>sa :call SaveAirlineThemeToFile()<CR>
 
 " =====================================
 " ======== FZF Configuration ===========
@@ -762,9 +761,25 @@ let g:ale_vhdl_hdl_checker_options = '--strict'      " Enable strict VHDL lintin
 " Set custom linter for Make
 let g:ale_make_checkmake_executable = 'checkmake'
 
+" ALE navigation
+nnoremap <silent> <leader>pe <Plug>(ale_previous_wrap)
+nnoremap <silent> <leader>ne <Plug>(ale_next_wrap)
+
+" Toggle ALE output
+nnoremap <silent> <leader>e :ALEToggle<CR>
+
+" Copy ALEInfo to clipboard
+
+nnoremap <silent> <leader>ye :ALEInfo -clipboard<CR>
+
 " Display linting errors and warnings as gutter signs
+" ale_virtualtext_cursor options: 'current', 'disabled' 
 " let g:ale_virtualtext_cursor = 1
 " let g:ale_sign_column_always = 1
+
+" Custom signs
+" let g:ale_sign_error = '>>'
+" let g:ale_sign_warning = '--'
 
 " Disable ALE's autocompletion
 let g:ale_completion_enabled = 0
@@ -1071,9 +1086,9 @@ function! SaveColorSchemeToFile()
 endfunction
 
 " Key mappings for cycling color schemes
-nnoremap <leader>tp :call CycleColorScheme('prev')<CR>
-nnoremap <leader>tn :call CycleColorScheme('next')<CR>
-nnoremap <leader>ts :call SaveColorSchemeToFile()<CR>
+nnoremap <leader>pt :call CycleColorScheme('prev')<CR>
+nnoremap <leader>nt :call CycleColorScheme('next')<CR>
+nnoremap <leader>st :call SaveColorSchemeToFile()<CR>
 
 " Load the saved color scheme if available
 if filereadable(expand('~/.vim/color_scheme.conf'))
@@ -1084,6 +1099,22 @@ if filereadable(expand('~/.vim/color_scheme.conf'))
         call LoadColorScheme(g:current_color_scheme)
     endif
 endif
+
+" Function to toggle between dark and light background
+function! ToggleBackground()
+    if &background == 'dark'
+        set background=light
+        echo "Background set to light"
+    else
+        set background=dark
+        echo "Background set to dark"
+    endif
+endfunction
+
+" Map <leader>tb to the ToggleBackground function
+nnoremap <leader>tb :call ToggleBackground()<CR>
+
+
 
 " =====================================
 " ======== CoC Extensions Installation ====
