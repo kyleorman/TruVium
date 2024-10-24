@@ -606,9 +606,9 @@ if filereadable(expand('~/.vim/airline_theme.conf'))
 endif
 
 " Custom key mappings for Airline theme cycling and saving
-nnoremap <leader>an :call PrevAirlineTheme()<CR>
-nnoremap <leader>ap :call NextAirlineTheme()<CR>
-nnoremap <leader>as :call SaveAirlineThemeToFile()<CR>
+nnoremap <leader>na :call PrevAirlineTheme()<CR>
+nnoremap <leader>pa :call NextAirlineTheme()<CR>
+nnoremap <leader>sa :call SaveAirlineThemeToFile()<CR>
 
 " =====================================
 " ======== FZF Configuration ===========
@@ -761,9 +761,25 @@ let g:ale_vhdl_hdl_checker_options = '--strict'      " Enable strict VHDL lintin
 " Set custom linter for Make
 let g:ale_make_checkmake_executable = 'checkmake'
 
+" ALE navigation
+nnoremap <silent> <leader>pe <Plug>(ale_previous_wrap)
+nnoremap <silent> <leader>ne <Plug>(ale_next_wrap)
+
+" Toggle ALE output
+nnoremap <silent> <leader>e :ALEToggle<CR>
+
+" Copy ALEInfo to clipboard
+
+nnoremap <silent> <leader>ye :ALEInfo -clipboard<CR>
+
 " Display linting errors and warnings as gutter signs
+" ale_virtualtext_cursor options: 'current', 'disabled' 
 " let g:ale_virtualtext_cursor = 1
 " let g:ale_sign_column_always = 1
+
+" Custom signs
+" let g:ale_sign_error = '>>'
+" let g:ale_sign_warning = '--'
 
 " Disable ALE's autocompletion
 let g:ale_completion_enabled = 0
@@ -1070,9 +1086,9 @@ function! SaveColorSchemeToFile()
 endfunction
 
 " Key mappings for cycling color schemes
-nnoremap <leader>tp :call CycleColorScheme('prev')<CR>
-nnoremap <leader>tn :call CycleColorScheme('next')<CR>
-nnoremap <leader>ts :call SaveColorSchemeToFile()<CR>
+nnoremap <leader>pt :call CycleColorScheme('prev')<CR>
+nnoremap <leader>nt :call CycleColorScheme('next')<CR>
+nnoremap <leader>st :call SaveColorSchemeToFile()<CR>
 
 " Load the saved color scheme if available
 if filereadable(expand('~/.vim/color_scheme.conf'))

@@ -116,7 +116,7 @@ install_dependencies() {
         zsh \
         wget \
         curl \
-        vim \
+        gvim \
         neovim \
         tmux \
         python \
