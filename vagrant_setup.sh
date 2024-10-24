@@ -1320,10 +1320,11 @@ copy_config_files() {
         ["vimrc"]=".vimrc"
         ["tmux.conf"]=".tmux.conf"
         ["tmux_keys.sh"]=".tmux_keys.sh"
+        ["tmuxline.conf"]=".tmuxline.conf"
         ["coc-settings.json"]=".vim/coc-settings.json"
-		["hdl_checker.json"]=".vim/hdl_checker.json"
-		["airline_theme.conf"]=".vim/airline_theme.conf"
-		["color_scheme.conf"]=".vim/color_scheme.conf"
+	["hdl_checker.json"]=".vim/hdl_checker.json"
+	["airline_theme.conf"]=".vim/airline_theme.conf"
+	["color_scheme.conf"]=".vim/color_scheme.conf"
     )
 
     for src in "${!CONFIG_FILES[@]}"; do

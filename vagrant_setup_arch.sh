@@ -688,6 +688,7 @@ copy_config_files() {
         "vimrc"
         "tmux.conf"
         "tmux_keys.sh"
+	"tmuxline.conf"
     )
 
     VIM_FILES=(
