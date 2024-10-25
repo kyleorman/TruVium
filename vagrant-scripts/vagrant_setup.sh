@@ -29,9 +29,9 @@ export ACTUAL_USER
 export USER_HOME
 
 # New directory structure variables
-USER_CONFIG_DIR="$USER_HOME/config"
-VAGRANT_SCRIPTS_DIR="$USER_CONFIG_DIR/vagrant/vagrant-scripts"
-VAGRANT_CONFIG_DIR="$USER_CONFIG_DIR/vagrant/vagrant-config"
+USER_CONFIG_DIR="/vagrant/user-config"
+VAGRANT_SCRIPTS_DIR="/vagrant/vagrant-scripts"
+VAGRANT_CONFIG_DIR="/vagrant/vagrant-config"
 PROPRIETARY_DIR="$USER_HOME/proprietary"
 
 
@@ -934,8 +934,8 @@ install_vim_plugins() {
         "vim-airline/vim-airline-themes"
         "junegunn/fzf"
         "junegunn/fzf.vim"
-	"junegunn/vim-easy-align"
-	"easymotion/vim-easymotion"
+		"junegunn/vim-easy-align"
+		"easymotion/vim-easymotion"
         "tpope/vim-fugitive"
         "tpope/vim-rhubarb"
         "dense-analysis/ale"
@@ -951,17 +951,17 @@ install_vim_plugins() {
         "mrtazz/checkmake"
         "vim-syntastic/syntastic"
         "jpalardy/vim-slime"
-	"lervag/vimtex"
-	"pangloss/vim-javascript"
-	"elzr/vim-json"
-	"stephpy/vim-yaml"
-	"vim-python/python-syntax"
-	"liuchengxu/vim-which-key"
-	"mkitt/tabline.vim"
-	"edkolev/tmuxline.vim"
-	"airblade/vim-gitgutter"
-	"bling/vim-bufferline"
-	"mbbill/undotree"
+		"lervag/vimtex"
+		"pangloss/vim-javascript"
+		"elzr/vim-json"
+		"stephpy/vim-yaml"
+		"vim-python/python-syntax"
+		"liuchengxu/vim-which-key"
+		"mkitt/tabline.vim"
+		"edkolev/tmuxline.vim"
+		"airblade/vim-gitgutter"
+		"bling/vim-bufferline"
+		"mbbill/undotree"
     )
 
     OPTIONAL_PLUGINS=(
@@ -1335,7 +1335,7 @@ copy_config_files() {
 
     for src in "${!CONFIG_FILES[@]}"; do
         dest="${CONFIG_FILES[$src]}"
-        src_path="$VAGRANT_CONFIG_DIR/$src"
+        src_path="$USER_CONFIG_DIR/$src"
         dest_path="$USER_HOME/$dest"
         
 	if [ -f "$dest_path" ]; then
@@ -1353,7 +1353,7 @@ copy_config_files() {
             chmod 644 "$dest_path"
             echo "$src copied successfully to $dest_path."
         else
-            echo "Warning: $src not found in $VAGRANT_CONFIG_DIR. Skipping copy."
+            echo "Warning: $src not found in $USER_CONFIG_DIR. Skipping copy."
         fi
     done
 }
