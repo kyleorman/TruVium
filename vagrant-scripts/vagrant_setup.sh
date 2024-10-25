@@ -17,7 +17,7 @@ EMACS_VERSION="${EMACS_VERSION:-}"     # Optional: Specify Emacs version, defaul
 USER_CONFIG_DIR="/vagrant/user-config"
 VAGRANT_SCRIPTS_DIR="/vagrant/vagrant-scripts"
 VAGRANT_CONFIG_DIR="/vagrant/vagrant-config"
-PROPRIETARY_DIR="$USER_HOME/proprietary"
+PROPRIETARY_DIR="/vagrant/proprietary"
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
