@@ -24,7 +24,7 @@
   "provision": [
     {
       "type": "shell",
-      "path": "vagrant-scripts/vagrant_setup_arch.sh"
+      "path": "vagrant-scripts/vagrant_setup.sh"
     }
   ],
   "networks": [
