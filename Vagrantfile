@@ -1,8 +1,11 @@
 Vagrant.configure("2") do |config|
   require 'json'
 
+  # Get the base path of the Vagrantfile
+  base_path = File.dirname(__FILE__)
+
   # Load the configuration from the JSON file
-  config_file = File.join(ENV['HOME'], "config", "vagrant", "configs", "config_file")
+  config_file = File.join(base_path, "vagrant-config", "vagrant_config.json")
   if File.exist?(config_file)
     settings = JSON.parse(File.read(config_file))
   else
@@ -55,22 +58,22 @@ Vagrant.configure("2") do |config|
     settings['provision'].each do |script|
       if script['type'] == 'shell'
         config.vm.provision "shell" do |s|
-          # Dynamically resolve script path
-          s.path = File.join(ENV['HOME'], "config", "vagrant", "scripts", script['path']) if script['path']
+          # Resolve script path relative to base_path
+          s.path = File.join(base_path, script['path']) if script['path']
           s.inline = script['inline'] if script['inline']
           s.args = script['args'] if script['args']
           s.env = script['env'] if script['env']
         end
       elsif script['type'] == 'ansible'
         config.vm.provision "ansible" do |ansible|
-          ansible.playbook = File.join(ENV['HOME'], "config", "vagrant", "scripts", script['playbook'])
+          ansible.playbook = File.join(base_path, script['playbook'])
           ansible.extra_vars = script['extra_vars'] if script.key?('extra_vars')
         end
       end
     end
   else
     # Default provisioning with vagrant_setup_arch.sh script
-    config.vm.provision "shell", path: File.join(ENV['HOME'], "config", "vagrant", "scripts", "vagrant_setup_arch.sh")
+    config.vm.provision "shell", path: File.join(base_path, "vagrant-scripts", "vagrant_setup_arch.sh")
   end
 
   # Configure synced folders
