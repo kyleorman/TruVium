@@ -138,20 +138,25 @@ increase_swap() {
     echo "Increasing swap space to $desired_size..."
 
     # Record the original swap size
-    original_size_bytes=$(swapon --noheadings --bytes --output SIZE --raw | head -n1)
-    if [ -z "$original_size_bytes" ]; then
+    original_size_bytes=$(swapon --noheadings --bytes --output SIZE --raw 2>/dev/null | head -n1)
+    if ! [[ "$original_size_bytes" =~ ^[0-9]+$ ]]; then
         original_size_bytes=0
     fi
-    echo "$original_size_bytes" > /tmp/original_swap_size
+    echo "$original_size_bytes" > /var/tmp/original_swap_size
 
     # Disable and remove existing swapfile
     if [ -f "$swapfile" ]; then
         swapoff "$swapfile" || true
         rm -f "$swapfile"
+        # Remove swapfile entry from /etc/fstab
+        sed -i "\|^$swapfile |d" /etc/fstab
     fi
 
     # Create new swapfile with desired size
-    fallocate -l "$desired_size" "$swapfile" || dd if=/dev/zero of="$swapfile" bs=1M count=$(numfmt --from=iec "$desired_size" --to-unit=MiB)
+    if ! fallocate -l "$desired_size" "$swapfile"; then
+        desired_size_bytes=$(numfmt --from=iec "$desired_size")
+        dd if=/dev/zero of="$swapfile" bs=1M count=$((desired_size_bytes / 1024 / 1024)) status=progress
+    fi
     chmod 600 "$swapfile"
     mkswap "$swapfile"
     swapon "$swapfile"
@@ -170,11 +175,17 @@ restore_swap() {
     local original_size_bytes
 
     # Read the original swap size
-    if [ -f /tmp/original_swap_size ]; then
-        original_size_bytes=$(cat /tmp/original_swap_size)
-        rm -f /tmp/original_swap_size
+    if [ -f /var/tmp/original_swap_size ]; then
+        original_size_bytes=$(cat /var/tmp/original_swap_size)
+        rm -f /var/tmp/original_swap_size
     else
         echo "Original swap size not recorded. Skipping restoration."
+        return
+    fi
+
+    # Validate that original_size_bytes is numeric
+    if ! [[ "$original_size_bytes" =~ ^[0-9]+$ ]]; then
+        echo "Invalid original swap size: $original_size_bytes. Skipping restoration."
         return
     fi
 
@@ -182,7 +193,7 @@ restore_swap() {
     if [ "$original_size_bytes" -eq 0 ]; then
         original_size="512M"  # Default to 512M if original size was zero
     else
-        original_size=$(numfmt --to=iec "$original_size_bytes")
+        original_size=$(numfmt --to=iec --suffix=B "$original_size_bytes")
     fi
 
     echo "Restoring swap space to original size: $original_size..."
@@ -190,9 +201,14 @@ restore_swap() {
     # Disable and remove current swapfile
     swapoff "$swapfile" || true
     rm -f "$swapfile"
+    # Remove swapfile entry from /etc/fstab
+    sed -i "\|^$swapfile |d" /etc/fstab
 
     # Recreate swapfile with original size
-    fallocate -l "$original_size" "$swapfile" || dd if=/dev/zero of="$swapfile" bs=1M count=$(numfmt --from=iec "$original_size" --to-unit=MiB)
+    if ! fallocate -l "$original_size" "$swapfile"; then
+        original_size_bytes=$(numfmt --from=iec "$original_size")
+        dd if=/dev/zero of="$swapfile" bs=1M count=$((original_size_bytes / 1024 / 1024)) status=progress
+    fi
     chmod 600 "$swapfile"
     mkswap "$swapfile"
     swapon "$swapfile"
