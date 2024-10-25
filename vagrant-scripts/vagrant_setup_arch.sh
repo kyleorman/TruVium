@@ -9,8 +9,6 @@ IFS=$'\n\t'
 SCRIPT_DIR="/vagrant"  # Adjust this if needed
 LOGFILE="/var/log/setup-script.log"
 TMP_DIR="/tmp/setup_script_install"
-
-# Define directory paths based on your structure
 USER_CONFIG_DIR="$SCRIPT_DIR/user-config"
 VAGRANT_SCRIPTS_DIR="$SCRIPT_DIR/vagrant-scripts"
 VAGRANT_CONFIG_DIR="$SCRIPT_DIR/vagrant-config"
@@ -28,6 +26,10 @@ fi
 # Export environment variables
 export ACTUAL_USER
 export SETUP_SCRIPT_RUNNING=true
+
+# Set vm.swappiness to 10 to reduce swap usage
+# echo "vm.swappiness=10" | tee -a /etc/sysctl.conf
+# sysctl -p
 
 # Redirect all output to LOGFILE with timestamps
 exec > >(while IFS= read -r line; do echo "$(date '+%Y-%m-%d %H:%M:%S') - $line"; done | tee -a "$LOGFILE") 2>&1
@@ -52,6 +54,63 @@ cleanup() {
 trap cleanup ERR EXIT
 
 # --- Function Definitions ---
+
+# Add the create_swap function after variable declarations
+create_swap() {
+    local swapfile="/swapfile"
+    local swapsize="${1:-4G}"  # Default to 4GB if no size is provided
+
+    # Check if swap is already enabled
+    if swapon --show | grep -q "$swapfile"; then
+        echo "Swap file already exists and is enabled at $swapfile."
+        return
+    fi
+
+    # Create the swap file
+    echo "Creating a swap file of size $swapsize at $swapfile..."
+    fallocate -l "$swapsize" "$swapfile"
+    chmod 600 "$swapfile"
+    mkswap "$swapfile"
+    swapon "$swapfile"
+
+    # Persist swap in fstab
+    if ! grep -q "$swapfile" /etc/fstab; then
+        echo "$swapfile none swap sw 0 0" | tee -a /etc/fstab
+    fi
+
+    echo "Swap file created and enabled successfully."
+}
+
+# Use the remove_swap at the end of the script if disk space is a concern
+remove_swap() {
+    local swapfile="/swapfile"
+
+    # Check if swap is active and disable it
+    if swapon --show | grep -q "$swapfile"; then
+        echo "Disabling swap on $swapfile..."
+        swapoff "$swapfile"
+    else
+        echo "Swap is not active on $swapfile."
+    fi
+
+    # Remove the swap file
+    if [ -f "$swapfile" ]; then
+        echo "Removing swap file $swapfile..."
+        rm "$swapfile"
+    else
+        echo "Swap file $swapfile does not exist."
+    fi
+
+    # Remove swap entry from /etc/fstab
+    if grep -q "$swapfile" /etc/fstab; then
+        echo "Removing $swapfile entry from /etc/fstab..."
+        sed -i "\|$swapfile|d" /etc/fstab
+    else
+        echo "No entry for $swapfile found in /etc/fstab."
+    fi
+
+    echo "Swap file removed successfully."
+}
 
 # Function to check internet connection
 check_internet_connection() {
@@ -960,6 +1019,10 @@ echo "----- Starting Setup Script -----"
 # Execute the internet check
 check_internet_connection
 
+# Swap creation
+# create_swap "4G"  to specify the swap size to 4G
+create_swap
+
 # Enable community repo
 ensure_community_repo_enabled
 
@@ -1017,6 +1080,9 @@ ensure_home_ownership
 # Clean up package manager cache
 echo "Cleaning up package manager cache..."
 pacman -Scc --noconfirm || true
+
+# Call remove_swap if you decide to remove the swap file
+remove_swap
 
 echo "----- Setup Completed Successfully! -----"
 
