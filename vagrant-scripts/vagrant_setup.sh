@@ -130,61 +130,79 @@ trap cleanup ERR EXIT
 
 # --- Function Definitions ---
 
-# Add the create_swap function after variable declarations
-create_swap() {
+# Function to increase swap size
+increase_swap() {
     local swapfile="/swapfile"
-    local swapsize="${1:-4G}"  # Default to 4GB if no size is provided
+    local desired_size="${1:-4G}"  # Desired swap size during provisioning
 
-    # Check if swap is already enabled
-    if swapon --show | grep -q "$swapfile"; then
-        echo "Swap file already exists and is enabled at $swapfile."
-        return
+    echo "Increasing swap space to $desired_size..."
+
+    # Record the original swap size
+    original_size_bytes=$(swapon --noheadings --bytes --output SIZE --raw | head -n1)
+    if [ -z "$original_size_bytes" ]; then
+        original_size_bytes=0
+    fi
+    echo "$original_size_bytes" > /tmp/original_swap_size
+
+    # Disable and remove existing swapfile
+    if [ -f "$swapfile" ]; then
+        swapoff "$swapfile" || true
+        rm -f "$swapfile"
     fi
 
-    # Create the swap file
-    echo "Creating a swap file of size $swapsize at $swapfile..."
-    fallocate -l "$swapsize" "$swapfile"
+    # Create new swapfile with desired size
+    fallocate -l "$desired_size" "$swapfile" || dd if=/dev/zero of="$swapfile" bs=1M count=$(numfmt --from=iec "$desired_size" --to-unit=MiB)
     chmod 600 "$swapfile"
     mkswap "$swapfile"
     swapon "$swapfile"
 
-    # Persist swap in fstab
-    if ! grep -q "$swapfile" /etc/fstab; then
-        echo "$swapfile none swap sw 0 0" | tee -a /etc/fstab
+    # Update /etc/fstab
+    if ! grep -q "^$swapfile" /etc/fstab; then
+        echo "$swapfile none swap sw 0 0" >> /etc/fstab
     fi
 
-    echo "Swap file created and enabled successfully."
+    echo "Swap space increased to $desired_size."
 }
 
-# Use the remove_swap at the end of the script if disk space is a concern
-remove_swap() {
+# Function to restore swap size to original
+restore_swap() {
     local swapfile="/swapfile"
+    local original_size_bytes
 
-    # Check if swap is active and disable it
-    if swapon --show | grep -q "$swapfile"; then
-        echo "Disabling swap on $swapfile..."
-        swapoff "$swapfile"
+    # Read the original swap size
+    if [ -f /tmp/original_swap_size ]; then
+        original_size_bytes=$(cat /tmp/original_swap_size)
+        rm -f /tmp/original_swap_size
     else
-        echo "Swap is not active on $swapfile."
+        echo "Original swap size not recorded. Skipping restoration."
+        return
     fi
 
-    # Remove the swap file
-    if [ -f "$swapfile" ]; then
-        echo "Removing swap file $swapfile..."
-        rm "$swapfile"
+    # Determine original size in human-readable format
+    if [ "$original_size_bytes" -eq 0 ]; then
+        original_size="512M"  # Default to 512M if original size was zero
     else
-        echo "Swap file $swapfile does not exist."
+        original_size=$(numfmt --to=iec "$original_size_bytes")
     fi
 
-    # Remove swap entry from /etc/fstab
-    if grep -q "$swapfile" /etc/fstab; then
-        echo "Removing $swapfile entry from /etc/fstab..."
-        sed -i "\|$swapfile|d" /etc/fstab
-    else
-        echo "No entry for $swapfile found in /etc/fstab."
+    echo "Restoring swap space to original size: $original_size..."
+
+    # Disable and remove current swapfile
+    swapoff "$swapfile" || true
+    rm -f "$swapfile"
+
+    # Recreate swapfile with original size
+    fallocate -l "$original_size" "$swapfile" || dd if=/dev/zero of="$swapfile" bs=1M count=$(numfmt --from=iec "$original_size" --to-unit=MiB)
+    chmod 600 "$swapfile"
+    mkswap "$swapfile"
+    swapon "$swapfile"
+
+    # Update /etc/fstab
+    if ! grep -q "^$swapfile" /etc/fstab; then
+        echo "$swapfile none swap sw 0 0" >> /etc/fstab
     fi
 
-    echo "Swap file removed successfully."
+    echo "Swap space restored to original size: $original_size."
 }
 
 # Function to check internet connection
@@ -2019,9 +2037,8 @@ echo "----- Starting Setup Script -----"
 # Execute the internet check
 check_internet_connection
 
-# Swap creation
-# create_swap "4G"  to specify the swap size to 4G
-create_swap
+# increase_swap "4G"  to specify the swap size to 4G
+increase_swap
 
 # Ensure /tmp has correct permissions
 ensure_tmp_permissions
@@ -2128,8 +2145,8 @@ ensure_home_ownership
 echo "Cleaning up package manager cache..."
 apt-get autoremove -y && apt-get clean
 
-# Call remove_swap if you decide to remove the swap file
-remove_swap
+# Call restore_swap if you decide to restore the original swap file size
+restore_swap
 
 echo "----- Setup Completed Successfully! -----"
 
