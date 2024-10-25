@@ -1243,7 +1243,6 @@ configure_git() {
         fi
     else
         echo "Error: Git setup scripts or configuration files are missing."
-        exit 1
     fi
 }
 
