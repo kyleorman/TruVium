@@ -30,8 +30,8 @@ export USER_HOME
 
 # New directory structure variables
 USER_CONFIG_DIR="$USER_HOME/config"
-VAGRANT_SCRIPTS_DIR="$USER_CONFIG_DIR/vagrant/scripts"
-VAGRANT_CONFIG_DIR="$USER_CONFIG_DIR/vagrant/configs"
+VAGRANT_SCRIPTS_DIR="$USER_CONFIG_DIR/vagrant/vagrant-scripts"
+VAGRANT_CONFIG_DIR="$USER_CONFIG_DIR/vagrant/vagrant-config"
 PROPRIETARY_DIR="$USER_HOME/proprietary"
 
 

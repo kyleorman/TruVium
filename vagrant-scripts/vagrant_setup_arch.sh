@@ -10,6 +10,12 @@ SCRIPT_DIR="/vagrant"  # Adjust this if needed
 LOGFILE="/var/log/setup-script.log"
 TMP_DIR="/tmp/setup_script_install"
 
+# Define directory paths based on your structure
+USER_CONFIG_DIR="$SCRIPT_DIR/user-config"
+VAGRANT_SCRIPTS_DIR="$SCRIPT_DIR/vagrant-scripts"
+VAGRANT_CONFIG_DIR="$SCRIPT_DIR/vagrant-config"
+PROPRIETARY_DIR="$SCRIPT_DIR/proprietary"
+
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
     ACTUAL_USER="$SUDO_USER"
@@ -688,7 +694,7 @@ copy_config_files() {
         "vimrc"
         "tmux.conf"
         "tmux_keys.sh"
-	"tmuxline.conf"
+		"tmuxline.conf"
     )
 
     VIM_FILES=(
@@ -700,7 +706,7 @@ copy_config_files() {
 
     # Copy dot-prefixed files to home directory
     for file in "${DOT_FILES[@]}"; do
-        src="$SCRIPT_DIR/$file"
+        src="$USER_CONFIG_DIR/$file"
         dest="$USER_HOME/.$file"  # Prepend a dot for these files
         if [ -f "$src" ]; then
             # Backup if exists
@@ -722,7 +728,7 @@ copy_config_files() {
 
     # Copy files to .vim directory
     for file in "${VIM_FILES[@]}"; do
-        src="$SCRIPT_DIR/$file"
+        src="$USER_CONFIG_DIR/$file"
         dest="$USER_HOME/.vim/$file"
         if [ -f "$src" ]; then
             # Backup if exists
@@ -739,8 +745,8 @@ copy_config_files() {
 
 # Function to configure Git
 configure_git() {
-    GIT_SETUP_SCRIPT="$SCRIPT_DIR/git_setup.sh"
-    GIT_SETUP_CONF="$SCRIPT_DIR/git_setup.conf"
+    GIT_SETUP_SCRIPT="$VAGRANT_SCRIPTS_DIR/git_setup.sh"
+    GIT_SETUP_CONF="$VAGRANT_CONFIG_DIR/git_setup.conf"
 
     echo "Configuring Git..."
 
