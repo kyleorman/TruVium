@@ -9,6 +9,13 @@
 # Configuration Variables
 # -----------------------------
 
+# Cross-platform way to get the script's directory and move up one level
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+BASE_DIR="$( dirname "$SCRIPT_DIR" )"
+
+# Absolute path to vagrant config directory
+VAGRANT_CONFIG_DIR="${BASE_DIR}/vagrant-config"
+
 # Default values (can be overridden by command-line options, config file, or environment variables)
 GIT_NAME=""
 GIT_EMAIL=""

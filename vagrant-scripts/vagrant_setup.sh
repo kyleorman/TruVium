@@ -6,7 +6,6 @@ set -eEuo pipefail
 IFS=$'\n\t'
 
 # --- Configuration Variables ---
-SCRIPT_DIR="/vagrant"  # Directory where the script is being executed
 LOGFILE="/var/log/setup-script.log"
 TMUX_VERSION="3.5"
 TMP_DIR="/tmp/setup_script_install"
@@ -27,7 +26,14 @@ fi
 
 # Export environment variable to indicate the setup script is running
 export ACTUAL_USER
-export SETUP_SCRIPT_RUNNING=true
+export USER_HOME
+
+# New directory structure variables
+USER_CONFIG_DIR="$USER_HOME/config"
+VAGRANT_SCRIPTS_DIR="$USER_CONFIG_DIR/vagrant/scripts"
+VAGRANT_CONFIG_DIR="$USER_CONFIG_DIR/vagrant/configs"
+PROPRIETARY_DIR="$USER_HOME/proprietary"
+
 
 # Redirect all output to LOGFILE with timestamps
 exec > >(while IFS= read -r line; do echo "$(date '+%Y-%m-%d %H:%M:%S') - $line"; done | tee -a "$LOGFILE") 2>&1
@@ -1223,8 +1229,8 @@ setup_ftdetect_symlinks() {
 
 # Function to configure Git
 configure_git() {
-    GIT_SETUP_SCRIPT="$SCRIPT_DIR/git_setup.sh"
-    GIT_SETUP_CONF="$SCRIPT_DIR/git_setup.conf"
+    GIT_SETUP_SCRIPT="$VAGRANT_SCRIPTS_DIR/git_setup.sh"
+    GIT_SETUP_CONF="$VAGRANT_CONFIG_DIR/git_setup.conf"
 
     echo "Configuring Git..."
 
@@ -1322,14 +1328,14 @@ copy_config_files() {
         ["tmux_keys.sh"]=".tmux_keys.sh"
         ["tmuxline.conf"]=".tmuxline.conf"
         ["coc-settings.json"]=".vim/coc-settings.json"
-	["hdl_checker.json"]=".vim/hdl_checker.json"
-	["airline_theme.conf"]=".vim/airline_theme.conf"
-	["color_scheme.conf"]=".vim/color_scheme.conf"
+		["hdl_checker.json"]=".vim/hdl_checker.json"
+		["airline_theme.conf"]=".vim/airline_theme.conf"
+		["color_scheme.conf"]=".vim/color_scheme.conf"
     )
 
     for src in "${!CONFIG_FILES[@]}"; do
         dest="${CONFIG_FILES[$src]}"
-        src_path="$SCRIPT_DIR/$src"
+        src_path="$VAGRANT_CONFIG_DIR/$src"
         dest_path="$USER_HOME/$dest"
         
 	if [ -f "$dest_path" ]; then
@@ -1347,20 +1353,9 @@ copy_config_files() {
             chmod 644 "$dest_path"
             echo "$src copied successfully to $dest_path."
         else
-            echo "Warning: $src not found in $SCRIPT_DIR. Skipping copy."
+            echo "Warning: $src not found in $VAGRANT_CONFIG_DIR. Skipping copy."
         fi
     done
-
-    # Copy 'yank' to /usr/local/bin instead of /bin for better practices
-    echo "Copying 'yank' to /usr/local/bin..."
-    if [ -f "$SCRIPT_DIR/yank" ]; then
-        cp "$SCRIPT_DIR/yank" "/usr/local/bin/yank"
-        chown root:root "/usr/local/bin/yank"
-        chmod 755 "/usr/local/bin/yank"
-        echo "'yank' copied successfully to /usr/local/bin."
-    else
-        echo "Warning: 'yank' not found in $SCRIPT_DIR. Skipping copy."
-    fi
 }
 
 # Function to install Vim plugins
