@@ -5,7 +5,7 @@
 			   ██║   ██║  ██║╚██████╔╝ ╚████╔╝ ██║╚██████╔╝██║ ╚═╝ ██║
 			   ╚═╝   ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝
 
-# TruVium HDL Development Environment
+# HDL Development Environment
 
 ## Overview
 
