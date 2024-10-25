@@ -1,6 +1,6 @@
 {
-  "vm_box": "archlinux/archlinux",
-  "vm_box_version": "20241001.267073",
+  "vm_box": "ubuntu/jammy64",
+  "vm_box_version": "20231002.0.0",
   "box_check_update": true,
   "vm_hostname": "dev-env",
   "vm_memory": "6144",
