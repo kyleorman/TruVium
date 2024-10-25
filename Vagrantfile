@@ -58,7 +58,8 @@ Vagrant.configure("2") do |config|
     swap_size = settings['swap_size']
     config.vm.provision "shell", privileged: true, name: "Configure Initial Swap Space", inline: <<-SHELL
       set -e  # Exit on any error
-      SWAPFILE=/swapfile
+      SWAPDIR=/swap
+      SWAPFILE="$SWAPDIR/swapfile"
       SWAPSIZE=#{swap_size}
 
       # Detect OS
@@ -72,13 +73,23 @@ Vagrant.configure("2") do |config|
 
       echo "Configuring swap space to $SWAPSIZE..."
 
+      # Create swap directory if it doesn't exist
+      mkdir -p "$SWAPDIR"
+
       # Safely disable existing swap
       if [ -f "$SWAPFILE" ]; then
         echo "Disabling existing swap..."
         swapoff "$SWAPFILE" || true
         rm -f "$SWAPFILE"
-        sed -i '/\\swapfile/d' /etc/fstab
       fi
+      # Also check and disable legacy swap location
+      if [ -f "/swapfile" ]; then
+        echo "Disabling legacy swap..."
+        swapoff "/swapfile" || true
+        rm -f "/swapfile"
+      fi
+      # Clean up any existing swap entries
+      sed -i '/swap.*swap/d' /etc/fstab
 
       # Extract size and unit
       SIZE=$(echo "$SWAPSIZE" | sed 's/[^0-9]*//g')
@@ -200,7 +211,8 @@ Vagrant.configure("2") do |config|
     default_swap_size = settings['default_swap_size']
     config.vm.provision "shell", privileged: true, name: "Reset Swap Size", run: "always", inline: <<-SHELL
       set -e  # Exit on any error
-      SWAPFILE=/swapfile
+      SWAPDIR=/swap
+      SWAPFILE="$SWAPDIR/swapfile"
       SWAPSIZE=#{default_swap_size}
 
       # Detect OS
@@ -214,13 +226,23 @@ Vagrant.configure("2") do |config|
 
       echo "Resetting swap space to $SWAPSIZE..."
 
+      # Create swap directory if it doesn't exist
+      mkdir -p "$SWAPDIR"
+
       # Safely disable existing swap
       if [ -f "$SWAPFILE" ]; then
         echo "Disabling existing swap..."
         swapoff "$SWAPFILE" || true
         rm -f "$SWAPFILE"
-        sed -i '/\\swapfile/d' /etc/fstab
       fi
+      # Also check and disable legacy swap location
+      if [ -f "/swapfile" ]; then
+        echo "Disabling legacy swap..."
+        swapoff "/swapfile" || true
+        rm -f "/swapfile"
+      fi
+      # Clean up any existing swap entries
+      sed -i '/swap.*swap/d' /etc/fstab
 
       # Extract size and unit
       SIZE=$(echo "$SWAPSIZE" | sed 's/[^0-9]*//g')
@@ -346,7 +368,7 @@ Vagrant.configure("2") do |config|
                '.bashrc'
              end
 
-  # Install and configure shell
+# Install and configure shell
   if user_shell == 'zsh'
     config.vm.provision "shell", inline: <<-SHELL
       if ! command -v zsh &> /dev/null; then
@@ -380,3 +402,4 @@ Vagrant.configure("2") do |config|
     "Port forwarding for Jupyter is disabled."
   end
 end
+
