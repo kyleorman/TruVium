@@ -130,97 +130,6 @@ trap cleanup ERR EXIT
 
 # --- Function Definitions ---
 
-# Function to increase swap size
-increase_swap() {
-    local swapfile="/swapfile"
-    local desired_size="${1:-4G}"  # Desired swap size during provisioning
-
-    echo "Increasing swap space to $desired_size..."
-
-    # Record the original swap size
-    original_size_bytes=$(swapon --noheadings --bytes --output SIZE --raw 2>/dev/null | head -n1)
-    if ! [[ "$original_size_bytes" =~ ^[0-9]+$ ]]; then
-        original_size_bytes=0
-    fi
-    echo "$original_size_bytes" > /var/tmp/original_swap_size
-
-    # Disable and remove existing swapfile
-    if [ -f "$swapfile" ]; then
-        swapoff "$swapfile" || true
-        rm -f "$swapfile"
-        # Remove swapfile entry from /etc/fstab
-        sed -i "\|^$swapfile |d" /etc/fstab
-    fi
-
-    # Create new swapfile with desired size
-    if ! fallocate -l "$desired_size" "$swapfile"; then
-        desired_size_bytes=$(numfmt --from=iec "$desired_size")
-        dd if=/dev/zero of="$swapfile" bs=1M count=$((desired_size_bytes / 1024 / 1024)) status=progress
-    fi
-    chmod 600 "$swapfile"
-    mkswap "$swapfile"
-    swapon "$swapfile"
-
-    # Update /etc/fstab
-    if ! grep -q "^$swapfile" /etc/fstab; then
-        echo "$swapfile none swap sw 0 0" >> /etc/fstab
-    fi
-
-    echo "Swap space increased to $desired_size."
-}
-
-# Function to restore swap size to original
-restore_swap() {
-    local swapfile="/swapfile"
-    local original_size_bytes
-
-    # Read the original swap size
-    if [ -f /var/tmp/original_swap_size ]; then
-        original_size_bytes=$(cat /var/tmp/original_swap_size)
-        rm -f /var/tmp/original_swap_size
-    else
-        echo "Original swap size not recorded. Skipping restoration."
-        return
-    fi
-
-    # Validate that original_size_bytes is numeric
-    if ! [[ "$original_size_bytes" =~ ^[0-9]+$ ]]; then
-        echo "Invalid original swap size: $original_size_bytes. Skipping restoration."
-        return
-    fi
-
-    # Determine original size in human-readable format
-    if [ "$original_size_bytes" -eq 0 ]; then
-        original_size="512M"  # Default to 512M if original size was zero
-    else
-        original_size=$(numfmt --to=iec --suffix=B "$original_size_bytes")
-    fi
-
-    echo "Restoring swap space to original size: $original_size..."
-
-    # Disable and remove current swapfile
-    swapoff "$swapfile" || true
-    rm -f "$swapfile"
-    # Remove swapfile entry from /etc/fstab
-    sed -i "\|^$swapfile |d" /etc/fstab
-
-    # Recreate swapfile with original size
-    if ! fallocate -l "$original_size" "$swapfile"; then
-        original_size_bytes=$(numfmt --from=iec "$original_size")
-        dd if=/dev/zero of="$swapfile" bs=1M count=$((original_size_bytes / 1024 / 1024)) status=progress
-    fi
-    chmod 600 "$swapfile"
-    mkswap "$swapfile"
-    swapon "$swapfile"
-
-    # Update /etc/fstab
-    if ! grep -q "^$swapfile" /etc/fstab; then
-        echo "$swapfile none swap sw 0 0" >> /etc/fstab
-    fi
-
-    echo "Swap space restored to original size: $original_size."
-}
-
 # Function to check internet connection
 check_internet_connection() {
     echo "Checking for an active internet connection..."
@@ -2053,9 +1962,6 @@ echo "----- Starting Setup Script -----"
 # Execute the internet check
 check_internet_connection
 
-# increase_swap "4G"  to specify the swap size to 4G
-increase_swap
-
 # Ensure /tmp has correct permissions
 ensure_tmp_permissions
 
@@ -2160,9 +2066,6 @@ ensure_home_ownership
 # Clean up package manager cache
 echo "Cleaning up package manager cache..."
 apt-get autoremove -y && apt-get clean
-
-# Call restore_swap if you decide to restore the original swap file size
-restore_swap
 
 echo "----- Setup Completed Successfully! -----"
 
