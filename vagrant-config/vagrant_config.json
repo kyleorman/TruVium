@@ -1,16 +1,16 @@
 {
-  "vm_box": "archlinux/archlinux",
-  "vm_box_version": "20241001.267073",
+  "vm_box": "ubuntu/jammy64",
+  "vm_box_version": "20241002.0.0",
   "box_check_update": true,
   "vm_hostname": "dev-env",
-  "vm_memory": "6144",
-  "vm_cpus": 2,
+  "vm_memory": "2048",
+  "vm_cpus": 1,
   "vb_gui": false,
   "graphics_controller": "vmsvga",
   "vb_clipboard": "bidirectional",
   "ssh_forward_x11": true,
   "ssh_insert_key": false,
-  "forward_jupyter_port": true,
+  "forward_jupyter_port": false,
   "port_forwarding": [
     { "guest": 8888, "host": 8888 }
   ],
@@ -24,7 +24,7 @@
   "provision": [
     {
       "type": "shell",
-      "path": "vagrant_setup_arch.sh"
+      "path": "vagrant-scripts/vagrant_setup.sh"
     }
   ],
   "networks": [
@@ -36,5 +36,7 @@
   "environment_variables": {},
   "post_up_message": "Port forwarding for Jupyter is enabled on port 8888.",
   "user_shell": "zsh",
-  "open_url": "http://www.google.com"
+  "open_url": "http://www.google.com",
+  "swap_size": "4G",
+  "default_swap_size": "1G"
 }

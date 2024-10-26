@@ -9,6 +9,10 @@ IFS=$'\n\t'
 SCRIPT_DIR="/vagrant"  # Adjust this if needed
 LOGFILE="/var/log/setup-script.log"
 TMP_DIR="/tmp/setup_script_install"
+USER_CONFIG_DIR="$SCRIPT_DIR/user-config"
+VAGRANT_SCRIPTS_DIR="$SCRIPT_DIR/vagrant-scripts"
+VAGRANT_CONFIG_DIR="$SCRIPT_DIR/vagrant-config"
+PROPRIETARY_DIR="$SCRIPT_DIR/proprietary"
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
@@ -22,6 +26,10 @@ fi
 # Export environment variables
 export ACTUAL_USER
 export SETUP_SCRIPT_RUNNING=true
+
+# Set vm.swappiness to 10 to reduce swap usage
+# echo "vm.swappiness=10" | tee -a /etc/sysctl.conf
+# sysctl -p
 
 # Redirect all output to LOGFILE with timestamps
 exec > >(while IFS= read -r line; do echo "$(date '+%Y-%m-%d %H:%M:%S') - $line"; done | tee -a "$LOGFILE") 2>&1
@@ -688,6 +696,7 @@ copy_config_files() {
         "vimrc"
         "tmux.conf"
         "tmux_keys.sh"
+		"tmuxline.conf"
     )
 
     VIM_FILES=(
@@ -699,7 +708,7 @@ copy_config_files() {
 
     # Copy dot-prefixed files to home directory
     for file in "${DOT_FILES[@]}"; do
-        src="$SCRIPT_DIR/$file"
+        src="$USER_CONFIG_DIR/$file"
         dest="$USER_HOME/.$file"  # Prepend a dot for these files
         if [ -f "$src" ]; then
             # Backup if exists
@@ -721,7 +730,7 @@ copy_config_files() {
 
     # Copy files to .vim directory
     for file in "${VIM_FILES[@]}"; do
-        src="$SCRIPT_DIR/$file"
+        src="$USER_CONFIG_DIR/$file"
         dest="$USER_HOME/.vim/$file"
         if [ -f "$src" ]; then
             # Backup if exists
@@ -738,8 +747,8 @@ copy_config_files() {
 
 # Function to configure Git
 configure_git() {
-    GIT_SETUP_SCRIPT="$SCRIPT_DIR/git_setup.sh"
-    GIT_SETUP_CONF="$SCRIPT_DIR/git_setup.conf"
+    GIT_SETUP_SCRIPT="$VAGRANT_SCRIPTS_DIR/git_setup.sh"
+    GIT_SETUP_CONF="$VAGRANT_CONFIG_DIR/git_setup.conf"
 
     echo "Configuring Git..."
 
