@@ -141,9 +141,15 @@ TruVium prioritizes workflow efficiency through:
 - The setup script works on host computers with Chocolatey (Windows), Homebrew (macOS), or natively on most Linux distributions
 
 ### Port Forwarding
-- To enable Jupyter Notebook access, set `"forward_jupyter_port": true` in `vagrant_config.json`
-- Default port 8888: Jupyter Notebook
-- Run the following in the VM:
+- To enable Jupyter Notebook access edit `vagrant_config.json` like so:
+```json
+{
+  "forward_jupyter_port": true,
+  "port_forwarding": [
+    { "guest": 8888, "host": 8888 }
+}
+```
+- Run the following in the VM and the Jupyter Notebook will be available in your host OS's browser at `http://localhost:8888/`:
   ```bash
   jupyter notebook --no-browser --port=8888 --ip=0.0.0.0
   ```
@@ -152,6 +158,7 @@ TruVium prioritizes workflow efficiency through:
 ### X11 Forwarding
 - Enabled by default for graphical applications like GTKWave
 - Windows and macOS users must run an X-server (e.g., MobaXterm, Xming) for GUI applications
+- X11 forwarding is unnecessary if you set up a desktop environment through the VM GUI
 
 ### tmux Configuration
 - Prefix key is set to `Alt-1` by default
