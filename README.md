@@ -154,13 +154,15 @@ TruVium prioritizes workflow efficiency through:
 - Windows and macOS users must run an X-server (e.g., MobaXterm, Xming) for GUI applications
 
 ### tmux Configuration
-- Prefix key is set to `Alt-1` by default (may need adjustment for some host configurations)
+- Prefix key is set to `Alt-1` by default
+> **Note**: May conflict with host OS keybinds and can be adjusted in tmux configuration.
 - After first boot in the default Ubuntu OS configuration:
   1. Run `<PREFIX> I` to install plugins
-  2. Press enter after plugins are installed
-  3. Run `<PREFIX> U` and type enter to update
+  2. Wait for the plugins to install and press enter
+  3. Run `<PREFIX> U`, type all, press enter to update, and enter again after it completes
 - Notable hotkeys:
   - `Alt-f`: Use FZF to control tmux
+  > **Note**: May conflict with host terminal keybinds.
   - `Alt-\`: Use floating window
   - `<PREFIX>s`: Create vertical split
   - `<PREFIX>d`: Create horizontal split
@@ -177,11 +179,12 @@ TruVium prioritizes workflow efficiency through:
   - `s` + two chars: EasyMotion navigation
   - `<C-p>`: Fuzzy find files
 - GitHub Copilot:
-  - Setup: Run `:Copilot setup`
+  - Setup: Run `:Copilot setup` within Vim
   - Accept suggestions: `<leader>Tab` (Tab key alone may conflict with other completions)
 - Configuration locations:
   - Local: `~/.vimrc` within the VM
   - Persistent: `/TruVium/user-config/vimrc` for changes between VM rebuilds
+- To quit Vim `:q` or `:q!` 😉
 
 ### Vim/tmux Integration
 - Seamless navigation between Vim splits and tmux panes using:
@@ -190,11 +193,6 @@ TruVium prioritizes workflow efficiency through:
   - `<C-K>`: Move Up
   - `<C-L>`: Move Right
 - Note: Navigation may behave differently in NeoVim, Doom Emacs, or other software
-
-### Custom Keybindings
-- Complete reference available in `/TruVium/docs/custom_keybinds.md` (work in progress)
-- Keybindings are customizable to match your preferences
-- Some combinations may require adjustment based on host terminal configuration
 
 ### Adding Custom Tools
 1. Modify appropriate setup script:
@@ -214,6 +212,13 @@ TruVium prioritizes workflow efficiency through:
 - **Vim**: Configuration in `~/.vimrc`
 - **Neovim**: Configuration in `~/.config/nvim`
 - **Emacs**: Configuration in `~/.doom.d/config.el`
+
+## Additional Documentation
+
+- [Desktop Environment Setup Guide](docs/desktop_environment_setup.md): Instructions for configuring desktop environments and session managers in the TruVium Vagrant VM.
+> **Note**: This guide provides additional configurations for desktop environments within the TruVium Vagrant VM. Not all configurations are thoroughly tested, as TruVium’s primary focus is on CLI-based HDL development.
+- [Custom Keybindings](docs/custom_keybinds.md): A work-in-progress list of all configured keybindings, organized by tool for easy reference and future updates.
+> **Note**: Some keybindings may require adjustment based on host terminal or OS configuration.
 
 ## Common Tasks
 
@@ -276,47 +281,48 @@ emacs
 
 ```
 TruVium/
-├── docs/                        # Documentation directory (work in progress)
-│   ├── custom_keybinds.md      # Custom keybinding reference
-│   └── ...                     # Future documentation files
+├── docs/                                   # Documentation directory (work in progress)
+│   ├── custom_keybinds.md                  # Custom keybinding reference
+│   ├── desktop_environment_setup.md        # Optional desktop environment instructions
+│   └── ...                                 # Future documentation files
 │
-├── host-scripts/                # Host machine setup
-│   └── host_setup.sh           # Host configuration script
+├── host-scripts/                           # Host machine setup
+│   └── host_setup.sh                       # Host configuration script
 │
-├── proprietary/                 # Commercial tool setup (work in progress)
-│   ├── config.json             # Tool configuration
-│   ├── installer.sh            # General installation script
+├── proprietary/                            # Commercial tool setup (work in progress)
+│   ├── config.json                         # Tool configuration
+│   ├── installer.sh                        # General installation script
 │   ├── installer_input_proprietary.txt
-│   ├── install_modelsim.sh     # ModelSim installation
-│   └── install_vivado.sh       # Vivado installation
+│   ├── install_modelsim.sh                 # ModelSim installation
+│   └── install_vivado.sh                   # Vivado installation
 │
-├── templates/                   # Configuration templates
-│   ├── git_setup_example.conf  # Git configuration template
-│   └── host_setup_example.conf # Host setup template
+├── templates/                              # Configuration templates
+│   ├── git_setup_example.conf              # Git configuration template
+│   └── host_setup_example.conf             # Host setup template
 │
-├── user-config/                 # User configuration files transfered into VM
-│   ├── airline_theme.conf      # Default Vim airline theme
-│   ├── coc-settings.json       # CoC configuration
-│   ├── color_scheme.conf       # Default Vim color settings
-│   ├── hdl_checker.json        # HDL checker settings
-│   ├── tmux.conf              # tmux configuration
-│   ├── tmuxline.conf          # tmux statusline
-│   ├── tmux_keys.sh           # tmux-Vim integration script
-│   └── vimrc                  # Vim configuration
+├── user-config/                            # User configuration files transfered into VM
+│   ├── airline_theme.conf                  # Default Vim airline theme
+│   ├── coc-settings.json                   # CoC configuration
+│   ├── color_scheme.conf                   # Default Vim color settings
+│   ├── hdl_checker.json                    # HDL checker settings
+│   ├── tmux.conf                           # tmux configuration
+│   ├── tmuxline.conf                       # tmux statusline
+│   ├── tmux_keys.sh                        # tmux-Vim integration script
+│   └── vimrc                               # Vim configuration
 │
-├── vagrant-config/             # Vagrant settings
-│   ├── vagrant_config.json     # VM configuration
-│   └── [git_setup.conf]        # Optional: User must add from template
+├── vagrant-config/                         # Vagrant settings
+│   ├── vagrant_config.json                 # VM configuration
+│   └── [git_setup.conf]                    # Optional: User must add from template
 │
-├── vagrant-scripts/            # VM setup scripts
-│   ├── git_setup.sh           # Git configuration script
-│   ├── vagrant_setup.sh       # Ubuntu setup script
-│   └── vagrant_setup_arch.sh  # Arch Linux setup script
+├── vagrant-scripts/                        # VM setup scripts
+│   ├── git_setup.sh                        # Git configuration script
+│   ├── vagrant_setup.sh                    # Ubuntu setup script
+│   └── vagrant_setup_arch.sh               # Arch Linux setup script
 │
-├── .gitignore                 # Git ignore patterns
-├── LICENSE                    # Project license
-├── README.md                  # Project documentation
-└── Vagrantfile               # Vagrant main configuration
+├── .gitignore                              # Git ignore patterns
+├── LICENSE                                 # Project license
+├── README.md                               # Project README
+└── Vagrantfile                             # Vagrant main configuration
 ```
 
 ### Directory Descriptions
