@@ -99,7 +99,7 @@ TruVium is a comprehensive development environment specifically designed for har
 
 ### Quality-of-Life Tools
 TruVium prioritizes workflow efficiency through:
-- Tmux: Terminal multiplexer for session management
+- tmux: Terminal multiplexer for session management
 - Vi-Motions: Efficient text navigation
 - FZF: Fuzzy finder for quick file and command access
 
@@ -107,7 +107,7 @@ TruVium prioritizes workflow efficiency through:
 
 ### Host Configuration
 - Apple Silicon may need a workaround since only the most recent version of VirtualBox is supported and Vagrant doesn't recognize it as an option yet
-- Host terminal configuration can affect some keybindings, colors, and fonts. We suggest using a NerdFont like FiraCode Mono for powerline symbol support. Additionally, Alacritty is a good cross-platform terminal, but a separate X-server is needed and may require configuration if you are running on Windows or macOS.
+- Host terminal configuration can affect some keybindings, colors, and fonts. Using a NerdFont like FiraCode Mono for powerline symbol support is suggested. Additionally, Alacritty is a good cross-platform terminal, but a separate X-server is needed and may require configuration if you are running on Windows or macOS.
 
 ### Vagrant Configuration (`vagrant_config.json`)
 - Default configuration sets vm_cpus and vm_memory to minimum values
@@ -151,9 +151,9 @@ TruVium prioritizes workflow efficiency through:
 
 ### X11 Forwarding
 - Enabled by default for graphical applications like GTKWave
-- Windows users must run an X-server (e.g., MobaXterm, Xming) for GUI applications
+- Windows and macOS users must run an X-server (e.g., MobaXterm, Xming) for GUI applications
 
-### Tmux Configuration
+### tmux Configuration
 - Prefix key is set to `Alt-1` by default (may need adjustment for some host configurations)
 - After first boot in the default Ubuntu OS configuration:
   1. Run `<PREFIX> I` to install plugins
@@ -183,8 +183,8 @@ TruVium prioritizes workflow efficiency through:
   - Local: `~/.vimrc` within the VM
   - Persistent: `/TruVium/user-config/vimrc` for changes between VM rebuilds
 
-### Vim/Tmux Integration
-- Seamless navigation between Vim splits and Tmux panes using:
+### Vim/tmux Integration
+- Seamless navigation between Vim splits and tmux panes using:
   - `<C-H>`: Move Left
   - `<C-J>`: Move Down
   - `<C-K>`: Move Up
@@ -299,9 +299,9 @@ TruVium/
 │   ├── coc-settings.json       # CoC configuration
 │   ├── color_scheme.conf       # Default Vim color settings
 │   ├── hdl_checker.json        # HDL checker settings
-│   ├── tmux.conf              # Tmux configuration
-│   ├── tmuxline.conf          # Tmux statusline
-│   ├── tmux_keys.sh           # Tmux-Vim integration script
+│   ├── tmux.conf              # tmux configuration
+│   ├── tmuxline.conf          # tmux statusline
+│   ├── tmux_keys.sh           # tmux-Vim integration script
 │   └── vimrc                  # Vim configuration
 │
 ├── vagrant-config/             # Vagrant settings
@@ -347,7 +347,7 @@ TruVium/
 
 ### Immediate Tasks
 - Complete Vim plugin configuration documentation
-- Add detailed keybinding reference for all editors and Tmux
+- Add detailed keybinding reference for all editors and tmux
 - Improve error handling in setup scripts
 - Add more support for custom tool versions in configuration
 - Add more open-source HDL tools
@@ -400,7 +400,7 @@ TruVium is licensed under the MIT License. See the [LICENSE](./LICENSE) file for
 
 ## Author
 
-Kyle Orman is a member of Dr. Jia Di's TruLogic Lab and a PhD student at the University of Arkansas, focusing on hardware design and verification.
+Kyle Orman is a member of Dr. Jia Di's TruLogic Lab and a PhD student at the University of Arkansas.
 
 ## Acknowledgments
 
