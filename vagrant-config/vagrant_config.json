@@ -1,6 +1,6 @@
 {
-  "vm_box": "ubuntu/jammy64",
-  "vm_box_version": "20241002.0.0",
+  "vm_box": "archlinux/archlinux",
+  "vm_box_version": "20241001.267073",
   "box_check_update": true,
   "vm_hostname": "dev-env",
   "vm_memory": "2048",
@@ -24,7 +24,7 @@
   "provision": [
     {
       "type": "shell",
-      "path": "vagrant-scripts/vagrant_setup.sh"
+      "path": "vagrant-scripts/vagrant_setup_arch.sh"
     }
   ],
   "networks": [
