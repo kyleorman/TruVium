@@ -38,7 +38,7 @@ Ensure you have the following tools installed and accessible from your host mach
 2. **Install a Desktop Environment with Session Manager**:
    Select a desktop environment that includes a session manager. Here are options for **Ubuntu** and **Arch Linux**:
 
-#### Ubuntu Desktop Environments
+#### Ubuntu TruVium Configuration
 
 1. **GNOME** (includes GDM):
    ```bash
@@ -71,7 +71,7 @@ Ensure you have the following tools installed and accessible from your host mach
    sudo apt install lxqt
    ```
 
-#### Arch Linux Desktop Environments
+#### Arch Linux TruVium Configuration
 
 1. **GNOME** (includes GDM):
    ```bash
@@ -198,7 +198,7 @@ If you do not mind possible additional configuaration you can install a session 
 
 #### Step 1: Install a Standalone Session Manager
 
-##### Ubuntu
+##### Ubuntu TruVium Configuration
 1. **GDM** (GNOME Display Manager):
    ```bash
    sudo apt update
@@ -220,7 +220,7 @@ If you do not mind possible additional configuaration you can install a session 
    sudo systemctl enable sddm.service --now
    ```
 
-##### Arch Linux
+##### Arch Linux TruVium Configuration
 1. **GDM**:
    ```bash
    sudo pacman -S gdm
@@ -243,7 +243,7 @@ If you do not mind possible additional configuaration you can install a session 
 
 Once a session manager is installed and enabled, add a standalone desktop environment.
 
-##### Ubuntu
+##### Ubuntu TruVium Configuration
 
 1. **Cinnamon** (requires LightDM):
    ```bash
@@ -274,7 +274,7 @@ Once a session manager is installed and enabled, add a standalone desktop enviro
    sudo apt install fluxbox
    ```
 
-##### Arch Linux
+##### Arch Linux TruVium Configuration
 
 1. **Cinnamon** (requires installing LightDM):
    ```bash
