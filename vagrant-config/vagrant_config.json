@@ -12,7 +12,7 @@
   "ssh_insert_key": false,
   "forward_jupyter_port": false,
   "port_forwarding": [
-    { "guest": 8888, "host": 8888 }
+    {}
   ],
   "synced_folders": [
     {
@@ -34,7 +34,6 @@
     }
   ],
   "environment_variables": {},
-  "post_up_message": "Port forwarding for Jupyter is enabled on port 8888.",
   "user_shell": "zsh",
   "open_url": "http://www.google.com",
   "swap_size": "4G",
