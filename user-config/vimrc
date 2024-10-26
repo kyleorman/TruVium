@@ -384,21 +384,6 @@ let g:airline_section_z = '%l:%c %p%% %{strftime("%a %b %d, %H:%M")}'
 
 " Note: Ensure all themes used are installed.
 
-" --- Tmux Integration ---
-" Integrate vim-airline with tmux to have matching status lines.
-
-" Requires 'edkolev/tmuxline.vim' plugin.
-" 'edkolev/tmuxline.vim'
-
-" Enable tmuxline integration.
-let g:airline#extensions#tmuxline#enabled = 1
-
-" Automatically apply tmuxline configuration when Airline theme changes.
-autocmd User AirlineTheme call airline#extensions#tmuxline#apply()
-
-" Note:
-" - You need to run Vim inside a tmux session.
-" - Powerline fonts should be set in your terminal and tmux.
 
 " --- EasyMotion Integration ---
 " Provides quick navigation within Vim.
@@ -609,6 +594,724 @@ endif
 nnoremap <leader>na :call PrevAirlineTheme()<CR>
 nnoremap <leader>pa :call NextAirlineTheme()<CR>
 nnoremap <leader>sa :call SaveAirlineThemeToFile()<CR>
+
+" =====================================
+" ======== Tmuxline Configuration ===========
+" =====================================
+"
+" --- Tmux Integration ---
+" Integrate vim-airline with tmux to have matching status lines.
+
+" Requires 'edkolev/tmuxline.vim' plugin.
+" 'edkolev/tmuxline.vim'
+
+" Enable tmuxline integration
+let g:airline#extensions#tmuxline#enabled = 1
+
+" Create snapshot file
+let g:airline#extensions#tmuxline#snapshot_file = "~/.tmuxline.conf"
+
+" Create a function to update tmuxline
+function! UpdateTmuxline()
+    Tmuxline airline
+    TmuxlineSnapshot! ~/.tmuxline.conf
+    silent !tmux source-file ~/.tmux.conf
+endfunction
+
+" Set up the autocommand to call our function
+augroup airline_tmuxline
+    autocmd!
+    autocmd User AirlineAfterTheme call UpdateTmuxline()
+    autocmd VimEnter * call UpdateTmuxline()
+augroup END
+
+
+" Uncomment one preset configuration at a time
+" === Simple Configurations ===
+
+" 1. Minimal
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}'],
+"       \'b'    : '#S',
+"       \'c'    : '',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
+
+" 2. Basic Developer
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#F',
+"       \'c'    : '#(whoami)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{cpu_percentage}',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
+
+" 3. Time Focus
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '',
+"       \'c'    : '',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '%a',
+"       \'y'    : '%R',
+"       \'z'    : '%Y-%m-%d'
+"       \}
+
+" === System Monitoring Configurations ===
+
+" 4. Full System Monitor
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#H',
+"       \'c'    : '#(whoami)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : 'CPU: #{cpu_percentage}',
+"       \'y'    : 'RAM: #{ram_percentage}',
+"       \'z'    : 'BAT: #{battery_percentage}'
+"       \}
+
+" 5. Network Focus
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#H',
+"       \'c'    : '#(curl ifconfig.me)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '↑#{upload_speed}',
+"       \'y'    : '↓#{download_speed}',
+"       \'z'    : '#(hostname -I | cut -d" " -f1)'
+"       \}
+
+" 6. Load Average
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#H',
+"       \'c'    : '',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(cut -d " " -f 1 /proc/loadavg)',
+"       \'y'    : '#(cut -d " " -f 2 /proc/loadavg)',
+"       \'z'    : '#(cut -d " " -f 3 /proc/loadavg)'
+"       \}
+
+" === Development Focused Configurations ===
+
+" 7. Git Status
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(cd #{pane_current_path}; git rev-parse --abbrev-ref HEAD)',
+"       \'c'    : '#(cd #{pane_current_path}; git status -s)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{git_status}',
+"       \'y'    : '#(cd #{pane_current_path}; git log --oneline | wc -l) commits',
+"       \'z'    : '%R'
+"       \}
+
+" 8. Docker Focus
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(docker ps -q | wc -l) containers',
+"       \'c'    : '#(docker images -q | wc -l) images',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(docker system df | grep "Images" | awk "{print $4}")',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
+
+" 9. Kubernetes Info
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(kubectl config current-context)',
+"       \'c'    : '#(kubectl get ns | wc -l) namespaces',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(kubectl get pods | wc -l) pods',
+"       \'y'    : '#(kubectl get nodes | wc -l) nodes',
+"       \'z'    : '%R'
+"       \}
+
+" === Path and Directory Configurations ===
+
+" 10. Full Path Display
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#{pane_current_path}',
+"       \'c'    : '#(basename #{pane_current_path})',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{pane_current_command}',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
+
+" 11. Project Navigator
+" let g:tmuxline_preset = {
+      " \'a'    : ['#S', '#{prefix_highlight}'],
+      " \'b'    : '#(basename #{pane_current_path})',
+      " \'c'    : '#(ls -1 | wc -l) files',
+      " \'win'  : '#I #W',
+      " \'cwin' : '#I #W',
+      " \'x'    : '#(du -sh . | cut -f1)',
+      " \'y'    : '%R',
+      " \'z'    : '#H'
+      " \}
+
+" === Time and Date Configurations ===
+
+" 12. Multiple Timezones
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(TZ=UTC date +%%H:%%M) UTC',
+"       \'c'    : '#(TZ=America/Los_Angeles date +%%H:%%M) PST',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(TZ=Europe/London date +%%H:%%M) GMT',
+"       \'y'    : '#(TZ=Asia/Tokyo date +%%H:%%M) JST',
+"       \'z'    : '%R Local'
+"       \}
+
+" 13. Calendar Focus
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '%B %d',
+"       \'c'    : 'Week %V',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '%A',
+"       \'y'    : '%R',
+"       \'z'    : '%Y'
+"       \}
+
+" === System Resource Configurations ===
+
+" 14. Memory Details
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(free -h | grep "Mem:" | awk "{print \\"Free: \\" $4}")',
+"       \'c'    : '#(free -h | grep "Mem:" | awk "{print \\"Used: \\" $3}")',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(free -h | grep "Swap:" | awk "{print \\"Swap: \\" $3}")',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
+
+" 15. Disk Usage
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(df -h / | tail -1 | awk "{print \\"Root: \\" $5}")',
+"       \'c'    : '#(df -h /home | tail -1 | awk "{print \\"Home: \\" $5}")',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(df -h | grep /dev/sd | wc -l) drives',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
+
+" === Process Monitoring ===
+
+" 16. Process Stats
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(ps aux | wc -l) processes',
+"       \'c'    : '#(ps aux --sort=-%cpu | head -n 2 | tail -n 1 | awk "{print \\"CPU: \\" $11}")',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(ps aux --sort=-%mem | head -n 2 | tail -n 1 | awk "{print \\"MEM: \\" $11}")',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
+
+" 17. System Load
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(uptime | cut -d "," -f 1)',
+"       \'c'    : '#(uptime | rev | cut -d":" -f1 | rev | sed s/,//g)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : 'CPU: #{cpu_percentage}',
+"       \'y'    : 'RAM: #{ram_percentage}',
+"       \'z'    : '%R'
+"       \}
+
+" === Network Monitoring ===
+
+" 18. Network Stats
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(netstat -an | grep ESTABLISHED | wc -l) CONN',
+"       \'c'    : '#(ss -t | wc -l) TCP',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{network_bandwidth}',
+"       \'y'    : '#(curl -s ifconfig.me)',
+"       \'z'    : '%R'
+"       \}
+
+" 19. Network Interfaces
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(ip link show | grep UP | wc -l) UP',
+"       \'c'    : '#(iwconfig 2>/dev/null | grep ESSID | cut -d\\" -f2)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{online_status}',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
+
+" === Weather and Environment ===
+
+" 20. Weather Info
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(curl -s wttr.in/?format="%%C+%%t")',
+"       \'c'    : '#(curl -s wttr.in/?format="%%h+%%w")',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '%R',
+"       \'y'    : '%a',
+"       \'z'    : '%F'
+"       \}
+
+" === Music and Media ===
+
+" 21. Music Player
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '♫ #{music_status}',
+"       \'c'    : '#{spotify_artist}',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{spotify_track}',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
+
+" === Combined Configurations ===
+
+" 22. Dev Environment
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(cd #{pane_current_path}; git rev-parse --abbrev-ref HEAD)',
+"       \'c'    : '#(basename #{pane_current_path})',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{cpu_percentage}',
+"       \'y'    : '#{ram_percentage}',
+"       \'z'    : '%R'
+"       \}
+
+" 23. System Overview
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#H',
+"       \'c'    : '#(whoami)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(uptime | cut -d "," -f 1)',
+"       \'y'    : 'CPU: #{cpu_percentage}',
+"       \'z'    : '%R'
+"       \}
+
+" 24. Network and System
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(hostname -I | cut -d" " -f1)',
+"       \'c'    : '#{online_status}',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{network_bandwidth}',
+"       \'y'    : 'CPU: #{cpu_percentage}',
+"       \'z'    : '%R'
+"       \}
+
+" 25. Extended Git Info
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(cd #{pane_current_path}; git rev-parse --abbrev-ref HEAD)',
+"       \'c'    : '#(cd #{pane_current_path}; git status -s | wc -l) changes',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(cd #{pane_current_path}; git diff --stat | tail -n1)',
+"       \'y'    : '#(cd #{pane_current_path}; git log --oneline | wc -l) commits',
+"       \'z'    : '%R'
+"       \}
+
+" 26. Battery Focus
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#{battery_icon}',
+"       \'c'    : '#{battery_percentage}',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{battery_remain}',
+"       \'y'    : '#{battery_status_bg}',
+"       \'z'    : '%R'
+"       \}
+
+" 27. Session Details
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#I:#P',
+"       \'c'    : '#(whoami)@#H',
+"       \'win'  : '#I #W#{?window_flags,#{window_flags}, }',
+"       \'cwin' : '#I #W#{?window_flags,#{window_flags}, }',
+"       \'x'    : '#{pane_current_command}',
+"       \'y'    : '#{pane_current_path}',
+"       \'z'    : '%R'
+"       \}
+
+" 28. Docker Compose Status
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(docker-compose ps -q | wc -l) services',
+"       \'c'    : '#(docker network ls | wc -l) networks',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(docker volume ls | wc -l) volumes',
+"       \'y'    : '#(docker ps -f status=running | wc -l) running',
+"       \'z'    : '%R'
+"       \}
+
+" 29. Process Priority
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(ps -eo ni,comm | sort -n | head -1)',
+"       \'c'    : '#(uptime | cut -d "," -f 1)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : 'CPU: #{cpu_percentage}',
+"       \'y'    : 'Procs: #(ps aux | wc -l)',
+"       \'z'    : '%R'
+"       \}
+
+" 30. Extended Network
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(curl -s ifconfig.me)',
+"       \'c'    : '#(netstat -ant | grep LISTEN | wc -l) listening',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '↑#{upload_speed}',
+"       \'y'    : '↓#{download_speed}',
+"       \'z'    : '#(date +%R)'
+"       \}
+
+" 31. Kubernetes Detailed
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(kubectl config current-context)',
+"       \'c'    : '#(kubectl get pods --all-namespaces | wc -l) total pods',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(kubectl get pods --field-selector status.phase=Running | wc -l) running',
+"       \'y'    : '#(kubectl get pods --field-selector status.phase=Failed | wc -l) failed',
+"       \'z'    : '%R'
+"       \}
+
+" 32. Git Branch Details
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(cd #{pane_current_path}; git symbolic-ref --short HEAD 2>/dev/null)',
+"       \'c'    : '#(cd #{pane_current_path}; git status -s -b | head -1)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(cd #{pane_current_path}; git status -s | grep "^M" | wc -l) modified',
+"       \'y'    : '#(cd #{pane_current_path}; git status -s | grep "^A" | wc -l) added',
+"       \'z'    : '%R'
+"       \}
+
+" 33. System Temperature
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(sensors | grep "Core 0" | awk "{print $3}")',
+"       \'c'    : 'CPU: #{cpu_percentage}',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader 2>/dev/null)',
+"       \'y'    : 'RAM: #{ram_percentage}',
+"       \'z'    : '%R'
+"       \}
+
+" 34. Directory Stats
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(basename #{pane_current_path})',
+"       \'c'    : '#(ls -la | wc -l) items',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(find . -type f | wc -l) files',
+"       \'y'    : '#(find . -type d | wc -l) dirs',
+"       \'z'    : '%R'
+"       \}
+
+" 35. Extended Process Info
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(ps aux --sort=-%cpu | head -2 | tail -1 | awk "{print $11}")',
+"       \'c'    : '#(ps aux --sort=-%mem | head -2 | tail -1 | awk "{print $11}")',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : 'CPU: #{cpu_percentage}',
+"       \'y'    : 'MEM: #{ram_percentage}',
+"       \'z'    : '%R'
+"       \}
+
+" 36. Network Interface Details
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(ip route get 1 | awk "{print $7}")',
+"       \'c'    : '#(iwconfig 2>/dev/null | grep "Link Quality" | cut -d"=" -f2)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{network_bandwidth}',
+"       \'y'    : '#(iwconfig 2>/dev/null | grep "Bit Rate" | cut -d"=" -f2)',
+"       \'z'    : '%R'
+"       \}
+
+" 37. Extended Battery Info
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#{battery_icon} #{battery_percentage}',
+"       \'c'    : '#{battery_status_bg}',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#{battery_remain}',
+"       \'y'    : '#(acpi -b | grep "charging at" | cut -d" " -f5)',
+"       \'z'    : '%R'
+"       \}
+
+" 38. Memory Detailed
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : 'RAM: #{ram_percentage}',
+"       \'c'    : '#(free -m | awk "NR==2 {print $3}")MB used',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(free -m | awk "NR==2 {print $4}")MB free',
+"       \'y'    : '#(free -m | awk "NR==2 {print $6}")MB cached',
+"       \'z'    : '%R'
+"       \}
+
+" 39. Date Time Extended
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '%A',
+"       \'c'    : '%B %d, %Y',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '%r',
+"       \'y'    : '#(date -u +%%H:%%M) UTC',
+"       \'z'    : '#(TZ=America/Los_Angeles date +%%H:%%M) PST'
+"       \}
+
+" 40. Combined System Monitor
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S #{prefix_highlight}'],
+"       \'b'    : ['CPU: #{cpu_percentage}', 'RAM: #{ram_percentage}'],
+"       \'c'    : ['#{battery_percentage}', '#{network_bandwidth}'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(whoami)@#H',
+"       \'y'    : '#(date "+%H:%M")',
+"       \'z'    : '#(TZ=UTC date "+%H:%M UTC")'
+"       \}
+
+" === Git-Focused Configurations ===
+
+" 1. Basic Git Status
+let g:tmuxline_preset = {
+      \'a'    : ['#S', '#{prefix_highlight}'],
+      \'b'    : '#(cd #{pane_current_path}; git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "no git")',
+      \'c'    : '#(cd #{pane_current_path}; git status -s | wc -l) changes',
+      \'win'  : '#I #W',
+      \'cwin' : '#I #W',
+      \'x'    : '#(cd #{pane_current_path}; git diff --shortstat)',
+      \'y'    : '#(cd #{pane_current_path}; git log --oneline | wc -l) commits',
+      \'z'    : '%R'
+      \}
+
+" 2. Git Detail Monitor
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(cd #{pane_current_path}; git branch --show-current)',
+"       \'c'    : ['#(cd #{pane_current_path}; git status -s | grep "^M" | wc -l) modified', '#(cd #{pane_current_path}; git status -s | grep "^A" | wc -l) added', '#(cd #{pane_current_path}; git status -s | grep "^D" | wc -l) deleted'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(cd #{pane_current_path}; git rev-parse --short HEAD)',
+"       \'y'    : '#(cd #{pane_current_path}; git describe --tags 2>/dev/null || echo "no tag")',
+"       \'z'    : '#(cd #{pane_current_path}; git config --get remote.origin.url | sed "s/.*\\/\\([^\\/]*\\)\\.git/\\1/")'
+"       \}
+
+" 3. Git Author and Timeline
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(cd #{pane_current_path}; git config user.name)',
+"       \'c'    : '#(cd #{pane_current_path}; git status --porcelain)',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(cd #{pane_current_path}; git log -1 --format="%ar")',
+"       \'y'    : '#(cd #{pane_current_path}; git log -1 --format="%h %s")',
+"       \'z'    : '#(cd #{pane_current_path}; git branch --show-current)'
+"       \}
+
+" 4. Git Project Stats
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(cd #{pane_current_path}; git rev-parse --git-dir > /dev/null 2>&1 && echo "git" || echo "no git")',
+"       \'c'    : ['#(cd #{pane_current_path}; git ls-files | wc -l) tracked',
+"                  '#(cd #{pane_current_path}; git status -s | grep "^??" | wc -l) untracked'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(cd #{pane_current_path}; git diff --stat | tail -n1)',
+"       \'y'    : '#(cd #{pane_current_path}; git branch | wc -l) branches',
+"       \'z'    : '#(cd #{pane_current_path}; git log --oneline | wc -l) commits'
+"       \}
+
+" 5. Git CI and Project Status
+" let g:tmuxline_preset = {
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(cd #{pane_current_path}; git branch --show-current)',
+"       \'c'    : '#(cd #{pane_current_path}; git log -1 --format="%h %s")',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(cd #{pane_current_path}; git status -sb | head -1)',
+"       \'y'    : '#(cd #{pane_current_path}; git cherry -v 2>/dev/null | wc -l) unpushed',
+"       \'z'    : '#(cd #{pane_current_path}; if [ -f .gitlab-ci.yml ] || [ -f .github/workflows ]; then echo "CI"; else echo "no CI"; fi)'
+"       \}
+
+" === HDL Development Configuration ===
+
+" 6. VHDL/Verilog Development
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(cd #{pane_current_path}; git branch --show-current)',
+"       \'c'    : ['#(find . -name "*.vhd" -o -name "*.v" | wc -l) HDL files',
+"                  '#(find . -name "*.vhd" -o -name "*.v" -exec grep -l "entity" {} \; | wc -l) entities',
+"                  '#(find . -name "*.vhd" -o -name "*.v" -exec grep -l "architecture" {} \; | wc -l) arch'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(cd #{pane_current_path}; find . -name "*.vcd" -mmin -5 2>/dev/null | wc -l) recent sims',
+"       \'y'    : '#(cd #{pane_current_path}; find . -name "*.ucf" -o -name "*.xdc" | wc -l) constraints',
+"       \'z'    : '#(cd #{pane_current_path}; find . -name "*_tb.vhd" -o -name "*_tb.v" | wc -l) testbenches'
+"       \}
+" 1. HDL Project Overview
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(basename #{pane_current_path})',
+"       \'c'    : ['#(find . -name "*.vhd" | wc -l) VHDL',
+"                  '#(find . -name "*.v" | wc -l) Verilog',
+"                  '#(find . -name "*.sv" | wc -l) SystemVerilog'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(find . -name "xsim.log" -mmin -30 2>/dev/null | wc -l) recent sims',
+"       \'y'    : '#(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "no git")',
+"       \'z'    : '#(date +%R)'
+"       \}
+
+" 2. Synthesis and Implementation Focus
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(find . -name "*.rpt" -mmin -60 2>/dev/null | wc -l) new reports',
+"       \'c'    : ['#(find . -name "utilization*.rpt" -exec grep "Slice LUTs" {} \; 2>/dev/null | tail -n1)',
+"                  '#(find . -name "timing*.rpt" -exec grep "Timing Score" {} \; 2>/dev/null | tail -n1)'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(find . -name "*.bit" -o -name "*.mcs" -mtime -1 2>/dev/null | wc -l) new bitstreams',
+"       \'y'    : '#(find . -name "vivado.log" -exec grep "CRITICAL WARNING" {} \; 2>/dev/null | wc -l) warnings',
+"       \'z'    : '%R'
+"       \}
+
+" 3. Verification Environment
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(find . -name "*_tb.v*" | wc -l) testbenches',
+"       \'c'    : ['#(find . -name "*.wcfg" | wc -l) waveforms',
+"                  '#(find . -name "*.vcd" -mmin -30 2>/dev/null | wc -l) recent sims'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(find . -name "*.ucf" -o -name "*.xdc" | wc -l) constraints',
+"       \'y'    : '#(find . -name "coverage.txt" -mmin -30 2>/dev/null | wc -l) coverage runs',
+"       \'z'    : '#(find . -name "vsim.log" -exec tail -n1 {} \; 2>/dev/null || echo "No sim")'
+"       \}
+
+" 4. FPGA Resource Tracker
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(find . -name "*utilization*.rpt" -mmin -60 2>/dev/null | head -n1 | xargs basename 2>/dev/null)',
+"       \'c'    : ['LUT: #(find . -name "*utilization*.rpt" -exec grep "Slice LUTs" {} \; 2>/dev/null | tail -n1 | cut -d"|" -f3)',
+"                  'FF: #(find . -name "*utilization*.rpt" -exec grep "Slice Registers" {} \; 2>/dev/null | tail -n1 | cut -d"|" -f3)',
+"                  'BRAM: #(find . -name "*utilization*.rpt" -exec grep "Block RAM Tile" {} \; 2>/dev/null | tail -n1 | cut -d"|" -f3)'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : 'DSP: #(find . -name "*utilization*.rpt" -exec grep "DSPs" {} \; 2>/dev/null | tail -n1 | cut -d"|" -f3)',
+"       \'y'    : '#(find . -name "timing*.rpt" -exec grep "Timing Score" {} \; 2>/dev/null | tail -n1)',
+"       \'z'    : '#(date +%R)'
+"       \}
+
+" 5. Modelsim/Questa Flow
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(find . -name "work" -type d | wc -l) libs',
+"       \'c'    : ['#(find . -name "transcript" -mmin -30 2>/dev/null | wc -l) active',
+"                  '#(find . -name "vsim.wlf" -mmin -30 2>/dev/null | wc -l) waves'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(find . -name "transcript" -exec grep "Error:" {} \; 2>/dev/null | wc -l) errors',
+"       \'y'    : '#(find . -name "transcript" -exec grep "Warning:" {} \; 2>/dev/null | wc -l) warnings',
+"       \'z'    : '#(find . -name "transcript" -exec tail -n1 {} \; 2>/dev/null || echo "No sim")'
+"       \}
+
+" 6. Formal Verification Status
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(find . -name "*.psl" -o -name "*.sva" | wc -l) assertions',
+"       \'c'    : ['#(find . -name "jasper.log" -exec grep "PASSED" {} \; 2>/dev/null | wc -l) passed',
+"                  '#(find . -name "jasper.log" -exec grep "FAILED" {} \; 2>/dev/null | wc -l) failed'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(find . -name "*.fec" -mmin -60 2>/dev/null | wc -l) recent checks',
+"       \'y'    : '#(find . -name "*.jdb" -mmin -60 2>/dev/null | wc -l) active proofs',
+"       \'z'    : '#(date +%R)'
+"       \}
+
+" 7. CI/Regression Testing
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(find . -name "regression.log" -mmin -120 2>/dev/null | wc -l) active runs',
+"       \'c'    : ['#(find . -name "regression.log" -exec grep "PASS" {} \; 2>/dev/null | wc -l) passed',
+"                  '#(find . -name "regression.log" -exec grep "FAIL" {} \; 2>/dev/null | wc -l) failed'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(find . -name "coverage_report.txt" -mmin -120 2>/dev/null | wc -l) coverage runs',
+"       \'y'    : '#(find . -type f -name "jenkins*.log" -mmin -120 2>/dev/null | wc -l) CI jobs',
+"       \'z'    : '#(date +%R)'
+"       \}
+
+" 8. TCL Script Development
+" let g:tmuxline_preset = {
+"       \'a'    : ['#{prefix_highlight}', '#S'],
+"       \'b'    : '#(find . -name "*.tcl" | wc -l) TCL scripts',
+"       \'c'    : ['#(find . -name "vivado_*.jou" -mmin -30 2>/dev/null | wc -l) Vivado',
+"                  '#(find . -name "quartus_*.tcl" -mmin -30 2>/dev/null | wc -l) Quartus'],
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(find . -name "*.tcl" -exec grep "proc" {} \; 2>/dev/null | wc -l) procs',
+"       \'y'    : '#(find . -name "vivado*.log" -exec grep "ERROR" {} \; 2>/dev/null | wc -l) errors',
+"       \'z'    : '%R'
+"       \}
 
 " =====================================
 " ======== FZF Configuration ===========

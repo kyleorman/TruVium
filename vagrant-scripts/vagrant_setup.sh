@@ -6,7 +6,6 @@ set -eEuo pipefail
 IFS=$'\n\t'
 
 # --- Configuration Variables ---
-SCRIPT_DIR="/vagrant"  # Directory where the script is being executed
 LOGFILE="/var/log/setup-script.log"
 TMUX_VERSION="3.5"
 TMP_DIR="/tmp/setup_script_install"
@@ -15,6 +14,10 @@ NODE_VERSION="${NODE_VERSION:-22.x}"  # Default Node.js version
 VIM_VERSION="${VIM_VERSION:-9.1.0744}" # Optional: Specify Vim version, defaults to latest
 NEOVIM_VERSION="${NEOVIM_VERSION:-}"   # Optional: Specify Neovim version, defaults to latest stable
 EMACS_VERSION="${EMACS_VERSION:-}"     # Optional: Specify Emacs version, defaults to latest
+USER_CONFIG_DIR="/vagrant/user-config"
+VAGRANT_SCRIPTS_DIR="/vagrant/vagrant-scripts"
+VAGRANT_CONFIG_DIR="/vagrant/vagrant-config"
+PROPRIETARY_DIR="/vagrant/proprietary"
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
@@ -27,7 +30,11 @@ fi
 
 # Export environment variable to indicate the setup script is running
 export ACTUAL_USER
-export SETUP_SCRIPT_RUNNING=true
+export USER_HOME
+
+# Set vm.swappiness to 10 to reduce swap usage
+# echo "vm.swappiness=10" | tee -a /etc/sysctl.conf
+# sysctl -p
 
 # Redirect all output to LOGFILE with timestamps
 exec > >(while IFS= read -r line; do echo "$(date '+%Y-%m-%d %H:%M:%S') - $line"; done | tee -a "$LOGFILE") 2>&1
@@ -928,8 +935,8 @@ install_vim_plugins() {
         "vim-airline/vim-airline-themes"
         "junegunn/fzf"
         "junegunn/fzf.vim"
-	"junegunn/vim-easy-align"
-	"easymotion/vim-easymotion"
+		"junegunn/vim-easy-align"
+		"easymotion/vim-easymotion"
         "tpope/vim-fugitive"
         "tpope/vim-rhubarb"
         "dense-analysis/ale"
@@ -945,17 +952,17 @@ install_vim_plugins() {
         "mrtazz/checkmake"
         "vim-syntastic/syntastic"
         "jpalardy/vim-slime"
-	"lervag/vimtex"
-	"pangloss/vim-javascript"
-	"elzr/vim-json"
-	"stephpy/vim-yaml"
-	"vim-python/python-syntax"
-	"liuchengxu/vim-which-key"
-	"mkitt/tabline.vim"
-	"edkolev/tmuxline.vim"
-	"airblade/vim-gitgutter"
-	"bling/vim-bufferline"
-	"mbbill/undotree"
+		"lervag/vimtex"
+		"pangloss/vim-javascript"
+		"elzr/vim-json"
+		"stephpy/vim-yaml"
+		"vim-python/python-syntax"
+		"liuchengxu/vim-which-key"
+		"mkitt/tabline.vim"
+		"edkolev/tmuxline.vim"
+		"airblade/vim-gitgutter"
+		"bling/vim-bufferline"
+		"mbbill/undotree"
     )
 
     OPTIONAL_PLUGINS=(
@@ -1223,8 +1230,8 @@ setup_ftdetect_symlinks() {
 
 # Function to configure Git
 configure_git() {
-    GIT_SETUP_SCRIPT="$SCRIPT_DIR/git_setup.sh"
-    GIT_SETUP_CONF="$SCRIPT_DIR/git_setup.conf"
+    GIT_SETUP_SCRIPT="$VAGRANT_SCRIPTS_DIR/git_setup.sh"
+    GIT_SETUP_CONF="$VAGRANT_CONFIG_DIR/git_setup.conf"
 
     echo "Configuring Git..."
 
@@ -1237,7 +1244,6 @@ configure_git() {
         fi
     else
         echo "Error: Git setup scripts or configuration files are missing."
-        exit 1
     fi
 }
 
@@ -1320,6 +1326,7 @@ copy_config_files() {
         ["vimrc"]=".vimrc"
         ["tmux.conf"]=".tmux.conf"
         ["tmux_keys.sh"]=".tmux_keys.sh"
+        ["tmuxline.conf"]=".tmuxline.conf"
         ["coc-settings.json"]=".vim/coc-settings.json"
 		["hdl_checker.json"]=".vim/hdl_checker.json"
 		["airline_theme.conf"]=".vim/airline_theme.conf"
@@ -1328,7 +1335,7 @@ copy_config_files() {
 
     for src in "${!CONFIG_FILES[@]}"; do
         dest="${CONFIG_FILES[$src]}"
-        src_path="$SCRIPT_DIR/$src"
+        src_path="$USER_CONFIG_DIR/$src"
         dest_path="$USER_HOME/$dest"
         
 	if [ -f "$dest_path" ]; then
@@ -1346,20 +1353,9 @@ copy_config_files() {
             chmod 644 "$dest_path"
             echo "$src copied successfully to $dest_path."
         else
-            echo "Warning: $src not found in $SCRIPT_DIR. Skipping copy."
+            echo "Warning: $src not found in $USER_CONFIG_DIR. Skipping copy."
         fi
     done
-
-    # Copy 'yank' to /usr/local/bin instead of /bin for better practices
-    echo "Copying 'yank' to /usr/local/bin..."
-    if [ -f "$SCRIPT_DIR/yank" ]; then
-        cp "$SCRIPT_DIR/yank" "/usr/local/bin/yank"
-        chown root:root "/usr/local/bin/yank"
-        chmod 755 "/usr/local/bin/yank"
-        echo "'yank' copied successfully to /usr/local/bin."
-    else
-        echo "Warning: 'yank' not found in $SCRIPT_DIR. Skipping copy."
-    fi
 }
 
 # Function to install Vim plugins
