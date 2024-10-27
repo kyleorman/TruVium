@@ -1,5 +1,6 @@
 Vagrant.configure("2") do |config|
   require 'json'
+  require 'fileutils'
 
   # Get the base path of the Vagrantfile
   base_path = File.dirname(__FILE__)
@@ -184,7 +185,7 @@ Vagrant.configure("2") do |config|
     SHELL
   end
   
-  # Provisioning scripts
+    # Provisioning scripts
   if settings.key?('provision')
     settings['provision'].each do |script|
       if script['type'] == 'shell'
@@ -205,7 +206,7 @@ Vagrant.configure("2") do |config|
     # Default provisioning with vagrant_setup_arch.sh script
     config.vm.provision "shell", path: File.join(base_path, "vagrant-scripts", "vagrant_setup_arch.sh")
   end
-
+  
   # Reset swap size after provisioning
   if settings.key?('default_swap_size')
     default_swap_size = settings['default_swap_size']
@@ -346,15 +347,73 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  # Customize VM resources (headless setup)
-  vm_memory = settings['vm_memory'] || "4096"
-  vm_cpus = settings['vm_cpus'] || 2
+  # Enhanced VirtualBox Provider Configuration
   config.vm.provider "virtualbox" do |vb|
-    vb.memory = vm_memory
-    vb.cpus = vm_cpus
+    # Basic Resources
+    vb.memory = settings['vm_memory'] || "4096"
+    vb.cpus = settings['vm_cpus'] || 2
     vb.gui = settings.fetch('vb_gui', false)
+
+	# Display Settings
+	if settings.key?('vb_display')
+	  display = settings['vb_display']
+	  vb.customize ["modifyvm", :id, "--vram", display.fetch('video_memory', 128)]
+	  vb.customize ["modifyvm", :id, "--accelerate3d", display.fetch('3d_acceleration', true) ? "on" : "off"]
+	  vb.customize ["modifyvm", :id, "--graphicscontroller", settings.fetch("graphics_controller", "VBoxSVGA")]
+	  
+	  if display['remote_display']
+		vb.customize ["modifyvm", :id, "--vrde", "on"]
+		vb.customize ["modifyvm", :id, "--vrdeport", display.fetch('remote_display_port', 3389)]
+	  else
+		vb.customize ["modifyvm", :id, "--vrde", "off"]
+	  end
+	  
+	  vb.customize ["modifyvm", :id, "--monitorcount", display.fetch('monitor_count', 1)]
+	end
+
+    # Performance Settings
+    if settings.key?('vb_performance')
+      perf = settings['vb_performance']
+      vb.customize ["modifyvm", :id, "--pae", perf.fetch('pae', true) ? "on" : "off"]
+      vb.customize ["modifyvm", :id, "--nestedpaging", perf.fetch('nested_paging', true) ? "on" : "off"]
+      vb.customize ["modifyvm", :id, "--largepages", perf.fetch('large_pages', true) ? "on" : "off"]
+      vb.customize ["modifyvm", :id, "--vtxvpid", perf.fetch('vtx_vpid', true) ? "on" : "off"]
+      vb.customize ["modifyvm", :id, "--hwvirtex", perf.fetch('hw_virtualization', true) ? "on" : "off"]
+      vb.customize ["modifyvm", :id, "--ioapic", perf.fetch('io_apic', true) ? "on" : "off"]
+      vb.customize ["modifyvm", :id, "--pagefusion", perf.fetch('page_fusion', true) ? "on" : "off"]
+    end
+
+    # Storage Configuration
+    if settings.key?('storage')
+      storage = settings['storage']
+      
+      # Add additional disks
+      if storage.key?('additional_disks')
+        # Create vm-disks directory if it doesn't exist
+        FileUtils.mkdir_p(File.join(base_path, "vm-disks"))
+        
+        storage['additional_disks'].each_with_index do |disk, index|
+          disk_path = File.join(base_path, "vm-disks", "#{disk['name']}.#{disk['format'] || 'vdi'}")
+          
+          unless File.exist?(disk_path)
+            vb.customize ['createhd', 
+              '--filename', disk_path,
+              '--size', disk['size'].to_s.gsub(/[^\d]/, ''),
+              '--format', disk['format'] || 'vdi']
+          end
+          
+          vb.customize ['storageattach', :id,
+            '--storagectl', storage['controller'] || 'SATA',
+            '--port', disk['port'] || (index + 1),
+            '--device', 0,
+            '--type', disk['type'] || 'hdd',
+            '--medium', disk_path]
+        end
+      end
+    end
+
+    # Other VirtualBox-specific settings
     vb.customize ["modifyvm", :id, "--clipboard", settings.fetch('vb_clipboard', 'disabled')]
-    vb.customize ["modifyvm", :id, "--graphicscontroller", settings["graphics_controller"]]
   end
 
   # Determine shell configuration file
@@ -368,7 +427,7 @@ Vagrant.configure("2") do |config|
                '.bashrc'
              end
 
-# Install and configure shell
+  # Install and configure shell
   if user_shell == 'zsh'
     config.vm.provision "shell", inline: <<-SHELL
       if ! command -v zsh &> /dev/null; then
@@ -402,4 +461,3 @@ Vagrant.configure("2") do |config|
     "Port forwarding for Jupyter is disabled."
   end
 end
-
