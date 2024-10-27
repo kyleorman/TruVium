@@ -360,6 +360,11 @@ Vagrant.configure("2") do |config|
 	  vb.customize ["modifyvm", :id, "--vram", display.fetch('video_memory', 128)]
 	  vb.customize ["modifyvm", :id, "--accelerate3d", display.fetch('3d_acceleration', true) ? "on" : "off"]
 	  vb.customize ["modifyvm", :id, "--graphicscontroller", settings.fetch("graphics_controller", "VBoxSVGA")]
+
+	  # Set custom resolution if specified
+	  if display['custom_resolution']
+	    vb.customize ["setextradata", :id, "CustomVideoMode1", display['custom_resolution']]
+	  end	  
 	  
 	  if display['remote_display']
 		vb.customize ["modifyvm", :id, "--vrde", "on"]

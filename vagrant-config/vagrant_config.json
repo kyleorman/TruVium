@@ -3,17 +3,18 @@
   "vm_box_version": "20241001.267073",
   "box_check_update": true,
   "vm_hostname": "dev-env",
-  "vm_memory": "2048",
-  "vm_cpus": 1,
-  "vb_gui": false,
-  "graphics_controller": "vmsvga",
+  "vm_memory": "4096",
+  "vm_cpus": 5,
+  "vb_gui": true,
+  "graphics_controller": "Vboxsvga",
   
   "vb_display": {
-    "video_memory": 32,
-    "3d_acceleration": true,
+    "video_memory": 128,
+    "3d_acceleration": false,
     "remote_display": false,
     "remote_display_port": 3389,
-    "monitor_count": 1
+    "monitor_count": 1,
+    "custom_resolution": "1920x1080x32"
   },
   
   "storage": {
