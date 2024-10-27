@@ -42,32 +42,27 @@ Ensure you have the following tools installed and accessible from your host mach
 
 1. **GNOME** (includes GDM):
    ```bash
-   sudo apt update
    sudo apt install ubuntu-gnome-desktop
    ```
 
 2. **KDE Plasma** (includes SDDM):
    ```bash
-   sudo apt update
    sudo apt install kde-plasma-desktop
    ```
    > Note: For the full KDE suite, use `sudo apt install kubuntu-desktop`.
 
 3. **MATE** (includes LightDM):
    ```bash
-   sudo apt update
    sudo apt install ubuntu-mate-desktop
    ```
 
 4. **Xfce** (includes LightDM):
    ```bash
-   sudo apt update
    sudo apt install xubuntu-desktop
    ```
 
 5. **LXQt** (includes SDDM):
    ```bash
-   sudo apt update
    sudo apt install lxqt
    ```
 
@@ -201,21 +196,18 @@ If you do not mind possible additional configuaration you can install a session 
 ##### Ubuntu TruVium Configuration
 1. **GDM** (GNOME Display Manager):
    ```bash
-   sudo apt update
    sudo apt install gdm3
    sudo systemctl enable gdm.service --now
    ```
 
 2. **LightDM**:
    ```bash
-   sudo apt update
    sudo apt install lightdm lightdm-gtk-greeter
    sudo systemctl enable lightdm.service --now
    ```
 
 3. **SDDM** (Simple Desktop Display Manager):
    ```bash
-   sudo apt update
    sudo apt install sddm
    sudo systemctl enable sddm.service --now
    ```
@@ -247,39 +239,34 @@ Once a session manager is installed and enabled, add a standalone desktop enviro
 
 1. **Cinnamon** (requires LightDM):
    ```bash
-   sudo apt update
    sudo apt install cinnamon-desktop-environment
    ```
+
 2. **LXDE** (lightweight desktop environment):
    ```bash
-   sudo apt update
    sudo apt install lxde
    ```
 
 3. **i3 (tiling window manager)**:
    ```bash
-   sudo apt update
    sudo apt install i3
    ```
 
 4. **Openbox**:
    ```bash
-   sudo apt update
    sudo apt install openbox
    ```
 
 5. **Fluxbox** (lightweight window manager):
    ```bash
-   sudo apt update
    sudo apt install fluxbox
    ```
 
 ##### Arch Linux TruVium Configuration
 
-1. **Cinnamon** (requires installing LightDM):
+1. **Cinnamon** (requires LightDM):
    ```bash
-   sudo pacman -S cinnamon lightdm lightdm-gtk-greeter
-   sudo systemctl enable lightdm.service --now
+   sudo pacman -S cinnamon
    ```
 
 2. **LXDE**:
