@@ -2112,7 +2112,7 @@ configure_git
 install_coc_dependencies
 
 # Install MATLAB
-install_matlab
+# install_matlab
 
 # Install Doxygen
 install_doxygen
