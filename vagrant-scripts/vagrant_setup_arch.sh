@@ -179,7 +179,7 @@ install_aur_packages() {
         verilator
         iverilog
         bazel
-        lemminx
+        #lemminx
         emacs-nativecomp
     )
     
