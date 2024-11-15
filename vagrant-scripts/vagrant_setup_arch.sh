@@ -185,7 +185,7 @@ install_aur_packages() {
     #lemminx
     emacs-nativecomp
     qutebrowser-git
-    globalprotect-openconnect-git
+    globalprotect-openconnect
   )
 
   # Install each AUR package with retries
