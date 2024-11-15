@@ -1,19 +1,43 @@
 {
-  "vm_box": "archlinux/archlinux",
-  "vm_box_version": "20241001.267073",
+  "vm_box": "ubuntu/jammy64",
+  "vm_box_version": "20241002.0.0",
   "box_check_update": true,
   "vm_hostname": "dev-env",
-  "vm_memory": "2048",
-  "vm_cpus": 1,
+  "vm_memory": "4096",
+  "vm_cpus": 2,
   "vb_gui": false,
-  "graphics_controller": "vmsvga",
+  "graphics_controller": "Vboxsvga",
+  
+  "vb_display": {
+    "video_memory": 128,
+    "3d_acceleration": false,
+    "remote_display": false,
+    "remote_display_port": 3389,
+    "monitor_count": 1,
+    "custom_resolution": "1920x1080x32"
+  },
+  
+  "storage": {
+    "additional_disks": [
+    ],
+    "controller": "SATA"
+  },
+  
+  "vb_performance": {
+    "pae": true,
+    "nested_paging": true,
+    "large_pages": true,
+    "vtx_vpid": true,
+    "hw_virtualization": true,
+    "io_apic": true,
+    "page_fusion": true
+  },
+  
   "vb_clipboard": "bidirectional",
   "ssh_forward_x11": true,
   "ssh_insert_key": false,
   "forward_jupyter_port": false,
-  "port_forwarding": [
-    {}
-  ],
+  "port_forwarding": [],
   "synced_folders": [
     {
       "guest": "/home/vagrant/TruWork",
@@ -21,21 +45,23 @@
       "create": true
     }
   ],
+  
   "provision": [
     {
       "type": "shell",
-      "path": "vagrant-scripts/vagrant_setup_arch.sh"
+      "path": "vagrant-scripts/vagrant_setup.sh"
     }
   ],
+  
   "networks": [
     {
       "type": "private_network",
       "dhcp": true
     }
   ],
+  
   "environment_variables": {},
   "user_shell": "zsh",
-  "open_url": "http://www.google.com",
   "swap_size": "4G",
   "default_swap_size": "1G"
 }
