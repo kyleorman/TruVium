@@ -606,19 +606,36 @@ install_lazyvim() {
     echo "LazyVim installed successfully."
 }
 
-
-# Function to install Emacs from source
 install_emacs_from_source() {
     echo "Installing Emacs from source..."
 
     # Define variables
     EMACS_SRC_DIR="$TMP_DIR/emacs"
     EMACS_INSTALL_PREFIX="$INSTALL_PREFIX"
+    RETRY_COUNT=3  # Number of retries
+    RETRY_DELAY=5  # Delay between retries (seconds)
+
+    # Helper function to retry commands
+    retry_command() {
+        local n=1
+        local max=$RETRY_COUNT
+        local delay=$RETRY_DELAY
+        until "$@"; do
+            if (( n == max )); then
+                echo "Command failed after $n attempts: $*"
+                return 1
+            else
+                echo "Command failed. Attempt $n/$max. Retrying in $delay seconds..."
+                sleep $delay
+                ((n++))
+            fi
+        done
+    }
 
     # Install dependencies
     echo "Installing Emacs build dependencies..."
-    apt-get update -y
-    apt-get install -y --no-install-recommends \
+    retry_command apt-get update -y
+    retry_command apt-get install -y --no-install-recommends \
         build-essential \
         texinfo \
         libgtk-3-dev \
@@ -646,27 +663,25 @@ install_emacs_from_source() {
         libwebkit2gtk-4.0-dev \
         libgccjit-11-dev \
         libtree-sitter-dev \
-        libjansson-dev \
         mailutils || { echo "Failed to install Emacs build dependencies"; exit 1; }
 
-    # Clone Emacs repository
+    # Clone Emacs repository with retry
     mkdir -p "$EMACS_SRC_DIR"
     cd "$EMACS_SRC_DIR" || { echo "Failed to access Emacs source directory"; exit 1; }
 
     if [ ! -d "emacs" ]; then
         echo "Cloning Emacs repository..."
-        git clone https://github.com/emacs-mirror/emacs.git || { echo "Failed to clone Emacs repository"; exit 1; }
+        retry_command git clone https://github.com/emacs-mirror/emacs.git || { echo "Failed to clone Emacs repository"; exit 1; }
     fi
 
     cd emacs || { echo "Failed to navigate to Emacs directory"; exit 1; }
 
-    # Fetch all tags from the repository
+    # Fetch all tags with retry
     echo "Fetching all Emacs tags..."
-    git fetch --all --tags --prune || { echo "Failed to fetch Emacs tags"; exit 1; }
+    retry_command git fetch --all --tags --prune || { echo "Failed to fetch Emacs tags"; exit 1; }
 
-    # Determine the Emacs version to install
+    # Determine Emacs version
     if [ -z "$EMACS_VERSION" ]; then
-        # Determine the latest stable Emacs version tag
         echo "Determining the latest stable Emacs tag..."
         EMACS_VERSION_TAG=$(git tag -l | grep '^emacs-[0-9]' | sort -V | tail -n1)
         echo "Latest Emacs tag detected: $EMACS_VERSION_TAG"
@@ -674,33 +689,31 @@ install_emacs_from_source() {
             echo "Error: Unable to determine the latest stable Emacs version tag."
             exit 1
         fi
-        EMACS_VERSION="${EMACS_VERSION_TAG#emacs-}"  # Remove the 'emacs-' prefix
+        EMACS_VERSION="${EMACS_VERSION_TAG#emacs-}"
     else
-        # Use the specified EMACS_VERSION
         EMACS_VERSION_TAG="emacs-$EMACS_VERSION"
         echo "Using specified Emacs version tag: $EMACS_VERSION_TAG"
     fi
 
     echo "Selected Emacs version tag: $EMACS_VERSION_TAG"
-    echo "Expected Emacs version string: $EMACS_VERSION"
 
-    # Checkout the desired Emacs version
+    # Checkout desired Emacs version
     echo "Checking out Emacs version $EMACS_VERSION_TAG..."
-    git checkout "$EMACS_VERSION_TAG" || { echo "Failed to checkout Emacs version $EMACS_VERSION_TAG"; exit 1; }
+    retry_command git checkout "$EMACS_VERSION_TAG" || { echo "Failed to checkout Emacs version $EMACS_VERSION_TAG"; exit 1; }
 
     # Clean any previous build artifacts
     make clean || true
     git clean -fdx || true
 
-    # Build Emacs
+    # Build Emacs with retry on each step
     echo "Building Emacs..."
-    ./autogen.sh || { echo "autogen.sh failed"; exit 1; }
-    ./configure --prefix="$EMACS_INSTALL_PREFIX" --with-json --with-native-compilation --with-mailutils || { echo "Emacs configuration failed"; exit 1; }
-    make -j"$(nproc)" || { echo "Emacs build failed"; exit 1; }
+    retry_command ./autogen.sh || { echo "autogen.sh failed"; exit 1; }
+    retry_command ./configure --prefix="$EMACS_INSTALL_PREFIX" --with-json --with-native-compilation --with-mailutils || { echo "Emacs configuration failed"; exit 1; }
+    retry_command make -j"$(nproc)" || { echo "Emacs build failed"; exit 1; }
 
     # Install Emacs
     echo "Installing Emacs..."
-    make install || { echo "Emacs installation failed"; exit 1; }
+    retry_command make install || { echo "Emacs installation failed"; exit 1; }
 
     # Verify installation
     echo "Verifying Emacs installation..."
@@ -709,26 +722,20 @@ install_emacs_from_source() {
     EXPECTED_EMACS_VERSION="$EMACS_VERSION"
     echo "Expected Emacs version: $EXPECTED_EMACS_VERSION"
 
-    # Extract major and minor versions for comparison
+    # Compare versions
     INSTALLED_EMACS_MAIN_VERSION=$(echo "$INSTALLED_EMACS_VERSION" | awk -F. '{print $1"."$2}')
     EXPECTED_EMACS_MAIN_VERSION=$(echo "$EXPECTED_EMACS_VERSION" | awk -F. '{print $1"."$2}')
-
-    echo "Installed Emacs main version: $INSTALLED_EMACS_MAIN_VERSION"
-    echo "Expected Emacs main version: $EXPECTED_EMACS_MAIN_VERSION"
 
     if [ "$INSTALLED_EMACS_MAIN_VERSION" = "$EXPECTED_EMACS_MAIN_VERSION" ]; then
         echo "Emacs $EXPECTED_EMACS_VERSION successfully installed."
     else
         echo "Emacs installation verification failed."
         echo "Expected main version: $EXPECTED_EMACS_MAIN_VERSION, but found main version: $INSTALLED_EMACS_MAIN_VERSION"
-        # You can choose to exit or continue
-        # exit 1
     fi
 
     # Fix permissions
     echo "Fixing ownership of user home directory and /tmp..."
     chown -R "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME" || echo "Failed to change ownership of $USER_HOME"
-    #chown -R "$ACTUAL_USER:$ACTUAL_USER" /tmp || echo "Failed to change ownership of /tmp"
 
     echo "Emacs installation process completed successfully."
 }
@@ -1331,6 +1338,7 @@ copy_config_files() {
 		["hdl_checker.json"]=".vim/hdl_checker.json"
 		["airline_theme.conf"]=".vim/airline_theme.conf"
 		["color_scheme.conf"]=".vim/color_scheme.conf"
+		["GlobalProtect_UI_deb-5.3.4.0-5.deb"]="GlobalProtect_UI_deb-5.3.4.0-5.deb"
     )
 
     for src in "${!CONFIG_FILES[@]}"; do
@@ -1372,6 +1380,55 @@ install_tpm() {
     check_tpm_installation
 	echo "Tmux Plugin Manager and plugins installed successfully."
 }
+
+# Function to install globalprotect with ui
+install_globalprotect() {
+    echo "Installing GlobalProtect VPN Client..."
+
+    # Define variables
+    DEB_FILE="$USER_HOME/GlobalProtect_UI_deb-5.3.4.0-5.deb"
+
+    # Check if GlobalProtect is already installed
+    if dpkg -l | grep -i "globalprotect" &>/dev/null; then
+        echo "GlobalProtect is already installed. Skipping installation."
+        return 0
+    else
+        echo "GlobalProtect is not installed. Proceeding with installation."
+    fi
+
+    # Check if the .deb file exists
+    if [ ! -f "$DEB_FILE" ]; then
+        echo "Error: GlobalProtect .deb file not found at $DEB_FILE"
+        exit 1
+    fi
+
+    # Install dependencies
+    echo "Installing dependencies..."
+    apt-get update -y
+    apt-get install -y libqt5webkit5 || { echo "Failed to install dependencies"; exit 1; }
+
+    # Install the .deb package
+    echo "Installing GlobalProtect package..."
+    dpkg -i "$DEB_FILE" || true  # dpkg -i may fail due to missing dependencies
+
+    # Fix missing dependencies
+    echo "Fixing missing dependencies..."
+    apt-get install -f -y || { echo "Failed to fix dependencies"; exit 1; }
+
+    # Verify installation
+    if dpkg -l | grep -i "globalprotect" &>/dev/null; then
+        echo "GlobalProtect installed successfully."
+    else
+        echo "GlobalProtect installation failed."
+        exit 1
+    fi
+
+    # Optional: Remove the .deb file after installation
+    rm -f "$DEB_FILE" || echo "Failed to remove $DEB_FILE"
+
+    echo "GlobalProtect VPN Client installation completed."
+}
+
 
 # Function to install all dependencies and tools
 install_dependencies() {
@@ -1442,6 +1499,7 @@ install_dependencies() {
 	tree \
 	copyq \
 	ncurses-term \
+	falkon \
         tcl-dev || { echo "Package installation failed"; exit 1; }
 }
 
@@ -1924,6 +1982,48 @@ install_golang() {
     fi
 }
 
+# Set Falkon as default browser
+ensure_falkon_default_browser() {
+    echo "Setting Falkon as the default web browser..."
+
+    # Check if Falkon is installed
+    if ! command -v falkon &>/dev/null; then
+        echo "Error: Falkon is not installed. Please install Falkon using apt before running this function."
+        exit 1
+    else
+        echo "Falkon is installed."
+    fi
+
+    # Set the BROWSER environment variable in .zshrc
+    if grep -q "export BROWSER=falkon" "$USER_HOME/.zshrc"; then
+        echo "BROWSER environment variable already set in .zshrc."
+    else
+        echo 'export BROWSER=falkon' >> "$USER_HOME/.zshrc"
+        chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.zshrc"
+        echo "BROWSER environment variable added to .zshrc."
+    fi
+
+    # Update x-www-browser alternative to use Falkon
+    echo "Updating x-www-browser alternative to use Falkon..."
+    if update-alternatives --set x-www-browser "$(command -v falkon)"; then
+        echo "x-www-browser alternative updated to Falkon."
+    else
+        echo "Failed to update x-www-browser alternative."
+    fi
+
+    # Verify the default browser
+    CURRENT_BROWSER=$(update-alternatives --query x-www-browser | grep 'Value:' | awk '{print $2}')
+    if [ "$CURRENT_BROWSER" = "$(command -v falkon)" ]; then
+        echo "Falkon is set as the default x-www-browser."
+    else
+        echo "Failed to set Falkon as the default x-www-browser."
+        exit 1
+    fi
+
+    echo "Default browser setting completed."
+}
+
+
 # Function to ensure /tmp has correct permissions
 ensure_tmp_permissions() {
     echo "Ensuring /tmp has correct permissions and ownership..."
@@ -2012,7 +2112,7 @@ configure_git
 install_coc_dependencies
 
 # Install MATLAB
-#install_matlab
+# install_matlab
 
 # Install Doxygen
 install_doxygen
@@ -2043,7 +2143,7 @@ setup_zsh
 clone_zsh_plugins
 
 # Restart tmux server to apply changes
-#restart_tmux_server
+restart_tmux_server
 
 # Install Neovim from source
 install_neovim_from_source
@@ -2059,6 +2159,12 @@ install_doom_emacs
 
 # Install Nerd Fonts
 install_nerd_fonts
+
+# Install Globalprotect
+install_globalprotect
+
+# Set Falkon as default browser
+ensure_falkon_default_browser
 
 # Ensure home directory ownership is correct
 ensure_home_ownership
