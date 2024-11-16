@@ -184,7 +184,7 @@ install_aur_packages() {
     bazel
     #lemminx
     emacs-nativecomp
-    qutebrowser-git
+    falkon
     globalprotect-openconnect
   )
 
