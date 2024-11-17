@@ -1432,6 +1432,11 @@ install_globalprotect() {
 install_globalprotect_openconnect() {
     echo "Installing GlobalProtect-openconnect (yuezk/GlobalProtect-openconnect)..."
 
+    # Define repository information if not already defined
+    QTKEYCHAIN_REPO="https://github.com/frankosterfeld/qtkeychain.git"
+    REPO_URL="https://github.com/yuezk/GlobalProtect-openconnect.git"
+    REPO_TAG="v1.4.9"
+
     # Define unique temporary directories
     TMP_DIR_GLOBALPROTECT="$(mktemp -d -t gpoc-XXXXXX)"
     QTKEYCHAIN_DIR="$(mktemp -d -t qtkeychain-XXXXXX)"
@@ -1492,7 +1497,7 @@ install_globalprotect_openconnect() {
 
     echo "GlobalProtect-openconnect installed successfully."
 }
-
+  
 # Function to install all dependencies and tools
 install_dependencies() {
     echo "Installing essential packages..."
