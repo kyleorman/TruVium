@@ -1436,8 +1436,8 @@ install_globalprotect_openconnect() {
     REPO_URL="https://github.com/yuezk/GlobalProtect-openconnect.git"
     REPO_TAG="v1.4.9"
     QTKEYCHAIN_REPO="https://github.com/frankosterfeld/qtkeychain.git"
-    TMP_DIR_GLOBALPROTECT="$TMP_DIR/GlobalProtect-openconnect"
-    QTKEYCHAIN_DIR="$TMP_DIR/qtkeychain"
+    TMP_DIR_GLOBALPROTECT="/tmp/setup_script_install/GlobalProtect-openconnect"
+    QTKEYCHAIN_DIR="/tmp/setup_script_install/qtkeychain"
 
     echo "Installing dependencies for GlobalProtect-openconnect..."
     apt-get update -y
@@ -1450,6 +1450,7 @@ install_globalprotect_openconnect() {
     echo "Building and installing QtKeychain..."
     # Clean up and clone QtKeychain repository
     rm -rf "$QTKEYCHAIN_DIR"
+    mkdir -p "$QTKEYCHAIN_DIR" || { echo "Failed to create directory $QTKEYCHAIN_DIR"; exit 1; }
     git clone "$QTKEYCHAIN_REPO" "$QTKEYCHAIN_DIR"
     cd "$QTKEYCHAIN_DIR" || { echo "Failed to navigate to $QTKEYCHAIN_DIR"; exit 1; }
 
@@ -1463,6 +1464,7 @@ install_globalprotect_openconnect() {
     echo "Cloning GlobalProtect-openconnect repository..."
     # Clean up and clone GlobalProtect repository
     rm -rf "$TMP_DIR_GLOBALPROTECT"
+    mkdir -p "$TMP_DIR_GLOBALPROTECT" || { echo "Failed to create directory $TMP_DIR_GLOBALPROTECT"; exit 1; }
     git clone --branch "$REPO_TAG" --depth 1 "$REPO_URL" "$TMP_DIR_GLOBALPROTECT"
     cd "$TMP_DIR_GLOBALPROTECT" || { echo "Failed to navigate to $TMP_DIR_GLOBALPROTECT"; exit 1; }
 
