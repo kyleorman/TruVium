@@ -1338,6 +1338,7 @@ copy_config_files() {
 		["hdl_checker.json"]=".vim/hdl_checker.json"
 		["airline_theme.conf"]=".vim/airline_theme.conf"
 		["color_scheme.conf"]=".vim/color_scheme.conf"
+		["gp.conf"]="/etc/gpservice/gp.conf"
 		# ["GlobalProtect_UI_deb-5.3.4.0-5.deb"]="GlobalProtect_UI_deb-5.3.4.0-5.deb"
     )
 
