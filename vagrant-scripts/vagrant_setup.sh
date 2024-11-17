@@ -1492,8 +1492,8 @@ install_globalprotect_openconnect() {
         exit 1
     fi
 
-    echo "Cleaning up temporary files..."
-    rm -rf "$TMP_DIR_GLOBALPROTECT" "$QTKEYCHAIN_DIR"
+    # echo "Cleaning up temporary files..."
+    #rm -rf "$TMP_DIR_GLOBALPROTECT" "$QTKEYCHAIN_DIR"
 
     echo "GlobalProtect-openconnect installed successfully."
 }
