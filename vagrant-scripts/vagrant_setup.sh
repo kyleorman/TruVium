@@ -1439,10 +1439,14 @@ install_globalprotect_openconnect() {
     TMP_DIR_GLOBALPROTECT="/tmp/setup_script_install/GlobalProtect-openconnect"
     QTKEYCHAIN_DIR="/tmp/setup_script_install/qtkeychain"
 
+    # Ensure the temporary directory exists
+    mkdir -p "$TMP_DIR_GLOBALPROTECT"
+
     echo "Installing dependencies for GlobalProtect-openconnect..."
     apt-get update -y
-    apt-get install -y build-essential cmake openconnect qtbase5-dev libqt5svg5-dev libqt5websockets5-dev \
-        qtwebengine5-dev qttools5-dev libsecret-1-dev git || {
+    apt-get install -y build-essential cmake openconnect qtbase5-dev \
+        libqt5svg5-dev libqt5websockets5-dev qtwebengine5-dev qttools5-dev \
+        libsecret-1-dev git || {
         echo "Failed to install dependencies."
         exit 1
     }
@@ -1450,41 +1454,73 @@ install_globalprotect_openconnect() {
     echo "Building and installing QtKeychain..."
     # Clean up and clone QtKeychain repository
     rm -rf "$QTKEYCHAIN_DIR"
-    mkdir -p "$QTKEYCHAIN_DIR" || { echo "Failed to create directory $QTKEYCHAIN_DIR"; exit 1; }
-    git clone "$QTKEYCHAIN_REPO" "$QTKEYCHAIN_DIR"
-    cd "$QTKEYCHAIN_DIR" || { echo "Failed to navigate to $QTKEYCHAIN_DIR"; exit 1; }
+    mkdir -p "$QTKEYCHAIN_DIR"
+    git clone "$QTKEYCHAIN_REPO" "$QTKEYCHAIN_DIR" || {
+        echo "Failed to clone QtKeychain repository."
+        exit 1
+    }
+    cd "$QTKEYCHAIN_DIR" || {
+        echo "Failed to navigate to QtKeychain directory."
+        exit 1
+    }
 
     # Build QtKeychain
-    mkdir -p build && cd build
-    cmake ..
-    make -j"$(nproc)" || { echo "Failed to build QtKeychain"; exit 1; }
-    make install || { echo "Failed to install QtKeychain"; exit 1; }
+    mkdir -p build
+    cd build
+    cmake .. || {
+        echo "Failed to configure QtKeychain."
+        exit 1
+    }
+    make -j"$(nproc)" || {
+        echo "Failed to build QtKeychain."
+        exit 1
+    }
+    make install || {
+        echo "Failed to install QtKeychain."
+        exit 1
+    }
     ldconfig  # Refresh dynamic linker cache
 
     echo "Cloning GlobalProtect-openconnect repository..."
     # Clean up and clone GlobalProtect repository
     rm -rf "$TMP_DIR_GLOBALPROTECT"
-    mkdir -p "$TMP_DIR_GLOBALPROTECT" || { echo "Failed to create directory $TMP_DIR_GLOBALPROTECT"; exit 1; }
-    git clone --branch "$REPO_TAG" --depth 1 "$REPO_URL" "$TMP_DIR_GLOBALPROTECT"
-    cd "$TMP_DIR_GLOBALPROTECT" || { echo "Failed to navigate to $TMP_DIR_GLOBALPROTECT"; exit 1; }
+    mkdir -p "$TMP_DIR_GLOBALPROTECT"
+    git clone --branch "$REPO_TAG" --depth 1 "$REPO_URL" "$TMP_DIR_GLOBALPROTECT" || {
+        echo "Failed to clone GlobalProtect-openconnect repository."
+        exit 1
+    }
+    cd "$TMP_DIR_GLOBALPROTECT" || {
+        echo "Failed to navigate to GlobalProtect-openconnect directory."
+        exit 1
+    }
 
     echo "Building and installing GlobalProtect-openconnect..."
     # Build GlobalProtect
-    mkdir -p build && cd build
-    cmake ..
-    make -j"$(nproc)" || { echo "Failed to build GlobalProtect-openconnect"; exit 1; }
-    make install || { echo "Failed to install GlobalProtect-openconnect"; exit 1; }
+    mkdir -p build
+    cd build
+    cmake .. || {
+        echo "Failed to configure GlobalProtect-openconnect."
+        exit 1
+    }
+    make -j"$(nproc)" || {
+        echo "Failed to build GlobalProtect-openconnect."
+        exit 1
+    }
+    make install || {
+        echo "Failed to install GlobalProtect-openconnect."
+        exit 1
+    }
 
     echo "Verifying installation..."
     # Check if `gpclient` command exists
     if ! command -v gpclient &>/dev/null; then
-        echo "GlobalProtect-openconnect installation failed."
+        echo "GlobalProtect-openconnect installation failed. 'gpclient' not found."
         exit 1
     fi
 
     # Check if the QtKeychain library is linked correctly
-    if ! ldd /usr/bin/gpclient | grep -q libqt5keychain; then
-        echo "QtKeychain library not found. Ensure it is properly installed and linked."
+    if ! ldd "$(command -v gpclient)" | grep -q libqt5keychain; then
+        echo "QtKeychain library not linked correctly. Ensure it is installed and linked."
         exit 1
     fi
 
