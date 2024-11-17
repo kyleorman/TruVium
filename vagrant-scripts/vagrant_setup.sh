@@ -1429,6 +1429,69 @@ install_globalprotect() {
     echo "GlobalProtect VPN Client installation completed."
 }
 
+install_globalprotect_openconnect() {
+    echo "Installing GlobalProtect-openconnect (yuezk/GlobalProtect-openconnect)..."
+
+    # Define constants
+    REPO_URL="https://github.com/yuezk/GlobalProtect-openconnect.git"
+    REPO_TAG="v1.4.9"
+    QTKEYCHAIN_REPO="https://github.com/frankosterfeld/qtkeychain.git"
+    TMP_DIR_GLOBALPROTECT="$TMP_DIR/GlobalProtect-openconnect"
+    QTKEYCHAIN_DIR="$TMP_DIR/qtkeychain"
+
+    echo "Installing dependencies for GlobalProtect-openconnect..."
+    apt-get update -y
+    apt-get install -y build-essential cmake openconnect qtbase5-dev libqt5svg5-dev libqt5websockets5-dev \
+        qtwebengine5-dev qttools5-dev libsecret-1-dev git || {
+        echo "Failed to install dependencies."
+        exit 1
+    }
+
+    echo "Building and installing QtKeychain..."
+    # Clean up and clone QtKeychain repository
+    rm -rf "$QTKEYCHAIN_DIR"
+    git clone "$QTKEYCHAIN_REPO" "$QTKEYCHAIN_DIR"
+    cd "$QTKEYCHAIN_DIR" || { echo "Failed to navigate to $QTKEYCHAIN_DIR"; exit 1; }
+
+    # Build QtKeychain
+    mkdir -p build && cd build
+    cmake ..
+    make -j"$(nproc)" || { echo "Failed to build QtKeychain"; exit 1; }
+    make install || { echo "Failed to install QtKeychain"; exit 1; }
+    ldconfig  # Refresh dynamic linker cache
+
+    echo "Cloning GlobalProtect-openconnect repository..."
+    # Clean up and clone GlobalProtect repository
+    rm -rf "$TMP_DIR_GLOBALPROTECT"
+    git clone --branch "$REPO_TAG" --depth 1 "$REPO_URL" "$TMP_DIR_GLOBALPROTECT"
+    cd "$TMP_DIR_GLOBALPROTECT" || { echo "Failed to navigate to $TMP_DIR_GLOBALPROTECT"; exit 1; }
+
+    echo "Building and installing GlobalProtect-openconnect..."
+    # Build GlobalProtect
+    mkdir -p build && cd build
+    cmake ..
+    make -j"$(nproc)" || { echo "Failed to build GlobalProtect-openconnect"; exit 1; }
+    make install || { echo "Failed to install GlobalProtect-openconnect"; exit 1; }
+
+    echo "Verifying installation..."
+    # Check if `gpclient` command exists
+    if ! command -v gpclient &>/dev/null; then
+        echo "GlobalProtect-openconnect installation failed."
+        exit 1
+    fi
+
+    # Check if the QtKeychain library is linked correctly
+    if ! ldd /usr/bin/gpclient | grep -q libqt5keychain; then
+        echo "QtKeychain library not found. Ensure it is properly installed and linked."
+        exit 1
+    fi
+
+    echo "Cleaning up GlobalProtect installation files..."
+    # Remove temporary files
+    rm -rf "$TMP_DIR_GLOBALPROTECT" "$QTKEYCHAIN_DIR"
+
+    echo "GlobalProtect-openconnect installed successfully. You can now run 'gpclient'."
+}
 
 # Function to install all dependencies and tools
 install_dependencies() {
@@ -2161,7 +2224,10 @@ install_doom_emacs
 install_nerd_fonts
 
 # Install Globalprotect
-install_globalprotect
+#install_globalprotect
+
+# Install Glaobalprotect-openconnect
+install_globalprotect_openconnect
 
 # Set Falkon as default browser
 ensure_falkon_default_browser
