@@ -186,6 +186,10 @@ install_aur_packages() {
     emacs-nativecomp
     falkon
     globalprotect-openconnect
+    figlet
+    boxes
+    lolcat
+    fortune-mod
   )
 
   # Install each AUR package with retries
@@ -708,6 +712,7 @@ install_zsh() {
     echo '    fi'
     echo '  fi'
     echo 'fi'
+    echo 'figlet TruVium | boxes | lolcat'
   } >>"$USER_HOME/.zshrc"
 }
 
