@@ -1084,7 +1084,7 @@ setup_zsh() {
         echo 'export PATH="/usr/local/bin:$PATH"'
         echo 'export PATH="/usr/local/go/bin:$PATH"'
         echo 'alias emacs="emacs -nw"'
-		echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
+        echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
         echo ''
         echo 'if [[ $- == *i* ]]; then'  # Check if the shell is interactive
         echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
@@ -1094,8 +1094,15 @@ setup_zsh() {
         echo '      tmux new-session -s default'
         echo '    fi'
         echo '  fi'
+        echo ''
+        echo '  # Run figlet | boxes | lolcat only the first time in a tmux session'
+        echo '  if [[ -n "$TMUX" ]]; then'
+        echo '    if [[ "$(tmux show-environment TMUX_WELCOME_SHOWN 2>/dev/null)" != "TMUX_WELCOME_SHOWN=1" ]]; then'
+        echo '      figlet TruVium | boxes | lolcat'
+        echo '      tmux set-environment TMUX_WELCOME_SHOWN 1'
+        echo '    fi'
+        echo '  fi'
         echo 'fi'
-	echo 'figlet TruVium | boxes | lolcat'
     } >> "$USER_HOME/.zshrc"
 
     # Ensure the .zshrc is owned by the actual user
