@@ -779,6 +779,19 @@ copy_config_files() {
       echo "$file not found in $src."
     fi
   done
+  
+    # Copy gp.conf to /etc/gpservice
+    GP_CONF_SRC="$USER_CONFIG_DIR/gp.conf"
+    GP_CONF_DEST="/etc/gpservice/gp.conf"
+    if [ -f "$GP_CONF_SRC" ]; then
+        # Backup if exists
+        [ -f "$GP_CONF_DEST" ] && cp "$GP_CONF_DEST" "$GP_CONF_DEST.bak" && echo "Backup of $GP_CONF_DEST created."
+        cp "$GP_CONF_SRC" "$GP_CONF_DEST"
+        chown root:root "$GP_CONF_DEST"
+        echo "Copied gp.conf to $GP_CONF_DEST."
+    else
+        echo "gp.conf not found in $GP_CONF_SRC."
+    fi
 }
 
 # Function to configure Git

@@ -1339,7 +1339,7 @@ copy_config_files() {
 		["hdl_checker.json"]=".vim/hdl_checker.json"
 		["airline_theme.conf"]=".vim/airline_theme.conf"
 		["color_scheme.conf"]=".vim/color_scheme.conf"
-		["GlobalProtect_UI_deb-5.3.4.0-5.deb"]="GlobalProtect_UI_deb-5.3.4.0-5.deb"
+		# ["GlobalProtect_UI_deb-5.3.4.0-5.deb"]="GlobalProtect_UI_deb-5.3.4.0-5.deb"
     )
 
     for src in "${!CONFIG_FILES[@]}"; do
@@ -1365,6 +1365,19 @@ copy_config_files() {
             echo "Warning: $src not found in $USER_CONFIG_DIR. Skipping copy."
         fi
     done
+    
+    # Copy gp.conf to /etc/gpservice
+    GP_CONF_SRC="$USER_CONFIG_DIR/gp.conf"
+    GP_CONF_DEST="/etc/gpservice/gp.conf"
+    if [ -f "$GP_CONF_SRC" ]; then
+        # Backup if exists
+        [ -f "$GP_CONF_DEST" ] && cp "$GP_CONF_DEST" "$GP_CONF_DEST.bak" && echo "Backup of $GP_CONF_DEST created."
+        cp "$GP_CONF_SRC" "$GP_CONF_DEST"
+        chown root:root "$GP_CONF_DEST"
+        echo "Copied gp.conf to $GP_CONF_DEST."
+    else
+        echo "gp.conf not found in $GP_CONF_SRC."
+    fi
 }
 
 # Function to install Vim plugins
@@ -1430,7 +1443,75 @@ install_globalprotect() {
     echo "GlobalProtect VPN Client installation completed."
 }
 
+install_globalprotect_openconnect() {
+    echo "Installing GlobalProtect-openconnect (yuezk/GlobalProtect-openconnect)..."
 
+    # Define repository information if not already defined
+    QTKEYCHAIN_REPO="https://github.com/frankosterfeld/qtkeychain.git"
+    REPO_URL="https://github.com/yuezk/GlobalProtect-openconnect.git"
+    REPO_TAG="v1.4.9"
+
+    # Define unique temporary directories
+    TMP_DIR_GLOBALPROTECT="$(mktemp -d -t gpoc-XXXXXX)"
+    QTKEYCHAIN_DIR="$(mktemp -d -t qtkeychain-XXXXXX)"
+
+    echo "Using temporary directories:"
+    echo "GlobalProtect dir: $TMP_DIR_GLOBALPROTECT"
+    echo "QtKeychain dir: $QTKEYCHAIN_DIR"
+
+    # Install dependencies
+    apt-get update -y
+    apt-get install -y build-essential cmake openconnect qtbase5-dev \
+        libqt5svg5-dev libqt5websockets5-dev qtwebengine5-dev qttools5-dev \
+        libsecret-1-dev git || {
+        echo "Failed to install dependencies."
+        exit 1
+    }
+
+    # Build QtKeychain
+    echo "Building and installing QtKeychain..."
+    git clone "$QTKEYCHAIN_REPO" "$QTKEYCHAIN_DIR" || {
+        echo "Failed to clone QtKeychain repository."
+        exit 1
+    }
+    mkdir -p "$QTKEYCHAIN_DIR/build"
+    cd "$QTKEYCHAIN_DIR/build" || {
+        echo "Failed to access QtKeychain build directory."
+        exit 1
+    }
+    cmake .. || { echo "Failed to configure QtKeychain."; exit 1; }
+    make -j"$(nproc)" || { echo "Failed to build QtKeychain."; exit 1; }
+    make install || { echo "Failed to install QtKeychain."; exit 1; }
+    ldconfig  # Refresh dynamic linker cache
+
+    # Clone and build GlobalProtect
+    echo "Cloning GlobalProtect-openconnect repository..."
+    git clone --branch "$REPO_TAG" --depth 1 "$REPO_URL" "$TMP_DIR_GLOBALPROTECT" || {
+        echo "Failed to clone GlobalProtect-openconnect repository."
+        exit 1
+    }
+    mkdir -p "$TMP_DIR_GLOBALPROTECT/build"
+    cd "$TMP_DIR_GLOBALPROTECT/build" || {
+        echo "Failed to access GlobalProtect-openconnect build directory."
+        exit 1
+    }
+    cmake .. || { echo "Failed to configure GlobalProtect-openconnect."; exit 1; }
+    make -j"$(nproc)" || { echo "Failed to build GlobalProtect-openconnect."; exit 1; }
+    make install || { echo "Failed to install GlobalProtect-openconnect."; exit 1; }
+
+    # Verify installation
+    echo "Verifying installation..."
+    if ! command -v gpclient &>/dev/null; then
+        echo "GlobalProtect-openconnect installation failed. 'gpclient' not found."
+        exit 1
+    fi
+
+    # echo "Cleaning up temporary files..."
+    #rm -rf "$TMP_DIR_GLOBALPROTECT" "$QTKEYCHAIN_DIR"
+
+    echo "GlobalProtect-openconnect installed successfully."
+}
+  
 # Function to install all dependencies and tools
 install_dependencies() {
     echo "Installing essential packages..."
@@ -2073,6 +2154,9 @@ ensure_tmp_permissions
 # Install essential packages
 install_dependencies
 
+# Install Glaobalprotect-openconnect
+install_globalprotect_openconnect
+
 # Copy configuration files
 copy_config_files
 
@@ -2166,7 +2250,7 @@ install_doom_emacs
 install_nerd_fonts
 
 # Install Globalprotect
-install_globalprotect
+#install_globalprotect
 
 # Set Falkon as default browser
 ensure_falkon_default_browser
