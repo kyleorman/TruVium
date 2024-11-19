@@ -1095,6 +1095,7 @@ setup_zsh() {
         echo '    fi'
         echo '  fi'
         echo 'fi'
+	echo 'figlet TruVium | boxes | lolcat'
     } >> "$USER_HOME/.zshrc"
 
     # Ensure the .zshrc is owned by the actual user
@@ -1581,6 +1582,10 @@ install_dependencies() {
 	copyq \
 	ncurses-term \
 	falkon \
+	figlet \
+	lolcat \
+	boxes \
+	fortune-mod \
         tcl-dev || { echo "Package installation failed"; exit 1; }
 }
 
