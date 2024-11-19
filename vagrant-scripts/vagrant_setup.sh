@@ -1338,7 +1338,6 @@ copy_config_files() {
 		["hdl_checker.json"]=".vim/hdl_checker.json"
 		["airline_theme.conf"]=".vim/airline_theme.conf"
 		["color_scheme.conf"]=".vim/color_scheme.conf"
-		["gp.conf"]="/etc/gpservice/gp.conf"
 		# ["GlobalProtect_UI_deb-5.3.4.0-5.deb"]="GlobalProtect_UI_deb-5.3.4.0-5.deb"
     )
 
@@ -1365,6 +1364,19 @@ copy_config_files() {
             echo "Warning: $src not found in $USER_CONFIG_DIR. Skipping copy."
         fi
     done
+    
+    # Copy gp.conf to /etc/gpservice
+    GP_CONF_SRC="$USER_CONFIG_DIR/gp.conf"
+    GP_CONF_DEST="/etc/gpservice/gp.conf"
+    if [ -f "$GP_CONF_SRC" ]; then
+        # Backup if exists
+        [ -f "$GP_CONF_DEST" ] && cp "$GP_CONF_DEST" "$GP_CONF_DEST.bak" && echo "Backup of $GP_CONF_DEST created."
+        cp "$GP_CONF_SRC" "$GP_CONF_DEST"
+        chown root:root "$GP_CONF_DEST"
+        echo "Copied gp.conf to $GP_CONF_DEST."
+    else
+        echo "gp.conf not found in $GP_CONF_SRC."
+    fi
 }
 
 # Function to install Vim plugins
