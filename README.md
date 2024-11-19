@@ -11,6 +11,23 @@
 
 TruVium is a comprehensive development environment specifically designed for hardware description language (HDL) development and general-purpose programming. It provides a fully automated setup using Vagrant, incorporating best-in-class development tools, editors, and language support. TruVium aims to streamline the HDL development workflow by providing a consistent, reproducible environment across different platforms.
 
+# 🚨 Important Notice
+
+> **Please Note:**  
+> - The current default OS is **Ubuntu**, but I plan to switch to **Arch** as the default while keeping Ubuntu as a stable fallback.  
+>   - **Reason:** Arch packages are more up-to-date, and the installation can be parallelized, significantly reducing spin-up time.
+> 
+> ### Other Notable Features Planned for TruVium:
+> - **Command Wrapper in Rust:**  
+>   A tool to simplify the usage of TruVium commands and enable seamless configuration management.
+> - **Dockerized HDL Development Tools:**  
+>   Lightweight, containerized tools tailored for HDL-specific development, ensuring minimal system footprint.
+> - **HDL Documentation Generation:**  
+>   Automating the creation of high-quality documentation for HDL projects.
+> - **CI/CD Integration:**  
+>   Streamlined continuous integration and deployment workflows to enhance development efficiency.
+
+
 ## Features
 
 ### Core Development Environment
