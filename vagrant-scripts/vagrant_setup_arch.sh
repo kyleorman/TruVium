@@ -190,6 +190,8 @@ install_aur_packages() {
     boxes
     lolcat
     fortune-mod
+    fortune-mod-wisdom-fr
+    fortune-mod-hitchhiker
   )
 
   # Install each AUR package with retries
@@ -712,12 +714,11 @@ install_zsh() {
     echo '    fi'
     echo '  fi'
     echo 'fi'
-    echo '  # Run figlet | boxes | lolcat only the first time in a tmux session'
-    echo '  if [[ -n "$TMUX" ]]; then'
-    echo '    if [[ "$(tmux show-environment TMUX_WELCOME_SHOWN 2>/dev/null)" != "TMUX_WELCOME_SHOWN=1" ]]; then'
-    echo '      figlet TruVium | boxes | lolcat'
-    echo '      tmux set-environment TMUX_WELCOME_SHOWN 1'
-    echo '    fi'
+    echo '# Run figlet | boxes | lolcat only the first time in a tmux session'
+    echo 'if [[ -n "$TMUX" ]]; then'
+    echo '  if [[ "$(tmux show-environment TMUX_WELCOME_SHOWN 2>/dev/null)" != "TMUX_WELCOME_SHOWN=1" ]]; then'
+    echo '    figlet TruVium | boxes | lolcat && fortune -s /usr/share/fortune/computers /usr/share/fortune/wisdom-fr /usr/share/fortune/hitchhiker /usr/share/fortune/science /usr/share/fortune/riddles | lolcat'
+    echo '    tmux set-environment TMUX_WELCOME_SHOWN 1'
     echo '  fi'
     echo 'fi'
   } >>"$USER_HOME/.zshrc"
@@ -786,19 +787,19 @@ copy_config_files() {
       echo "$file not found in $src."
     fi
   done
-  
-    # Copy gp.conf to /etc/gpservice
-    GP_CONF_SRC="$USER_CONFIG_DIR/gp.conf"
-    GP_CONF_DEST="/etc/gpservice/gp.conf"
-    if [ -f "$GP_CONF_SRC" ]; then
-        # Backup if exists
-        [ -f "$GP_CONF_DEST" ] && cp "$GP_CONF_DEST" "$GP_CONF_DEST.bak" && echo "Backup of $GP_CONF_DEST created."
-        cp "$GP_CONF_SRC" "$GP_CONF_DEST"
-        chown root:root "$GP_CONF_DEST"
-        echo "Copied gp.conf to $GP_CONF_DEST."
-    else
-        echo "gp.conf not found in $GP_CONF_SRC."
-    fi
+
+  # Copy gp.conf to /etc/gpservice
+  GP_CONF_SRC="$USER_CONFIG_DIR/gp.conf"
+  GP_CONF_DEST="/etc/gpservice/gp.conf"
+  if [ -f "$GP_CONF_SRC" ]; then
+    # Backup if exists
+    [ -f "$GP_CONF_DEST" ] && cp "$GP_CONF_DEST" "$GP_CONF_DEST.bak" && echo "Backup of $GP_CONF_DEST created."
+    cp "$GP_CONF_SRC" "$GP_CONF_DEST"
+    chown root:root "$GP_CONF_DEST"
+    echo "Copied gp.conf to $GP_CONF_DEST."
+  else
+    echo "gp.conf not found in $GP_CONF_SRC."
+  fi
 }
 
 # Function to configure Git
