@@ -1098,7 +1098,7 @@ setup_zsh() {
         echo '  # Run figlet | boxes | lolcat only the first time in a tmux session'
         echo '  if [[ -n "$TMUX" ]]; then'
         echo '    if [[ "$(tmux show-environment TMUX_WELCOME_SHOWN 2>/dev/null)" != "TMUX_WELCOME_SHOWN=1" ]]; then'
-        echo '      figlet TruVium | boxes | lolcat'
+        echo '      figlet TruVium | boxes | lolcat && fortune | lolcat'
         echo '      tmux set-environment TMUX_WELCOME_SHOWN 1'
         echo '    fi'
         echo '  fi'
