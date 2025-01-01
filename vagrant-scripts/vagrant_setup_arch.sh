@@ -171,6 +171,7 @@ install_dependencies() {
     imagemagick \
     task \
     taskwarrior-tui \
+    lazygit \
     go ||
     {
       echo "Package installation failed"
