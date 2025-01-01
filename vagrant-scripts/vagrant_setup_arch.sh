@@ -160,6 +160,15 @@ install_dependencies() {
     fzf \
     npm \
     nodejs \
+    bat \
+    eza \
+    zoxide \
+    btop \
+    thefuck \
+    p7zip \
+    jq \
+    poppler \
+    imagemagick \
     go ||
     {
       echo "Package installation failed"
@@ -192,6 +201,9 @@ install_aur_packages() {
     fortune-mod
     fortune-mod-wisdom-fr
     fortune-mod-hitchhiker
+    tlrc
+    broot-git
+    ffmpeg-git
   )
 
   # Install each AUR package with retries
@@ -529,6 +541,7 @@ install_vim_plugins() {
     "airblade/vim-gitgutter"
     "bling/vim-bufferline"
     "mbbill/undotree"
+    "kyleorman/vim-themer"
   )
 
   OPTIONAL_PLUGINS=(
@@ -671,6 +684,29 @@ setup_ftdetect_symlinks() {
   fi
 }
 
+# Function to clone the fzf-git.sh repository
+clone_fzf_git_repo() {
+  echo "Cloning fzf-git.sh repository to the home directory..."
+
+  # Define repository details
+  FZF_GIT_REPO="https://github.com/junegunn/fzf-git.sh.git"
+  TARGET_DIR="$USER_HOME/fzf-git.sh"
+
+  # Check if the target directory already exists
+  if [ -d "$TARGET_DIR" ]; then
+    echo "The fzf-git.sh repository already exists at $TARGET_DIR. Skipping clone."
+    return 0
+  fi
+
+  # Clone the repository
+  su - "$ACTUAL_USER" -c "git clone --depth=1 $FZF_GIT_REPO $TARGET_DIR" || {
+    echo "Error: Failed to clone fzf-git.sh repository."
+    exit 1
+  }
+
+  echo "Successfully cloned fzf-git.sh repository to $TARGET_DIR."
+}
+
 # Function to install and configure Zsh and Oh My Zsh
 install_zsh() {
   echo "Installing Oh My Zsh..."
@@ -724,6 +760,102 @@ install_zsh() {
   } >>"$USER_HOME/.zshrc"
 }
 
+# Function to install and configure Starship prompt and Zsh plugins
+install_starship_and_configure_zsh() {
+  echo "Installing Starship prompt and configuring Zsh plugins..."
+
+  # --- Install Starship ---
+  if ! command -v starship &>/dev/null; then
+    echo "Installing Starship..."
+    curl -sS https://starship.rs/install.sh | sh -s -- --yes || {
+      echo "Failed to install Starship."
+      exit 1
+    }
+  else
+    echo "Starship is already installed."
+  fi
+
+  # --- Install Zsh plugins ---
+  ZSH_PLUGIN_DIR="$USER_HOME/.zsh/plugins"
+
+  # Ensure the Zsh plugin directory exists
+  su - "$ACTUAL_USER" -c "mkdir -p $ZSH_PLUGIN_DIR"
+
+  # Install zsh-autosuggestions
+  if [ ! -d "$ZSH_PLUGIN_DIR/zsh-autosuggestions" ]; then
+    echo "Installing zsh-autosuggestions..."
+    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions.git $ZSH_PLUGIN_DIR/zsh-autosuggestions"
+  else
+    echo "zsh-autosuggestions is already installed."
+  fi
+
+  # Install zsh-syntax-highlighting
+  if [ ! -d "$ZSH_PLUGIN_DIR/zsh-syntax-highlighting" ]; then
+    echo "Installing zsh-syntax-highlighting..."
+    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $ZSH_PLUGIN_DIR/zsh-syntax-highlighting"
+  else
+    echo "zsh-syntax-highlighting is already installed."
+  fi
+
+  # Install zsh-completions
+  if [ ! -d "$ZSH_PLUGIN_DIR/zsh-completions" ]; then
+    echo "Installing zsh-completions..."
+    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-completions.git $ZSH_PLUGIN_DIR/zsh-completions"
+  else
+    echo "zsh-completions is already installed."
+  fi
+
+  # --- Configure Starship ---
+  STARSHIP_CONFIG_DIR="$USER_HOME/.config"
+  STARSHIP_CONFIG_FILE="$STARSHIP_CONFIG_DIR/starship.toml"
+
+  # Ensure the config directory exists
+  su - "$ACTUAL_USER" -c "mkdir -p $STARSHIP_CONFIG_DIR"
+
+  # Create a basic Starship configuration file if it doesn't exist
+  if [ ! -f "$STARSHIP_CONFIG_FILE" ]; then
+    echo "Creating Starship configuration file..."
+    su - "$ACTUAL_USER" -c "cat <<EOF > $STARSHIP_CONFIG_FILE
+[character]
+success_symbol = '[➜](bold green)'
+error_symbol = '[✗](bold red)'
+
+[git_branch]
+symbol = ' '
+
+[package]
+symbol = '📦 '
+EOF"
+  fi
+
+  # --- Update .zshrc ---
+  ZSHRC_FILE="$USER_HOME/.zshrc"
+
+  # Source Zsh plugins directly
+  if ! grep -q "source $ZSH_PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh" "$ZSHRC_FILE"; then
+    echo "Sourcing zsh-autosuggestions..."
+    su - "$ACTUAL_USER" -c "echo 'source $ZSH_PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh' >> $ZSHRC_FILE"
+  fi
+
+  if ! grep -q "source $ZSH_PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" "$ZSHRC_FILE"; then
+    echo "Sourcing zsh-syntax-highlighting..."
+    su - "$ACTUAL_USER" -c "echo 'source $ZSH_PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' >> $ZSHRC_FILE"
+  fi
+
+  if ! grep -q "fpath+=($ZSH_PLUGIN_DIR/zsh-completions/src)" "$ZSHRC_FILE"; then
+    echo "Adding zsh-completions to fpath..."
+    su - "$ACTUAL_USER" -c "echo 'fpath+=($ZSH_PLUGIN_DIR/zsh-completions/src)' >> $ZSHRC_FILE"
+  fi
+
+  # Initialize Starship in .zshrc
+  if ! grep -q 'eval "$(starship init zsh)"' "$ZSHRC_FILE"; then
+    echo "Adding Starship initialization to .zshrc..."
+    su - "$ACTUAL_USER" -c "echo 'eval \"\$(starship init zsh)\"' >> $ZSHRC_FILE"
+  fi
+
+  echo "Starship prompt and Zsh plugins installed and configured."
+}
+
 # Function to install coc.nvim dependencies
 install_coc_dependencies() {
   echo "Installing coc.nvim dependencies..."
@@ -748,7 +880,6 @@ copy_config_files() {
     "coc-settings.json"
     "hdl_checker.json"
     "airline_theme.conf"
-    "color_scheme.conf"
   )
 
   # Copy dot-prefixed files to home directory
@@ -1095,8 +1226,18 @@ install_go_language_server
 # Install hdl_checker
 install_hdl_checker_with_pipx
 
+# Clone fzf-git.sh
+clone_fzf_git_repo
+
 # Install and configure Zsh and Oh My Zsh
 install_zsh
+
+# Alternative prompt configuration
+# install_starship_and_configure_zsh
+
+# Need to make two separate and complete .zshrc files for each prompt config
+# Copy Oh My ZSH .zshrc
+# Copy Starship .zshrc
 
 # Configure Git
 configure_git
