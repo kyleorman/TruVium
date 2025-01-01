@@ -1092,6 +1092,42 @@ install_rust() {
   echo "Rust installed successfully."
 }
 
+# Function to install cht.sh
+install_cht_sh() {
+  echo "Installing cht.sh..."
+
+  # Define the target path
+  CHT_SH_PATH="/usr/local/bin/cht.sh"
+
+  # Check if cht.sh is already installed
+  if [ -x "$CHT_SH_PATH" ]; then
+    echo "cht.sh is already installed at $CHT_SH_PATH. Skipping installation."
+    return
+  fi
+
+  # Download and install cht.sh
+  echo "Downloading cht.sh..."
+  curl -s https://cht.sh/:cht.sh | sudo tee "$CHT_SH_PATH" >/dev/null || {
+    echo "Failed to download cht.sh."
+    exit 1
+  }
+
+  # Make cht.sh executable
+  echo "Setting executable permissions for cht.sh..."
+  sudo chmod +x "$CHT_SH_PATH" || {
+    echo "Failed to set executable permissions for cht.sh."
+    exit 1
+  }
+
+  # Verify installation
+  if command -v cht.sh &>/dev/null; then
+    echo "cht.sh installed successfully at $CHT_SH_PATH."
+  else
+    echo "cht.sh installation failed."
+    exit 1
+  fi
+}
+
 # Install hdl_checker
 install_hdl_checker_with_pipx() {
   echo "Installing hdl_checker using pipx..."
@@ -1250,6 +1286,9 @@ install_python_tools
 
 # Install Rust via rustup
 install_rust
+
+# Install cht.sh
+install_cht_sh
 
 # Install CheckMake via Go
 install_checkmake
