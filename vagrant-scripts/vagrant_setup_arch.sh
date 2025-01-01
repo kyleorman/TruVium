@@ -169,6 +169,8 @@ install_dependencies() {
     jq \
     poppler \
     imagemagick \
+    task \
+    taskwarrior-tui \
     go ||
     {
       echo "Package installation failed"
@@ -1046,6 +1048,49 @@ install_doom_emacs() {
   echo "Doom Emacs installed successfully."
 }
 
+
+# Function to install Rust
+install_rust() {
+  echo "Installing Rust..."
+
+  # Check if Rust is already installed
+  if command -v rustc &>/dev/null; then
+    echo "Rust is already installed. Skipping installation."
+    return
+  fi
+
+  # Download and execute the Rust installer
+  echo "Downloading and installing Rust..."
+  su - "$ACTUAL_USER" -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y" || {
+    echo "Failed to install Rust."
+    exit 1
+  }
+
+  # Add Cargo and Rust binaries to the PATH
+  RUST_ENV_FILE="$USER_HOME/.cargo/env"
+  SHELL_RC="$USER_HOME/.zshrc" # Update for other shells as needed
+
+  if [ -f "$RUST_ENV_FILE" ]; then
+    if ! grep -q "source $RUST_ENV_FILE" "$SHELL_RC"; then
+      echo "Adding Rust environment to $SHELL_RC..."
+      su - "$ACTUAL_USER" -c "echo 'source $RUST_ENV_FILE' >> $SHELL_RC"
+    else
+      echo "Rust environment already sourced in $SHELL_RC."
+    fi
+  else
+    echo "Warning: Rust environment file ($RUST_ENV_FILE) not found."
+  fi
+
+  # Verify the installation
+  echo "Verifying Rust installation..."
+  su - "$ACTUAL_USER" -c "source $RUST_ENV_FILE && rustc --version" || {
+    echo "Rust installation verification failed."
+    exit 1
+  }
+
+  echo "Rust installed successfully."
+}
+
 # Install hdl_checker
 install_hdl_checker_with_pipx() {
   echo "Installing hdl_checker using pipx..."
@@ -1201,6 +1246,9 @@ copy_config_files
 
 # Install Python tools
 install_python_tools
+
+# Install Rust via rustup
+install_rust
 
 # Install CheckMake via Go
 install_checkmake
