@@ -904,6 +904,8 @@ copy_config_files() {
   CONFIG_ITEMS=(
 	"vim-themer"
 	"bat"
+	"yazi"
+	"lazygit"
     #"tmux-sessionizer.sh"
   )
 
@@ -989,6 +991,8 @@ copy_config_files() {
   else
     echo "gp.conf not found in $GP_CONF_SRC."
   fi
+  
+  bat cache --build
 }
 
 
