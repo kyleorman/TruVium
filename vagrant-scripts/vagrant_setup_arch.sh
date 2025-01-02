@@ -172,6 +172,7 @@ install_dependencies() {
     task \
     taskwarrior-tui \
     lazygit \
+	yazi \
     go ||
     {
       echo "Package installation failed"
@@ -206,7 +207,8 @@ install_aur_packages() {
     fortune-mod-hitchhiker
     tlrc
     broot-git
-    ffmpeg-git
+	lazysql
+    #ffmpeg
   )
 
   # Install each AUR package with retries
@@ -559,6 +561,10 @@ install_vim_plugins() {
   COLOR_SCHEMES=(
     "altercation/vim-colors-solarized"
     "rafi/awesome-vim-colorschemes"
+	"catppuccin/vim"
+	"ywjno/vim-tomorrow-theme"
+	"ayu-theme/ayu-vim"
+	"ghifarit53/tokyonight-vim"
   )
 
   # Define plugin directories
@@ -743,6 +749,13 @@ install_zsh() {
     echo 'export PATH="/usr/local/go/bin:$PATH"'
     echo 'alias emacs="emacs -nw"'
     echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
+	echo 'source <(fzf --zsh)'
+	echo 'export FZF_DEFAULT_OPTS=" \'
+	echo '--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 \'
+	echo '--color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc \'
+	echo '--color=marker:#b4befe,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8 \'
+	echo '--color=selected-bg:#45475a \'
+	echo '--multi"'	
     echo ''
     echo 'if [[ $- == *i* ]]; then' # Check if the shell is interactive
     echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
@@ -868,10 +881,11 @@ install_coc_dependencies() {
   }
 }
 
-# Function to copy configuration files
+# Function to copy configuration files and directories
 copy_config_files() {
-  echo "Copying configuration files..."
+  echo "Copying configuration files and directories..."
 
+  # Files to copy directly to the home directory
   DOT_FILES=(
     "vimrc"
     "tmux.conf"
@@ -879,13 +893,21 @@ copy_config_files() {
     "tmuxline.conf"
   )
 
+  # Files to copy to the .vim directory
   VIM_FILES=(
     "coc-settings.json"
     "hdl_checker.json"
     "airline_theme.conf"
   )
 
-  # Copy dot-prefixed files to home directory
+  # Files and directories to copy to the .config directory
+  CONFIG_ITEMS=(
+	"vim-themer"
+	"bat"
+    #"tmux-sessionizer.sh"
+  )
+
+  # Copy dot-prefixed files to the home directory
   for file in "${DOT_FILES[@]}"; do
     src="$USER_CONFIG_DIR/$file"
     dest="$USER_HOME/.$file" # Prepend a dot for these files
@@ -907,7 +929,7 @@ copy_config_files() {
     echo "Created .vim directory."
   fi
 
-  # Copy files to .vim directory
+  # Copy files to the .vim directory
   for file in "${VIM_FILES[@]}"; do
     src="$USER_CONFIG_DIR/$file"
     dest="$USER_HOME/.vim/$file"
@@ -919,6 +941,39 @@ copy_config_files() {
       echo "Copied $file to $dest."
     else
       echo "$file not found in $src."
+    fi
+  done
+
+  # Ensure .config directory exists
+  CONFIG_DIR="$USER_HOME/.config"
+  if [ ! -d "$CONFIG_DIR" ]; then
+    mkdir -p "$CONFIG_DIR"
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR"
+    echo "Created .config directory."
+  fi
+
+  # Copy files and directories to .config
+  for item in "${CONFIG_ITEMS[@]}"; do
+    src="$USER_CONFIG_DIR/$item"
+    dest="$CONFIG_DIR/$item"
+    if [ -d "$src" ]; then
+      # Backup if exists
+      if [ -d "$dest" ]; then
+        mv "$dest" "$dest.bak" && echo "Backup of $dest created."
+      fi
+      cp -r "$src" "$dest"
+      chown -R "$ACTUAL_USER:$ACTUAL_USER" "$dest"
+      echo "Copied directory $item to $dest."
+    elif [ -f "$src" ]; then
+      # Backup if exists
+      if [ -f "$dest" ]; then
+        mv "$dest" "$dest.bak" && echo "Backup of $dest created."
+      fi
+      cp "$src" "$dest"
+      chown "$ACTUAL_USER:$ACTUAL_USER" "$dest"
+      echo "Copied file $item to $dest."
+    else
+      echo "Item $item not found in $src."
     fi
   done
 
@@ -935,6 +990,7 @@ copy_config_files() {
     echo "gp.conf not found in $GP_CONF_SRC."
   fi
 }
+
 
 # Function to configure Git
 configure_git() {
@@ -1294,7 +1350,7 @@ install_cht_sh
 install_checkmake
 
 # Install Verible
-install_verible_from_source
+#install_verible_from_source
 
 # Install Tmux Plugin Manager and tmux plugins
 install_tpm
