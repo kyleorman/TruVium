@@ -991,10 +991,7 @@ copy_config_files() {
   else
     echo "gp.conf not found in $GP_CONF_SRC."
   fi
-  
-  bat cache --build
 }
-
 
 # Function to configure Git
 configure_git() {
@@ -1291,6 +1288,25 @@ install_hdl_checker_with_pipx() {
   rm -rf "$HCL_TMP_DIR" || echo "Failed to remove temporary directory $HCL_TMP_DIR"
 }
 
+# Function to rebuild bat cache
+rebuild_bat_cache() {
+  echo "Rebuilding bat theme cache..."
+
+  # Check if bat is installed
+  if ! command -v bat &>/dev/null; then
+    echo "Error: 'bat' command not found. Please install bat before proceeding."
+    exit 1
+  fi
+
+  # Attempt to rebuild the cache
+  if bat cache --build; then
+    echo "Bat theme cache rebuilt successfully."
+  else
+    echo "Error: Failed to rebuild bat theme cache."
+    exit 1
+  fi
+}
+
 # Configure X11 Forwarding
 configure_ssh_x11_forwarding() {
   SSH_CONFIG="/etc/ssh/sshd_config"
@@ -1340,6 +1356,9 @@ install_aur_packages
 
 # Copy configuration files
 copy_config_files
+
+# Rebuild bat cache
+rebuild_bat_cache
 
 # Install Python tools
 install_python_tools
