@@ -1087,8 +1087,11 @@ install_tmux_sessionizer() {
 
   # Define the installation target and source URL
   INSTALL_DIR="/usr/local/bin"
-  SCRIPT_URL="https://raw.githubusercontent.com/kyleorman/tmux-sessionizer/main/tmux-sessionizer"
+  SCRIPT_URL="https://raw.githubusercontent.com/kyleorman/tmux-sessionizer/main/tmux-sessionizer.sh"
   INSTALL_PATH="$INSTALL_DIR/tmux-sessionizer"
+  TMUX_FUNCTIONS_URL="https://raw.githubusercontent.com/kyleorman/tmux-sessionizer/main/.tmux-functions.zsh"
+  CONFIG_DIR="$USER_HOME/.config"
+  TMUX_FUNCTIONS_PATH="$CONFIG_DIR/.tmux-functions.zsh"
 
   # Ensure the target directory exists
   echo "Ensuring $INSTALL_DIR exists..."
@@ -1097,25 +1100,39 @@ install_tmux_sessionizer() {
     exit 1
   }
 
-  # Download the script
+  # Download the main script
   echo "Downloading tmux-sessionizer from $SCRIPT_URL..."
   curl -fsLo "$INSTALL_PATH" "$SCRIPT_URL" || {
     echo "Error: Failed to download tmux-sessionizer script."
     exit 1
   }
 
-  # Set executable permissions
+  # Set executable permissions for the script
   echo "Setting executable permissions for tmux-sessionizer..."
   chmod +x "$INSTALL_PATH" || {
     echo "Error: Failed to set executable permissions for tmux-sessionizer."
     exit 1
   }
 
-  # Verify installation
-  if command -v tmux-sessionizer >/dev/null 2>&1; then
-    echo "tmux-sessionizer installed successfully."
+  # Ensure the user's config directory exists
+  echo "Ensuring $CONFIG_DIR exists..."
+  su - "$ACTUAL_USER" -c "mkdir -p $CONFIG_DIR" || {
+    echo "Error: Failed to create directory $CONFIG_DIR."
+    exit 1
+  }
+
+  # Download the .tmux-functions.zsh file
+  echo "Downloading .tmux-functions.zsh from $TMUX_FUNCTIONS_URL..."
+  su - "$ACTUAL_USER" -c "curl -fsLo $TMUX_FUNCTIONS_PATH $TMUX_FUNCTIONS_URL" || {
+    echo "Error: Failed to download .tmux-functions.zsh."
+    exit 1
+  }
+
+  # Verify the installation
+  if command -v tmux-sessionizer >/dev/null 2>&1 && [ -f "$TMUX_FUNCTIONS_PATH" ]; then
+    echo "tmux-sessionizer and .tmux-functions.zsh installed successfully."
   else
-    echo "Error: tmux-sessionizer installation failed."
+    echo "Error: tmux-sessionizer installation failed or .tmux-functions.zsh is missing."
     exit 1
   fi
 }
@@ -1485,6 +1502,9 @@ enable_parallel_builds
 # Install essential packages
 install_dependencies
 
+# Install Rust via rustup
+install_rust
+
 # Install AUR packages using yay with retry
 install_aur_packages
 
@@ -1493,9 +1513,6 @@ copy_config_files
 
 # Install Python tools
 install_python_tools
-
-# Install Rust via rustup
-install_rust
 
 #Install tmux-sessionizer
 install_tmux_sessionizer
