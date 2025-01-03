@@ -112,6 +112,56 @@ ensure_community_repo_enabled() {
   fi
 }
 
+# Function to enable parallel downloads in pacman.conf and parallel builds in makepkg.conf
+enable_parallel_builds() {
+  echo "Enabling parallel downloads in pacman.conf..."
+
+  PACMAN_CONF="/etc/pacman.conf"
+  MAKEPKG_CONF="/etc/makepkg.conf"
+
+  # Backup the original pacman.conf if not already backed up
+  if [ ! -f "${PACMAN_CONF}.bak" ]; then
+    cp "$PACMAN_CONF" "${PACMAN_CONF}.bak"
+    echo "Backup of pacman.conf created at ${PACMAN_CONF}.bak"
+  fi
+
+  # Enable ILoveCandy and ParallelDownloads = 5 (or any value you prefer)
+  # (Comment out any existing ParallelDownloads and add your own)
+  sed -i 's/^#\(Color\)$/\1/' "$PACMAN_CONF"
+  sed -i 's/^#\(ILoveCandy\)$/\1/' "$PACMAN_CONF"
+  if grep -q '^#ParallelDownloads' "$PACMAN_CONF"; then
+    sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' "$PACMAN_CONF"
+  elif ! grep -q '^ParallelDownloads' "$PACMAN_CONF"; then
+    # If ParallelDownloads doesn't exist at all, add it
+    sed -i '/^#ParallelDownloads/i ParallelDownloads = 5' "$PACMAN_CONF"
+  fi
+
+  echo "Enabling parallel builds in makepkg.conf..."
+
+  # Backup the original makepkg.conf if not already backed up
+  if [ ! -f "${MAKEPKG_CONF}.bak" ]; then
+    cp "$MAKEPKG_CONF" "${MAKEPKG_CONF}.bak"
+    echo "Backup of makepkg.conf created at ${MAKEPKG_CONF}.bak"
+  fi
+
+  # Replace existing MAKEFLAGS line or append if not found
+  # This uses all available cores: -j$(nproc)
+  if grep -q '^#MAKEFLAGS=' "$MAKEPKG_CONF"; then
+    sed -i "s|^#MAKEFLAGS=.*|MAKEFLAGS=\"-j$(nproc)\"|" "$MAKEPKG_CONF"
+  elif grep -q '^MAKEFLAGS=' "$MAKEPKG_CONF"; then
+    sed -i "s|^MAKEFLAGS=.*|MAKEFLAGS=\"-j$(nproc)\"|" "$MAKEPKG_CONF"
+  else
+    echo "MAKEFLAGS=\"-j$(nproc)\"" >> "$MAKEPKG_CONF"
+  fi
+
+  # (Optionally) you can also speed up compression by enabling more threads
+  if grep -q '^COMPRESSXZ' "$MAKEPKG_CONF"; then
+    sed -i "s|^COMPRESSXZ=.*|COMPRESSXZ=(xz -c -T $(nproc) -z -)|" "$MAKEPKG_CONF"
+  fi
+
+  echo "Parallel downloads and builds have been enabled."
+}
+
 # Function to install essential packages
 install_dependencies() {
   echo "Installing essential packages..."
@@ -171,8 +221,10 @@ install_dependencies() {
     imagemagick \
     task \
     taskwarrior-tui \
+	timew \
     lazygit \
 	yazi \
+	kitty \
     go ||
     {
       echo "Package installation failed"
@@ -208,6 +260,9 @@ install_aur_packages() {
     tlrc
     broot-git
 	lazysql
+	jupyterlab-catppuccin
+	viu
+	vscode
     #ffmpeg
   )
 
@@ -480,6 +535,34 @@ install_go_language_server() {
   }
 }
 
+# Function to install Go tools
+install_go_tools() {
+  echo "Installing Go tools..."
+
+  # Check if Go is installed
+  if ! command -v go &>/dev/null; then
+    echo "Error: Go is not installed. Please ensure Go is installed before running this function."
+    exit 1
+  fi
+
+  # Install Go tools
+  TOOLS=(
+    "golang.org/x/tools/gopls@latest"       # Go language server
+    "github.com/mrtazz/checkmake/cmd/checkmake@latest"  # CheckMake
+    "github.com/DerTimonius/twkb@latest"   # TWKB
+  )
+
+  for tool in "${TOOLS[@]}"; do
+    echo "Installing $tool..."
+    if ! su - "$ACTUAL_USER" -c "go install $tool"; then
+      echo "Error: Failed to install $tool"
+      exit 1
+    fi
+  done
+
+  echo "Go tools installed successfully."
+}
+
 # Function to install Tmux Plugin Manager and tmux plugins
 install_tpm() {
   echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
@@ -565,6 +648,8 @@ install_vim_plugins() {
 	"ywjno/vim-tomorrow-theme"
 	"ayu-theme/ayu-vim"
 	"ghifarit53/tokyonight-vim"
+	#"chriskempson/base16-vim"
+	"tinted-theming/tinted-vim"
   )
 
   # Define plugin directories
@@ -906,7 +991,10 @@ copy_config_files() {
 	"bat"
 	"yazi"
 	"lazygit"
-    #"tmux-sessionizer.sh"
+	"btop"
+	"timewarrior"
+	"taskwarrior"
+    "tmux-sessionizer.conf"
   )
 
   # Copy dot-prefixed files to the home directory
@@ -990,6 +1078,45 @@ copy_config_files() {
     echo "Copied gp.conf to $GP_CONF_DEST."
   else
     echo "gp.conf not found in $GP_CONF_SRC."
+  fi
+}
+
+# Function to install tmux-sessionizer
+install_tmux_sessionizer() {
+  echo "Installing tmux-sessionizer using the recommended method..."
+
+  # Define the installation target and source URL
+  INSTALL_DIR="/usr/local/bin"
+  SCRIPT_URL="https://raw.githubusercontent.com/kyleorman/tmux-sessionizer/main/tmux-sessionizer"
+  INSTALL_PATH="$INSTALL_DIR/tmux-sessionizer"
+
+  # Ensure the target directory exists
+  echo "Ensuring $INSTALL_DIR exists..."
+  mkdir -p "$INSTALL_DIR" || {
+    echo "Error: Failed to create directory $INSTALL_DIR."
+    exit 1
+  }
+
+  # Download the script
+  echo "Downloading tmux-sessionizer from $SCRIPT_URL..."
+  curl -fsLo "$INSTALL_PATH" "$SCRIPT_URL" || {
+    echo "Error: Failed to download tmux-sessionizer script."
+    exit 1
+  }
+
+  # Set executable permissions
+  echo "Setting executable permissions for tmux-sessionizer..."
+  chmod +x "$INSTALL_PATH" || {
+    echo "Error: Failed to set executable permissions for tmux-sessionizer."
+    exit 1
+  }
+
+  # Verify installation
+  if command -v tmux-sessionizer >/dev/null 2>&1; then
+    echo "tmux-sessionizer installed successfully."
+  else
+    echo "Error: tmux-sessionizer installation failed."
+    exit 1
   fi
 }
 
@@ -1139,10 +1266,14 @@ install_rust() {
     echo "Warning: Rust environment file ($RUST_ENV_FILE) not found."
   fi
 
+  # Ensure Rust is available in the provisioning environment
+  echo "Exporting Rust environment for the current session..."
+  export PATH="$USER_HOME/.cargo/bin:$PATH"
+
   # Verify the installation
   echo "Verifying Rust installation..."
-  su - "$ACTUAL_USER" -c "source $RUST_ENV_FILE && rustc --version" || {
-    echo "Rust installation verification failed."
+  su - "$ACTUAL_USER" -c "rustup --version" || {
+    echo "Rustup installation verification failed."
     exit 1
   }
 
@@ -1292,14 +1423,14 @@ install_hdl_checker_with_pipx() {
 rebuild_bat_cache() {
   echo "Rebuilding bat theme cache..."
 
-  # Check if bat is installed
+  # Ensure bat is installed
   if ! command -v bat &>/dev/null; then
     echo "Error: 'bat' command not found. Please install bat before proceeding."
     exit 1
   fi
 
-  # Attempt to rebuild the cache
-  if bat cache --build; then
+  # Run bat cache --build as the appropriate user
+  if su - "$ACTUAL_USER" -c "bat cache --build"; then
     echo "Bat theme cache rebuilt successfully."
   else
     echo "Error: Failed to rebuild bat theme cache."
@@ -1348,6 +1479,9 @@ check_internet_connection
 # Enable community repo
 ensure_community_repo_enabled
 
+# Enable parallel builds for pacman and yay
+enable_parallel_builds
+
 # Install essential packages
 install_dependencies
 
@@ -1357,22 +1491,25 @@ install_aur_packages
 # Copy configuration files
 copy_config_files
 
-# Rebuild bat cache
-rebuild_bat_cache
-
 # Install Python tools
 install_python_tools
 
 # Install Rust via rustup
 install_rust
 
+#Install tmux-sessionizer
+install_tmux_sessionizer
+
 # Install cht.sh
 install_cht_sh
 
-# Install CheckMake via Go
-install_checkmake
+# Install CheckMake via Go (REMOVE IF GO TOOLS WORKS)
+# install_checkmake
 
-# Install Verible
+# Install Checkmake, twkb, and go lang server
+install_go_tools
+
+# Install Verible (Intermittently Causing Failure on Windows Host)
 #install_verible_from_source
 
 # Install Tmux Plugin Manager and tmux plugins
@@ -1387,8 +1524,8 @@ install_doom_emacs
 # Install LazyVim
 install_lazyvim
 
-# Install Go language server
-install_go_language_server
+# Install Go language server (REMOVE IF GO TOOLS WORKS)
+# install_go_language_server
 
 # Install hdl_checker
 install_hdl_checker_with_pipx
@@ -1411,6 +1548,9 @@ configure_git
 
 # Install coc.nvim dependencies
 install_coc_dependencies
+
+# Rebuild bat cache
+rebuild_bat_cache
 
 # Configure X11 Forwarding
 configure_ssh_x11_forwarding
