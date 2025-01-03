@@ -10,35 +10,72 @@ FG_MAUVE="\e[38;2;203;166;247m"    # #cba6f7
 BG_SURFACE0="\e[48;2;49;50;68m"   # #313244
 RESET="\e[0m"
 
-# This function prints an inline progress bar. 
-# Usage: progress_bar_inline CURRENT TOTAL
+# Check if we're in an interactive terminal
+if [ -t 1 ] && command -v tput >/dev/null 2>&1; then
+    INTERACTIVE=1
+else
+    INTERACTIVE=0
+fi
+
+# Initialize progress bar position
+init_progress_bar() {
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        tput civis
+        TERM_HEIGHT=$(tput lines)
+        tput sc
+    fi
+}
+
+# This function prints a progress bar
 progress_bar_inline() {
-  local current=$1
-  local total=$2
-  local width=50  # total bar width (characters)
+    local current="$1"
+    local total="$2"
+    local width=50
 
-  # Calculate percentage
-  local percent=$(( current * 100 / total ))
+    # Calculate percentage
+    local percent=$(( current * 100 / total ))
+    # Calculate how many segments to fill
+    local filled=$(( current * width / total ))
+    local empty=$(( width - filled ))
 
-  # Calculate how many "filled" vs. "empty" segments
-  local filled=$(( current * width / total ))
-  local empty=$(( width - filled ))
+    # Define bar segments using simple ASCII characters
+    local bar_filled=$(printf "%${filled}s" | tr ' ' '#')
+    local bar_empty=$(printf "%${empty}s" | tr ' ' '-')
 
-  # Build the segments
-  local bar_filled
-  local bar_empty
-  # Using '█' for a nice solid block
-  bar_filled=$(printf "%${filled}s" | tr ' ' '█')
-  bar_empty=$(printf "%${empty}s" | tr ' ' ' ')
+    # Prepare the progress bar string
+    local progress_bar="${BG_SURFACE0}${FG_MAUVE}[${bar_filled}${bar_empty}] ${percent}%%${RESET}"
 
-  # Print on the same line with \r, then reset color
-  printf "\r${BG_SURFACE0}${FG_MAUVE}[%s%s] %3d%%%s" \
-    "$bar_filled" "$bar_empty" "$percent" "$RESET"
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        # Move to last line and clear it
+        tput cup "$((TERM_HEIGHT - 1))" 0
+        tput el
+        printf "%s" "$progress_bar"
+        tput rc
+    else
+        # In non-interactive mode, print a new progress line
+        printf "%s\n" "$progress_bar"
+    fi
+}
 
-  # If this is the final step, end with a newline
-  if [[ $current -eq $total ]]; then
-    echo ""
-  fi
+log_line() {
+    local msg="$1"
+    
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        tput el
+        echo -e "$msg"
+    else
+        # Add some spacing and formatting for non-interactive mode
+        printf "${FG_MAUVE}==>${RESET} %s\n" "$msg"
+    fi
+}
+
+cleanup_progress_bar() {
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        tput cnorm
+    else
+        # Print a final newline in non-interactive mode
+        echo ""
+    fi
 }
 
 # --- Configuration Variables ---
@@ -1559,16 +1596,26 @@ NUM_STEPS=${#STEPS[@]}
 
 echo "----- Starting Setup Script -----"
 
-for i in "${!STEPS[@]}"; do
-  step_name="${STEPS[$i]}"
-  echo ">>> Running step $((i+1))/$NUM_STEPS: $step_name..."
-  # Call the function by name
-  "$step_name"
+# Initialize progress tracking
+init_progress_bar
 
-  # After the step, update the progress bar inline
-  current_step=$((i+1))
-  progress_bar_inline "$current_step" "$NUM_STEPS"
+# Execute each step
+for i in "${!STEPS[@]}"; do
+    step_name="${STEPS[$i]}"
+    current_step=$((i + 1))
+
+    # Log the current step
+    log_line "Running step $current_step/$NUM_STEPS: $step_name..."
+
+    # Run the step function
+    "$step_name"
+
+    # Update progress bar
+    progress_bar_inline "$current_step" "$NUM_STEPS"
 done
+
+# Clean up progress bar and restore terminal state
+cleanup_progress_bar
 
 echo "Cleaning up package manager cache..."
 pacman -Scc --noconfirm || true
