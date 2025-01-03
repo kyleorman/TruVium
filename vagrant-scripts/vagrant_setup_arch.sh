@@ -5,6 +5,42 @@
 set -eEuo pipefail
 IFS=$'\n\t'
 
+# --- Bash Progress Bar with Catppuccin Mocha Colors ---
+FG_MAUVE="\e[38;2;203;166;247m"    # #cba6f7
+BG_SURFACE0="\e[48;2;49;50;68m"   # #313244
+RESET="\e[0m"
+
+# This function prints an inline progress bar. 
+# Usage: progress_bar_inline CURRENT TOTAL
+progress_bar_inline() {
+  local current=$1
+  local total=$2
+  local width=50  # total bar width (characters)
+
+  # Calculate percentage
+  local percent=$(( current * 100 / total ))
+
+  # Calculate how many "filled" vs. "empty" segments
+  local filled=$(( current * width / total ))
+  local empty=$(( width - filled ))
+
+  # Build the segments
+  local bar_filled
+  local bar_empty
+  # Using '█' for a nice solid block
+  bar_filled=$(printf "%${filled}s" | tr ' ' '█')
+  bar_empty=$(printf "%${empty}s" | tr ' ' ' ')
+
+  # Print on the same line with \r, then reset color
+  printf "\r${BG_SURFACE0}${FG_MAUVE}[%s%s] %3d%%%s" \
+    "$bar_filled" "$bar_empty" "$percent" "$RESET"
+
+  # If this is the final step, end with a newline
+  if [[ $current -eq $total ]]; then
+    echo ""
+  fi
+}
+
 # --- Configuration Variables ---
 SCRIPT_DIR="/vagrant" # Adjust this if needed
 LOGFILE="/var/log/setup-script.log"
@@ -1488,94 +1524,52 @@ ensure_home_ownership() {
 
 # --- Main Script Execution ---
 
+STEPS=(
+	"check_internet_connection"
+	"ensure_community_repo_enabled"
+	"enable_parallel_builds"
+	"install_dependencies"
+	"install_rust"
+	"install_aur_packages"
+	"copy_config_files"
+	"install_python_tools"
+	"install_tmux_sessionizer"
+	"install_cht_sh"
+	"install_go_tools"
+	# "install_verible_from_source" (Causing Error)
+	"install_tpm"
+	"install_vim_plugins"
+	"install_doom_emacs"
+	"install_lazyvim"
+	"install_hdl_checker_with_pipx"
+	"clone_fzf_git_repo"
+	"install_zsh"
+	# "install_starship_and_configure_zsh"
+	# Need to make two separate and complete .zshrc files for each prompt config
+	# Copy Oh My ZSH .zshrc
+	# Copy Starship .zshrc
+	"configure_git"
+	"install_coc_dependencies"
+	"rebuild_bat_cache"
+	"configure_ssh_x11_forwarding"
+	"ensure_home_ownership"
+)
+
+NUM_STEPS=${#STEPS[@]}
+
 echo "----- Starting Setup Script -----"
 
-# Execute the internet check
-check_internet_connection
+for i in "${!STEPS[@]}"; do
+  step_name="${STEPS[$i]}"
+  echo ">>> Running step $((i+1))/$NUM_STEPS: $step_name..."
+  # Call the function by name
+  "$step_name"
 
-# Enable community repo
-ensure_community_repo_enabled
+  # After the step, update the progress bar inline
+  current_step=$((i+1))
+  progress_bar_inline "$current_step" "$NUM_STEPS"
+done
 
-# Enable parallel builds for pacman and yay
-enable_parallel_builds
-
-# Install essential packages
-install_dependencies
-
-# Install Rust via rustup
-install_rust
-
-# Install AUR packages using yay with retry
-install_aur_packages
-
-# Copy configuration files
-copy_config_files
-
-# Install Python tools
-install_python_tools
-
-#Install tmux-sessionizer
-install_tmux_sessionizer
-
-# Install cht.sh
-install_cht_sh
-
-# Install CheckMake via Go (REMOVE IF GO TOOLS WORKS)
-# install_checkmake
-
-# Install Checkmake, twkb, and go lang server
-install_go_tools
-
-# Install Verible (Intermittently Causing Failure on Windows Host)
-#install_verible_from_source
-
-# Install Tmux Plugin Manager and tmux plugins
-install_tpm
-
-# Install Vim plugins
-install_vim_plugins
-
-# Install Doom Emacs
-install_doom_emacs
-
-# Install LazyVim
-install_lazyvim
-
-# Install Go language server (REMOVE IF GO TOOLS WORKS)
-# install_go_language_server
-
-# Install hdl_checker
-install_hdl_checker_with_pipx
-
-# Clone fzf-git.sh
-clone_fzf_git_repo
-
-# Install and configure Zsh and Oh My Zsh
-install_zsh
-
-# Alternative prompt configuration
-# install_starship_and_configure_zsh
-
-# Need to make two separate and complete .zshrc files for each prompt config
-# Copy Oh My ZSH .zshrc
-# Copy Starship .zshrc
-
-# Configure Git
-configure_git
-
-# Install coc.nvim dependencies
-install_coc_dependencies
-
-# Rebuild bat cache
-rebuild_bat_cache
-
-# Configure X11 Forwarding
-configure_ssh_x11_forwarding
-
-# Ensure home directory ownership is correct
-ensure_home_ownership
-
-# Clean up package manager cache
 echo "Cleaning up package manager cache..."
 pacman -Scc --noconfirm || true
 
