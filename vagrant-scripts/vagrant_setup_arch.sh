@@ -5,75 +5,80 @@
 set -eEuo pipefail
 IFS=$'\n\t'
 
-# --- Bash Progress Bar with Catppuccin Mocha Colors ---
-FG_MAUVE="\e[38;2;203;166;247m"    # #cba6f7
-BG_SURFACE0="\e[48;2;49;50;68m"   # #313244
-RESET="\e[0m"
-
-# Check if we're in an interactive terminal
+# --- Bash Progress Bar ---
+# Colors for both interactive and non-interactive modes
 if [ -t 1 ] && command -v tput >/dev/null 2>&1; then
     INTERACTIVE=1
+    BLUE="\033[34m"    # Simple blue color
+    RESET="\033[0m"    # Reset
 else
     INTERACTIVE=0
+    BLUE=""
+    RESET=""
 fi
 
 # Initialize progress bar position
 init_progress_bar() {
     if [ "$INTERACTIVE" -eq 1 ]; then
-        tput civis
-        TERM_HEIGHT=$(tput lines)
-        tput sc
+        # Save cursor position and hide it
+        echo -en "\033[s"
+        echo -en "\033[?25l"
+        PROGRESS_LINE=$(tput lines)
     fi
 }
 
-# This function prints a progress bar
+# Progress bar function
 progress_bar_inline() {
     local current="$1"
     local total="$2"
     local width=50
 
-    # Calculate percentage
+    # Calculate percentage and bar segments
     local percent=$(( current * 100 / total ))
-    # Calculate how many segments to fill
     local filled=$(( current * width / total ))
     local empty=$(( width - filled ))
 
-    # Define bar segments using simple ASCII characters
+    # Create the bar
     local bar_filled=$(printf "%${filled}s" | tr ' ' '#')
     local bar_empty=$(printf "%${empty}s" | tr ' ' '-')
-
-    # Prepare the progress bar string
-    local progress_bar="${BG_SURFACE0}${FG_MAUVE}[${bar_filled}${bar_empty}] ${percent}%%${RESET}"
+    local bar="[${bar_filled}${bar_empty}] ${percent}%"
 
     if [ "$INTERACTIVE" -eq 1 ]; then
-        # Move to last line and clear it
-        tput cup "$((TERM_HEIGHT - 1))" 0
-        tput el
-        printf "%s" "$progress_bar"
-        tput rc
+        # Save position, move to bottom, print bar, restore position
+        echo -en "\033[s"
+        echo -en "\033[${PROGRESS_LINE};0H"
+        echo -en "\033[K"
+        echo -en "${BLUE}${bar}${RESET}"
+        echo -en "\033[u"
     else
-        # In non-interactive mode, print a new progress line
-        printf "%s\n" "$progress_bar"
+        # Simple progress output for non-interactive mode
+        echo "Progress: ${bar}"
     fi
 }
 
+# Log output function
 log_line() {
     local msg="$1"
     
     if [ "$INTERACTIVE" -eq 1 ]; then
-        tput el
+        # Save position, print message, restore position
+        echo -en "\033[s"
         echo -e "$msg"
+        echo -en "\033[u"
     else
-        # Add some spacing and formatting for non-interactive mode
-        printf "${FG_MAUVE}==>${RESET} %s\n" "$msg"
+        # Simple logging for non-interactive mode
+        echo "==> $msg"
     fi
 }
 
+# Cleanup function
 cleanup_progress_bar() {
     if [ "$INTERACTIVE" -eq 1 ]; then
-        tput cnorm
+        # Move cursor below progress bar and show it
+        echo -en "\033[${PROGRESS_LINE}H\n"
+        echo -en "\033[?25h"
     else
-        # Print a final newline in non-interactive mode
+        # Just print a newline in non-interactive mode
         echo ""
     fi
 }
