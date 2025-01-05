@@ -29,6 +29,7 @@ load_prompt() {
 }
 
 # Change to your preferred prompt
+# Default options: omz, starship, powerlevel10k
 load_prompt "omz"
 
 # TruVium welcome prompt for new tmux sessions
