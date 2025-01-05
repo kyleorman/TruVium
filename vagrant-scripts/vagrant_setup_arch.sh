@@ -303,6 +303,9 @@ install_dependencies() {
     lazygit \
 	yazi \
 	kitty \
+	fish \
+	nushell \
+	bazel \
     go ||
     {
       echo "Package installation failed"
@@ -864,16 +867,10 @@ clone_fzf_git_repo() {
   echo "Successfully cloned fzf-git.sh repository to $TARGET_DIR."
 }
 
-# Function to install and configure Zsh and Oh My Zsh
-install_zsh() {
+# Function to install Oh My Zsh
+install_oh_my_zsh() {
   echo "Installing Oh My Zsh..."
   su - "$ACTUAL_USER" -c "sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" --unattended"
-
-  # Install Zsh plugins
-  ZSH_CUSTOM="$USER_HOME/.oh-my-zsh/custom"
-  su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '$ZSH_CUSTOM/plugins/zsh-syntax-highlighting'" || echo "Failed to clone zsh-syntax-highlighting."
-  su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions.git '$ZSH_CUSTOM/plugins/zsh-autosuggestions'" || echo "Failed to clone zsh-autosuggestions."
-
 }
 
 # Function to install and configure Starship prompt and Zsh plugins
@@ -889,36 +886,6 @@ install_starship() {
     }
   else
     echo "Starship is already installed."
-  fi
-
-  # --- Install Zsh plugins ---
-  ZSH_PLUGIN_DIR="$USER_HOME/.zsh/plugins"
-
-  # Ensure the Zsh plugin directory exists
-  su - "$ACTUAL_USER" -c "mkdir -p $ZSH_PLUGIN_DIR"
-
-  # Install zsh-autosuggestions
-  if [ ! -d "$ZSH_PLUGIN_DIR/zsh-autosuggestions" ]; then
-    echo "Installing zsh-autosuggestions..."
-    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions.git $ZSH_PLUGIN_DIR/zsh-autosuggestions"
-  else
-    echo "zsh-autosuggestions is already installed."
-  fi
-
-  # Install zsh-syntax-highlighting
-  if [ ! -d "$ZSH_PLUGIN_DIR/zsh-syntax-highlighting" ]; then
-    echo "Installing zsh-syntax-highlighting..."
-    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $ZSH_PLUGIN_DIR/zsh-syntax-highlighting"
-  else
-    echo "zsh-syntax-highlighting is already installed."
-  fi
-
-  # Install zsh-completions
-  if [ ! -d "$ZSH_PLUGIN_DIR/zsh-completions" ]; then
-    echo "Installing zsh-completions..."
-    su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-completions.git $ZSH_PLUGIN_DIR/zsh-completions"
-  else
-    echo "zsh-completions is already installed."
   fi
 
   # --- Configure Starship ---
@@ -946,6 +913,111 @@ EOF"
   
   echo "Starship prompt and Zsh plugins installed."
 }
+
+install_oh_my_posh() {
+  echo "Installing Oh My Posh..."
+
+  if ! command -v oh-my-posh &>/dev/null; then
+    echo "Downloading and installing Oh My Posh..."
+    curl -s https://ohmyposh.dev/install.sh | bash -s || {
+      echo "Failed to install Oh My Posh."
+      exit 1
+    }
+  else
+    echo "Oh My Posh is already installed."
+  fi
+
+  echo "Oh My Posh installation complete."
+}
+
+install_powerlevel10k() {
+  echo "Installing Powerlevel10k..."
+
+  P10K_DIR="$USER_HOME/.oh-my-zsh/custom/themes/powerlevel10k"
+
+  if [ ! -d "$P10K_DIR" ]; then
+    echo "Cloning Powerlevel10k repository..."
+    su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $P10K_DIR" || {
+      echo "Failed to clone Powerlevel10k."
+      exit 1
+    }
+  else
+    echo "Powerlevel10k is already installed."
+  fi
+
+  echo "Powerlevel10k installation complete."
+}
+
+install_spaceship() {
+  echo "Installing Spaceship Prompt..."
+
+  SPACESHIP_DIR="$USER_HOME/.oh-my-zsh/custom/themes/spaceship-prompt"
+
+  if [ ! -d "$SPACESHIP_DIR" ]; then
+    echo "Cloning Spaceship Prompt repository..."
+    su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/spaceship-prompt/spaceship-prompt.git $SPACESHIP_DIR" || {
+      echo "Failed to clone Spaceship Prompt."
+      exit 1
+    }
+    su - "$ACTUAL_USER" -c "ln -s $SPACESHIP_DIR/spaceship.zsh-theme $SPACESHIP_DIR/../spaceship.zsh-theme"
+  else
+    echo "Spaceship Prompt is already installed."
+  fi
+
+  echo "Spaceship Prompt installation complete."
+}
+
+install_zsh_plugins() {
+  echo "Installing Zsh plugins..."
+
+  # Define the directories for plugin installation
+  OH_MY_ZSH_PLUGIN_DIR="$USER_HOME/.oh-my-zsh/custom/plugins"
+  ZSH_PLUGIN_DIR="$USER_HOME/.zsh/plugins"
+
+  # Ensure both plugin directories exist
+  su - "$ACTUAL_USER" -c "mkdir -p '$OH_MY_ZSH_PLUGIN_DIR'"
+  su - "$ACTUAL_USER" -c "mkdir -p '$ZSH_PLUGIN_DIR'"
+
+  # List of plugins to install
+  ZSH_PLUGINS=(
+    "zsh-users/zsh-syntax-highlighting"
+    "zsh-users/zsh-autosuggestions"
+    "zsh-users/zsh-completions"
+  )
+
+  # Install each plugin into both directories
+  for plugin in "${ZSH_PLUGINS[@]}"; do
+    local plugin_name
+    plugin_name=$(basename "$plugin")
+    local oh_my_zsh_target="$OH_MY_ZSH_PLUGIN_DIR/$plugin_name"
+    local zsh_target="$ZSH_PLUGIN_DIR/$plugin_name"
+
+    # Install into .oh-my-zsh/custom/plugins
+    if [ -d "$oh_my_zsh_target" ]; then
+      echo "Plugin '$plugin_name' already installed in .oh-my-zsh/custom/plugins. Skipping."
+    else
+      echo "Installing plugin '$plugin_name' into .oh-my-zsh/custom/plugins..."
+      su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$plugin.git '$oh_my_zsh_target'" || {
+        echo "Failed to install plugin '$plugin_name' to .oh-my-zsh/custom/plugins."
+        exit 1
+      }
+    fi
+
+    # Install into .zsh/plugins
+    if [ -d "$zsh_target" ]; then
+      echo "Plugin '$plugin_name' already installed in .zsh/plugins. Skipping."
+    else
+      echo "Installing plugin '$plugin_name' into .zsh/plugins..."
+      su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$plugin.git '$zsh_target'" || {
+        echo "Failed to install plugin '$plugin_name' to .zsh/plugins."
+        exit 1
+      }
+    fi
+  done
+
+  echo "Zsh plugins installed successfully in both directories."
+}
+
 
 # Function to install coc.nvim dependencies
 install_coc_dependencies() {
@@ -1437,6 +1509,69 @@ rebuild_bat_cache() {
   fi
 }
 
+overwrite_rc_files() {
+  echo "Overwriting RC files..."
+
+  # Directory containing RC files in user_config
+  RC_FILES_DIR="$USER_CONFIG_DIR/rc_files"
+
+  # Define the RC files to overwrite and their corresponding locations
+  declare -A RC_FILES=(
+    ["zshrc"]="$USER_HOME/.zshrc"
+    ["bashrc"]="$USER_HOME/.bashrc"
+    ["fish/config.fish"]="$USER_HOME/.config/fish/config.fish"
+    ["nushell/config.nu"]="$USER_HOME/.config/nushell/config.nu"
+  )
+
+  # Iterate through the RC files and overwrite them
+  for src_file in "${!RC_FILES[@]}"; do
+    local src_path="$RC_FILES_DIR/$src_file"
+    local dest_path="${RC_FILES[$src_file]}"
+
+    # Ensure the source file exists
+    if [ ! -f "$src_path" ]; then
+      echo "Warning: Source RC file $src_path not found. Skipping."
+      continue
+    fi
+
+    # Create the parent directory for the destination if it doesn't exist
+    dest_dir="$(dirname "$dest_path")"
+    if [ ! -d "$dest_dir" ]; then
+      echo "Creating directory $dest_dir..."
+      mkdir -p "$dest_dir" || {
+        echo "Error: Failed to create directory $dest_dir. Skipping $dest_path."
+        continue
+      }
+    fi
+
+    # Backup the existing RC file if it exists
+    if [ -f "$dest_path" ]; then
+      echo "Backing up existing $dest_path to $dest_path.bak..."
+      cp "$dest_path" "$dest_path.bak" || {
+        echo "Error: Failed to back up $dest_path. Skipping overwrite."
+        continue
+      }
+    fi
+
+    # Copy the new RC file to the destination
+    echo "Copying $src_path to $dest_path..."
+    cp "$src_path" "$dest_path" || {
+      echo "Error: Failed to copy $src_path to $dest_path. Skipping."
+      continue
+    }
+
+    # Adjust ownership of the file
+    echo "Setting ownership of $dest_path to $ACTUAL_USER..."
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$dest_path" || {
+      echo "Error: Failed to set ownership for $dest_path."
+    }
+
+    echo "Successfully updated $dest_path."
+  done
+
+  echo "RC file overwrite process completed."
+}
+
 # Configure X11 Forwarding
 configure_ssh_x11_forwarding() {
   SSH_CONFIG="/etc/ssh/sshd_config"
@@ -1490,14 +1625,15 @@ STEPS=(
 	"install_lazyvim"
 	"install_hdl_checker_with_pipx"
 	"clone_fzf_git_repo"
-	"install_zsh"
+	"install_oh_my_zsh"
 	"install_starship"
-	# Need to make two separate and complete .zshrc files for each prompt config
-	# Copy Oh My ZSH .zshrc
-	# Copy Starship .zshrc
+	"install_spaceship"
+	"install_powerlevel10k"
+	"install_oh_my_posh"
 	"configure_git"
 	"install_coc_dependencies"
 	"rebuild_bat_cache"
+	"overwrite_rc_files"
 	"configure_ssh_x11_forwarding"
 	"ensure_home_ownership"
 )
