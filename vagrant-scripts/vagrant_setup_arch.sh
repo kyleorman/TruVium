@@ -1509,28 +1509,28 @@ rebuild_bat_cache() {
   fi
 }
 
-overwrite_rc_files() {
-  echo "Overwriting RC files..."
+overwrite_shell_configs() {
+  echo "Overwriting shell configuration files..."
 
-  # Directory containing RC files in user_config
-  RC_FILES_DIR="$USER_CONFIG_DIR/rc_files"
+  # Directory containing shell configuration files in user_config
+  SHELL_CONFIGS_DIR="$USER_CONFIG_DIR/shell_configs"
 
-  # Define the RC files to overwrite and their corresponding locations
-  declare -A RC_FILES=(
+  # Define the shell configuration files to overwrite and their corresponding locations
+  declare -A SHELL_CONFIGS=(
     ["zshrc"]="$USER_HOME/.zshrc"
     ["bashrc"]="$USER_HOME/.bashrc"
     ["fish/config.fish"]="$USER_HOME/.config/fish/config.fish"
     ["nushell/config.nu"]="$USER_HOME/.config/nushell/config.nu"
   )
 
-  # Iterate through the RC files and overwrite them
-  for src_file in "${!RC_FILES[@]}"; do
-    local src_path="$RC_FILES_DIR/$src_file"
-    local dest_path="${RC_FILES[$src_file]}"
+  # Iterate through the shell configuration files and overwrite them
+  for src_file in "${!SHELL_CONFIGS[@]}"; do
+    local src_path="$SHELL_CONFIGS_DIR/$src_file"
+    local dest_path="${SHELL_CONFIGS[$src_file]}"
 
     # Ensure the source file exists
     if [ ! -f "$src_path" ]; then
-      echo "Warning: Source RC file $src_path not found. Skipping."
+      echo "Warning: Source shell configuration file $src_path not found. Skipping."
       continue
     fi
 
@@ -1544,7 +1544,7 @@ overwrite_rc_files() {
       }
     fi
 
-    # Backup the existing RC file if it exists
+    # Backup the existing configuration file if it exists
     if [ -f "$dest_path" ]; then
       echo "Backing up existing $dest_path to $dest_path.bak..."
       cp "$dest_path" "$dest_path.bak" || {
@@ -1553,7 +1553,7 @@ overwrite_rc_files() {
       }
     fi
 
-    # Copy the new RC file to the destination
+    # Copy the new configuration file to the destination
     echo "Copying $src_path to $dest_path..."
     cp "$src_path" "$dest_path" || {
       echo "Error: Failed to copy $src_path to $dest_path. Skipping."
@@ -1569,8 +1569,9 @@ overwrite_rc_files() {
     echo "Successfully updated $dest_path."
   done
 
-  echo "RC file overwrite process completed."
+  echo "Shell configuration file overwrite process completed."
 }
+
 
 # Configure X11 Forwarding
 configure_ssh_x11_forwarding() {
@@ -1633,7 +1634,7 @@ STEPS=(
 	"configure_git"
 	"install_coc_dependencies"
 	"rebuild_bat_cache"
-	"overwrite_rc_files"
+	"overwrite_shell_configs"
 	"configure_ssh_x11_forwarding"
 	"ensure_home_ownership"
 )
