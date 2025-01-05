@@ -877,7 +877,7 @@ install_zsh() {
 }
 
 # Function to install and configure Starship prompt and Zsh plugins
-install_starship_and_configure_zsh() {
+install_starship() {
   echo "Installing Starship prompt and configuring Zsh plugins..."
 
   # --- Install Starship ---
@@ -985,6 +985,7 @@ copy_config_files() {
 	"timewarrior"
 	"taskwarrior"
     "tmux-sessionizer.conf"
+	"truvium"
   )
 
   # Copy dot-prefixed files to the home directory
@@ -1490,7 +1491,7 @@ STEPS=(
 	"install_hdl_checker_with_pipx"
 	"clone_fzf_git_repo"
 	"install_zsh"
-	"install_starship_and_configure_zsh"
+	"install_starship"
 	# Need to make two separate and complete .zshrc files for each prompt config
 	# Copy Oh My ZSH .zshrc
 	# Copy Starship .zshrc
