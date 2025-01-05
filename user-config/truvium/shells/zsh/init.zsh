@@ -29,7 +29,7 @@ load_prompt() {
 }
 
 # Change to your preferred prompt
-load_prompt "starship"
+load_prompt "omz"
 
 # TruVium welcome prompt for new tmux sessions
 if [[ -n "$TMUX" ]]; then

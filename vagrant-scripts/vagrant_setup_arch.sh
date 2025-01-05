@@ -596,9 +596,12 @@ install_broot() {
   echo "Installing broot shell integration..."
 
   # Install the shell function integration
-  broot --install
+  su - "$ACTUAL_USER" -c "broot --install" || {
+    echo "Failed to run broot shell integration."
+    exit 1
+  }
 
-  echo "broot installed successfully."
+  echo "broot shell integration installed successfully."
 }
 
 # Function to install Go tools
@@ -1631,6 +1634,7 @@ STEPS=(
 	"install_spaceship"
 	"install_powerlevel10k"
 	"install_oh_my_posh"
+	"install_zsh_plugins"
 	"configure_git"
 	"install_coc_dependencies"
 	"rebuild_bat_cache"
