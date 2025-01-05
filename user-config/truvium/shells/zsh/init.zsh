@@ -1,6 +1,6 @@
-################################
-# Custom Startup Configuration #
-################################
+########################################
+# Custom Startup Configuration for zsh #
+########################################
 
 # Enable debug mode (set to "true" for verbose output, "false" to suppress messages)
 DEBUG=false
@@ -9,7 +9,7 @@ DEBUG=false
 if [[ $- == *i* ]]; then
   if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then
     # Generate a unique session name
-    SESSION_NAME="session-$(date +%s)"
+    SESSION_NAME="session-$(date +%s)-$$"
     # Start a new tmux session or attach to an existing one
     tmux new-session -As "$SESSION_NAME"
     # Mark the session as temporary (not persistent)
