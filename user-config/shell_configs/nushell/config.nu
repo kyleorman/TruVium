@@ -16,3 +16,8 @@
 #
 # You can remove these comments if you want or leave
 # them for future reference.
+
+# Source NuShell init file from ~/.config/truvium/shells/nushell
+if (ls ~/.config/truvium/shells/nushell/init.nu | length) > 0 {
+    source-env ~/.config/truvium/shells/nushell/init.nu
+}

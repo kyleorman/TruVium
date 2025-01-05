@@ -19,7 +19,7 @@ fi
 
 # Function to load a prompt
 load_prompt() {
-    local prompt_path="$HOME/.config/truvium/shells/zsh/prompts/$1.zsh"
+    local prompt_path="$HOME/.config/truvium/shells/bash/prompts/$1.sh"
     if [ -f "$prompt_path" ]; then
         source "$prompt_path"
         $DEBUG && echo "DEBUG: Prompt loaded: $1 from $prompt_path"
@@ -28,22 +28,20 @@ load_prompt() {
     fi
 }
 
-
 # TruVium welcome prompt for new tmux sessions
 if [[ -n "$TMUX" ]]; then
   if [[ "$(tmux show-environment TMUX_WELCOME_SHOWN 2>/dev/null)" != "TMUX_WELCOME_SHOWN=1" ]]; then
-    figlet TruVium | boxes | lolcat && fortune -s /usr/share/fortune/computers /usr/share/fortune/wisdom-fr /usr/share/fortune/hitchhiker /usr/share/fortune/science /usr/share/fortune/riddles | lolcat
+    figlet TruVium | boxes | lolcat && fortune -s | lolcat
     tmux set-environment TMUX_WELCOME_SHOWN 1
   fi
 fi
 
-# Function to source all `.zsh` files in a directory
+# Function to source all `.sh` files in a directory
 source_directory() {
     local dir="$1"
     if [ -d "$dir" ]; then
-        for file in "$dir"/*.zsh; do
-            # Skip the `init.zsh` file or other files you want to exclude
-            [ "$(basename "$file")" = "init.zsh" ] && continue
+        for file in "$dir"/*.sh; do
+            [ "$(basename "$file")" = "init.sh" ] && continue
             if [ -f "$file" ] && [ -r "$file" ]; then
                 source "$file"
                 $DEBUG && echo "Loaded: $file"
@@ -56,18 +54,11 @@ source_directory() {
     fi
 }
 
-# Load base Zsh configurations
-source_directory "$HOME/.config/truvium/shells/zsh"
+# Load base Bash configurations
+source_directory "$HOME/.config/truvium/shells/bash"
 
 # Load CLI tool configurations
-source_directory "$HOME/.config/truvium/shells/zsh/tools"
+source_directory "$HOME/.config/truvium/shells/bash/tools"
 
-# Only start the tmux cleanup process on loading into TruVium
-if [[ -o interactive ]] && [[ -z "$TMUX" ]]; then
-    # Check if cleanup is already running before starting
-    tmux_cmd check-cleanup | grep -q "No periodic cleanup loop is running" && tmux_cmd start-cleanup
-fi
-
-# Change to your preferred prompt
-# Default options: omz, starship, powerlevel10k, spaceship, omp
-load_prompt "omz"
+# Change to your preferred prompt: starship, omp
+load_prompt "omp"

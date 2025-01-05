@@ -1,17 +1,4 @@
-#
-# ~/.bashrc
-#
-
-# If not running interactively, don't do anything
-[[ $- != *i* ]] && return
-
-alias ls='ls --color=auto'
-alias grep='grep --color=auto'
-PS1='[\u@\h \W]\$ '
-. "$HOME/.cargo/env"
-
-# Created by `pipx` on 2025-01-04 01:20:19
-export PATH="$PATH:/home/vagrant/.local/bin"
-export PATH="$HOME/.local/bin:$PATH"
-
-source /home/vagrant/.config/broot/launcher/bash/br
+# Source Bash init file from ~/.config/truvium/shells/bash
+if [ -f ~/.config/truvium/shells/bash/init.sh ]; then
+    source ~/.config/truvium/shells/bash/init.sh
+fi

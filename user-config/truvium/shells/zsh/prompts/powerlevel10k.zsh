@@ -102,5 +102,4 @@ source $ZSH/oh-my-zsh.sh
 # Example aliases
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
-
 export POWERLEVEL9K_INSTANT_PROMPT=quiet
