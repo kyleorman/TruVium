@@ -589,28 +589,13 @@ install_verible_from_source() {
   fi
 }
 
-# Function to install CheckMake via Go
-install_checkmake() {
-  echo "Installing CheckMake via Go..."
-  su - "$ACTUAL_USER" -c "go install github.com/mrtazz/checkmake/cmd/checkmake@latest" || {
-    echo "CheckMake installation failed"
-    exit 1
-  }
+install_broot() {
+  echo "Installing broot shell integration..."
 
-  # Ensure GOPATH/bin is in PATH
-  if ! grep -q 'export PATH="$HOME/go/bin:$PATH"' "$USER_HOME/.zshrc"; then
-    echo 'export PATH="$HOME/go/bin:$PATH"' >>"$USER_HOME/.zshrc"
-  fi
-}
+  # Install the shell function integration
+  broot --install
 
-# Function to install Go language server
-install_go_language_server() {
-  echo "Installing Go language server..."
-  # Go Language Server
-  su - "$ACTUAL_USER" -c "go install golang.org/x/tools/gopls@latest" || {
-    echo "Failed to install gopls"
-    exit 1
-  }
+  echo "broot installed successfully."
 }
 
 # Function to install Go tools
@@ -889,54 +874,6 @@ install_zsh() {
   su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '$ZSH_CUSTOM/plugins/zsh-syntax-highlighting'" || echo "Failed to clone zsh-syntax-highlighting."
   su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions.git '$ZSH_CUSTOM/plugins/zsh-autosuggestions'" || echo "Failed to clone zsh-autosuggestions."
 
-  # Update .zshrc plugins if not already updated
-  if grep -q "plugins=(" "$USER_HOME/.zshrc"; then
-    # Check if the plugins already contain the necessary entries
-    if ! grep -q "zsh-syntax-highlighting" "$USER_HOME/.zshrc"; then
-      sed -i 's/plugins=(/plugins=(zsh-syntax-highlighting /' "$USER_HOME/.zshrc"
-    fi
-    if ! grep -q "zsh-autosuggestions" "$USER_HOME/.zshrc"; then
-      sed -i 's/plugins=(/plugins=(zsh-autosuggestions /' "$USER_HOME/.zshrc"
-    fi
-  else
-    # If no plugins line exists, add it
-    echo "plugins=(git zsh-syntax-highlighting zsh-autosuggestions)" >>"$USER_HOME/.zshrc"
-  fi
-
-  # Add custom PATH entries and aliases if not already present
-  {
-    echo 'export PATH="$HOME/.local/bin:$PATH"'
-    echo 'export PATH="/usr/bin:$PATH"'
-    echo 'export PATH="$HOME/go/bin:$PATH"'
-    echo 'export PATH="/usr/local/bin:$PATH"'
-    echo 'export PATH="/usr/local/go/bin:$PATH"'
-    echo 'alias emacs="emacs -nw"'
-    echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
-	echo 'source <(fzf --zsh)'
-	echo 'export FZF_DEFAULT_OPTS=" \'
-	echo '--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 \'
-	echo '--color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc \'
-	echo '--color=marker:#b4befe,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8 \'
-	echo '--color=selected-bg:#45475a \'
-	echo '--multi"'	
-    echo ''
-    echo 'if [[ $- == *i* ]]; then' # Check if the shell is interactive
-    echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
-    echo '    if tmux has-session -t default 2> /dev/null; then'
-    echo '      tmux attach-session -t default'
-    echo '    else'
-    echo '      tmux new-session -s default'
-    echo '    fi'
-    echo '  fi'
-    echo 'fi'
-    echo '# Run figlet | boxes | lolcat only the first time in a tmux session'
-    echo 'if [[ -n "$TMUX" ]]; then'
-    echo '  if [[ "$(tmux show-environment TMUX_WELCOME_SHOWN 2>/dev/null)" != "TMUX_WELCOME_SHOWN=1" ]]; then'
-    echo '    figlet TruVium | boxes | lolcat && fortune -s /usr/share/fortune/computers /usr/share/fortune/wisdom-fr /usr/share/fortune/hitchhiker /usr/share/fortune/science /usr/share/fortune/riddles | lolcat'
-    echo '    tmux set-environment TMUX_WELCOME_SHOWN 1'
-    echo '  fi'
-    echo 'fi'
-  } >>"$USER_HOME/.zshrc"
 }
 
 # Function to install and configure Starship prompt and Zsh plugins
@@ -1006,33 +943,8 @@ symbol = ' '
 symbol = '📦 '
 EOF"
   fi
-
-  # --- Update .zshrc ---
-  ZSHRC_FILE="$USER_HOME/.zshrc"
-
-  # Source Zsh plugins directly
-  if ! grep -q "source $ZSH_PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh" "$ZSHRC_FILE"; then
-    echo "Sourcing zsh-autosuggestions..."
-    su - "$ACTUAL_USER" -c "echo 'source $ZSH_PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh' >> $ZSHRC_FILE"
-  fi
-
-  if ! grep -q "source $ZSH_PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" "$ZSHRC_FILE"; then
-    echo "Sourcing zsh-syntax-highlighting..."
-    su - "$ACTUAL_USER" -c "echo 'source $ZSH_PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' >> $ZSHRC_FILE"
-  fi
-
-  if ! grep -q "fpath+=($ZSH_PLUGIN_DIR/zsh-completions/src)" "$ZSHRC_FILE"; then
-    echo "Adding zsh-completions to fpath..."
-    su - "$ACTUAL_USER" -c "echo 'fpath+=($ZSH_PLUGIN_DIR/zsh-completions/src)' >> $ZSHRC_FILE"
-  fi
-
-  # Initialize Starship in .zshrc
-  if ! grep -q 'eval "$(starship init zsh)"' "$ZSHRC_FILE"; then
-    echo "Adding Starship initialization to .zshrc..."
-    su - "$ACTUAL_USER" -c "echo 'eval \"\$(starship init zsh)\"' >> $ZSHRC_FILE"
-  fi
-
-  echo "Starship prompt and Zsh plugins installed and configured."
+  
+  echo "Starship prompt and Zsh plugins installed."
 }
 
 # Function to install coc.nvim dependencies
@@ -1161,15 +1073,13 @@ copy_config_files() {
 
 # Function to install tmux-sessionizer
 install_tmux_sessionizer() {
-  echo "Installing tmux-sessionizer using the recommended method..."
+  echo "Installing tmux-sessionizer..."
 
   # Define the installation target and source URL
   INSTALL_DIR="/usr/local/bin"
   SCRIPT_URL="https://raw.githubusercontent.com/kyleorman/tmux-sessionizer/main/tmux-sessionizer.sh"
   INSTALL_PATH="$INSTALL_DIR/tmux-sessionizer"
-  TMUX_FUNCTIONS_URL="https://raw.githubusercontent.com/kyleorman/tmux-sessionizer/main/.tmux-functions.zsh"
   CONFIG_DIR="$USER_HOME/.config"
-  TMUX_FUNCTIONS_PATH="$CONFIG_DIR/.tmux-functions.zsh"
 
   # Ensure the target directory exists
   echo "Ensuring $INSTALL_DIR exists..."
@@ -1199,18 +1109,11 @@ install_tmux_sessionizer() {
     exit 1
   }
 
-  # Download the .tmux-functions.zsh file
-  echo "Downloading .tmux-functions.zsh from $TMUX_FUNCTIONS_URL..."
-  su - "$ACTUAL_USER" -c "curl -fsLo $TMUX_FUNCTIONS_PATH $TMUX_FUNCTIONS_URL" || {
-    echo "Error: Failed to download .tmux-functions.zsh."
-    exit 1
-  }
-
   # Verify the installation
-  if command -v tmux-sessionizer >/dev/null 2>&1 && [ -f "$TMUX_FUNCTIONS_PATH" ]; then
-    echo "tmux-sessionizer and .tmux-functions.zsh installed successfully."
+  if command -v tmux-sessionizer >/dev/null 2>&1; then
+    echo "tmux-sessionizer installed successfully."
   else
-    echo "Error: tmux-sessionizer installation failed or .tmux-functions.zsh is missing."
+    echo "Error: tmux-sessionizer installation failed."
     exit 1
   fi
 }
@@ -1577,6 +1480,7 @@ STEPS=(
 	"install_python_tools"
 	"install_tmux_sessionizer"
 	"install_cht_sh"
+	"install_broot"
 	"install_go_tools"
 	# "install_verible_from_source" (Causing Error)
 	"install_tpm"
@@ -1586,7 +1490,7 @@ STEPS=(
 	"install_hdl_checker_with_pipx"
 	"clone_fzf_git_repo"
 	"install_zsh"
-	# "install_starship_and_configure_zsh"
+	"install_starship_and_configure_zsh"
 	# Need to make two separate and complete .zshrc files for each prompt config
 	# Copy Oh My ZSH .zshrc
 	# Copy Starship .zshrc
