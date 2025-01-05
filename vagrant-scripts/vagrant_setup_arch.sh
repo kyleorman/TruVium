@@ -878,12 +878,12 @@ install_oh_my_zsh() {
 
 # Function to install and configure Starship prompt and Zsh plugins
 install_starship() {
-  echo "Installing Starship prompt and configuring Zsh plugins..."
+  echo "Installing Starship prompt and configuring it for the actual user..."
 
-  # --- Install Starship ---
-  if ! command -v starship &>/dev/null; then
+  # Install Starship as the actual user
+  if ! su - "$ACTUAL_USER" -c "command -v starship &>/dev/null"; then
     echo "Installing Starship..."
-    curl -sS https://starship.rs/install.sh | sh -s -- --yes || {
+    su - "$ACTUAL_USER" -c "curl -sS https://starship.rs/install.sh | sh -s -- --yes" || {
       echo "Failed to install Starship."
       exit 1
     }
@@ -891,14 +891,12 @@ install_starship() {
     echo "Starship is already installed."
   fi
 
-  # --- Configure Starship ---
+  # Configure Starship
   STARSHIP_CONFIG_DIR="$USER_HOME/.config"
   STARSHIP_CONFIG_FILE="$STARSHIP_CONFIG_DIR/starship.toml"
 
-  # Ensure the config directory exists
   su - "$ACTUAL_USER" -c "mkdir -p $STARSHIP_CONFIG_DIR"
 
-  # Create a basic Starship configuration file if it doesn't exist
   if [ ! -f "$STARSHIP_CONFIG_FILE" ]; then
     echo "Creating Starship configuration file..."
     su - "$ACTUAL_USER" -c "cat <<EOF > $STARSHIP_CONFIG_FILE
@@ -912,23 +910,33 @@ symbol = ' '
 [package]
 symbol = '📦 '
 EOF"
+  else
+    echo "Starship configuration file already exists. Skipping creation."
   fi
-  
-  echo "Starship prompt and Zsh plugins installed."
+
+  # Ensure Starship is initialized in the user's shell configuration
+  SHELL_RC="$USER_HOME/.zshrc" # Adjust for other shells as needed
+  if ! grep -q 'eval "$(starship init zsh)"' "$SHELL_RC"; then
+    echo 'eval "$(starship init zsh)"' >>"$SHELL_RC"
+  fi
+
+  echo "Starship prompt installed and configured successfully."
 }
 
 install_oh_my_posh() {
   echo "Installing Oh My Posh..."
 
-  if ! command -v oh-my-posh &>/dev/null; then
-    echo "Downloading and installing Oh My Posh..."
-    curl -s https://ohmyposh.dev/install.sh | bash -s || {
-      echo "Failed to install Oh My Posh."
-      exit 1
-    }
-  else
-    echo "Oh My Posh is already installed."
+  # Check if Oh My Posh is already installed
+  if su - "$ACTUAL_USER" -c "command -v oh-my-posh &>/dev/null"; then
+    echo "Oh My Posh is already installed. Skipping installation."
+    return
   fi
+
+  # Download and install Oh My Posh as the actual user
+  su - "$ACTUAL_USER" -c "curl -s https://ohmyposh.dev/install.sh | bash -s" || {
+    echo "Failed to install Oh My Posh."
+    exit 1
+  }
 
   echo "Oh My Posh installation complete."
 }
