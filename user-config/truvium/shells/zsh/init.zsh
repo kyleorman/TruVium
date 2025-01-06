@@ -56,6 +56,10 @@ source_directory() {
     fi
 }
 
+# Change to your preferred prompt
+# Default options: omz, starship, powerlevel10k, spaceship, omp
+load_prompt "omz"
+
 # Load base Zsh configurations
 source_directory "$HOME/.config/truvium/shells/zsh"
 
@@ -67,7 +71,3 @@ if [[ -o interactive ]] && [[ -z "$TMUX" ]]; then
     # Check if cleanup is already running before starting
     tmux_cmd check-cleanup | grep -q "No periodic cleanup loop is running" && tmux_cmd start-cleanup
 fi
-
-# Change to your preferred prompt
-# Default options: omz, starship, powerlevel10k, spaceship, omp
-load_prompt "omz"

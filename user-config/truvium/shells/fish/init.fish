@@ -57,6 +57,10 @@ function source_directory
     end
 end
 
+# Change to your preferred prompt
+# Default options: starship, omp
+load_prompt "starship"
+
 # Load base Fish configurations
 source_directory "$HOME/.config/truvium/shells/fish"
 
@@ -70,7 +74,3 @@ if status is-interactive; and not set -q TMUX
         tmux_cmd start-cleanup
     end
 end
-
-# Change to your preferred prompt
-# Default options: starship, omp
-load_prompt "omp"

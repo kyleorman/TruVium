@@ -1047,7 +1047,7 @@ copy_config_files() {
   DOT_FILES=(
     "vimrc"
     "tmux.conf"
-    "tmux_keys.sh"
+    #"tmux_keys.sh"
     "tmuxline.conf"
   )
 
@@ -1069,6 +1069,7 @@ copy_config_files() {
 	"taskwarrior"
     "tmux-sessionizer.conf"
 	"truvium"
+	"tmux_keys.sh"
   )
 
   # Copy dot-prefixed files to the home directory
