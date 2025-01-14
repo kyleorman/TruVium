@@ -306,6 +306,7 @@ install_dependencies() {
 	fish \
 	nushell \
 	bazel \
+	termscp \
     go ||
     {
       echo "Package installation failed"
