@@ -1630,7 +1630,7 @@ STEPS=(
 	"install_python_tools"
 	"install_tmux_sessionizer"
 	"install_cht_sh"
-	"install_broot"
+	# "install_broot"
 	"install_go_tools"
 	# "install_verible_from_source" (Causing Error)
 	"install_tpm"
