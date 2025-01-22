@@ -340,7 +340,7 @@ install_aur_packages() {
     fortune-mod-wisdom-fr
     fortune-mod-hitchhiker
     tlrc
-    broot-git
+    # broot-git
 	lazysql
 	jupyterlab-catppuccin
 	viu
