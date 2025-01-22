@@ -5,6 +5,84 @@
 set -eEuo pipefail
 IFS=$'\n\t'
 
+# --- Bash Progress Bar ---
+# Colors for both interactive and non-interactive modes
+if [ -t 1 ] && command -v tput >/dev/null 2>&1; then
+    INTERACTIVE=1
+    BLUE="\033[34m"    # Simple blue color
+    RESET="\033[0m"    # Reset
+else
+    INTERACTIVE=0
+    BLUE=""
+    RESET=""
+fi
+
+# Initialize progress bar position
+init_progress_bar() {
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        # Save cursor position and hide it
+        echo -en "\033[s"
+        echo -en "\033[?25l"
+        PROGRESS_LINE=$(tput lines)
+    fi
+}
+
+# Progress bar function
+progress_bar_inline() {
+    local current="$1"
+    local total="$2"
+    local width=50
+
+    # Calculate percentage and bar segments
+    local percent=$(( current * 100 / total ))
+    local filled=$(( current * width / total ))
+    local empty=$(( width - filled ))
+
+    # Create the bar
+    local bar_filled=$(printf "%${filled}s" | tr ' ' '#')
+    local bar_empty=$(printf "%${empty}s" | tr ' ' '-')
+    local bar="[${bar_filled}${bar_empty}] ${percent}%"
+
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        # Save position, move to bottom, print bar, restore position
+        echo -en "\033[s"
+        echo -en "\033[${PROGRESS_LINE};0H"
+        echo -en "\033[K"
+        echo -en "${BLUE}${bar}${RESET}"
+        echo -en "\033[u"
+    else
+        # Simple progress output for non-interactive mode
+        echo "Progress: ${bar}"
+    fi
+}
+
+# Log output function
+log_line() {
+    local msg="$1"
+    
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        # Save position, print message, restore position
+        echo -en "\033[s"
+        echo -e "$msg"
+        echo -en "\033[u"
+    else
+        # Simple logging for non-interactive mode
+        echo "==> $msg"
+    fi
+}
+
+# Cleanup function
+cleanup_progress_bar() {
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        # Move cursor below progress bar and show it
+        echo -en "\033[${PROGRESS_LINE}H\n"
+        echo -en "\033[?25h"
+    else
+        # Just print a newline in non-interactive mode
+        echo ""
+    fi
+}
+
 # --- Configuration Variables ---
 SCRIPT_DIR="/vagrant" # Adjust this if needed
 LOGFILE="/var/log/setup-script.log"
@@ -112,6 +190,56 @@ ensure_community_repo_enabled() {
   fi
 }
 
+# Function to enable parallel downloads in pacman.conf and parallel builds in makepkg.conf
+enable_parallel_builds() {
+  echo "Enabling parallel downloads in pacman.conf..."
+
+  PACMAN_CONF="/etc/pacman.conf"
+  MAKEPKG_CONF="/etc/makepkg.conf"
+
+  # Backup the original pacman.conf if not already backed up
+  if [ ! -f "${PACMAN_CONF}.bak" ]; then
+    cp "$PACMAN_CONF" "${PACMAN_CONF}.bak"
+    echo "Backup of pacman.conf created at ${PACMAN_CONF}.bak"
+  fi
+
+  # Enable ILoveCandy and ParallelDownloads = 5 (or any value you prefer)
+  # (Comment out any existing ParallelDownloads and add your own)
+  sed -i 's/^#\(Color\)$/\1/' "$PACMAN_CONF"
+  sed -i 's/^#\(ILoveCandy\)$/\1/' "$PACMAN_CONF"
+  if grep -q '^#ParallelDownloads' "$PACMAN_CONF"; then
+    sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' "$PACMAN_CONF"
+  elif ! grep -q '^ParallelDownloads' "$PACMAN_CONF"; then
+    # If ParallelDownloads doesn't exist at all, add it
+    sed -i '/^#ParallelDownloads/i ParallelDownloads = 5' "$PACMAN_CONF"
+  fi
+
+  echo "Enabling parallel builds in makepkg.conf..."
+
+  # Backup the original makepkg.conf if not already backed up
+  if [ ! -f "${MAKEPKG_CONF}.bak" ]; then
+    cp "$MAKEPKG_CONF" "${MAKEPKG_CONF}.bak"
+    echo "Backup of makepkg.conf created at ${MAKEPKG_CONF}.bak"
+  fi
+
+  # Replace existing MAKEFLAGS line or append if not found
+  # This uses all available cores: -j$(nproc)
+  if grep -q '^#MAKEFLAGS=' "$MAKEPKG_CONF"; then
+    sed -i "s|^#MAKEFLAGS=.*|MAKEFLAGS=\"-j$(nproc)\"|" "$MAKEPKG_CONF"
+  elif grep -q '^MAKEFLAGS=' "$MAKEPKG_CONF"; then
+    sed -i "s|^MAKEFLAGS=.*|MAKEFLAGS=\"-j$(nproc)\"|" "$MAKEPKG_CONF"
+  else
+    echo "MAKEFLAGS=\"-j$(nproc)\"" >> "$MAKEPKG_CONF"
+  fi
+
+  # (Optionally) you can also speed up compression by enabling more threads
+  if grep -q '^COMPRESSXZ' "$MAKEPKG_CONF"; then
+    sed -i "s|^COMPRESSXZ=.*|COMPRESSXZ=(xz -c -T $(nproc) -z -)|" "$MAKEPKG_CONF"
+  fi
+
+  echo "Parallel downloads and builds have been enabled."
+}
+
 # Function to install essential packages
 install_dependencies() {
   echo "Installing essential packages..."
@@ -160,6 +288,25 @@ install_dependencies() {
     fzf \
     npm \
     nodejs \
+    bat \
+    eza \
+    zoxide \
+    btop \
+    thefuck \
+    p7zip \
+    jq \
+    poppler \
+    imagemagick \
+    task \
+    taskwarrior-tui \
+	timew \
+    lazygit \
+	yazi \
+	kitty \
+	fish \
+	nushell \
+	bazel \
+	termscp \
     go ||
     {
       echo "Package installation failed"
@@ -192,6 +339,13 @@ install_aur_packages() {
     fortune-mod
     fortune-mod-wisdom-fr
     fortune-mod-hitchhiker
+    tlrc
+    broot-git
+	lazysql
+	jupyterlab-catppuccin
+	viu
+	vscode
+    #ffmpeg
   )
 
   # Install each AUR package with retries
@@ -439,28 +593,44 @@ install_verible_from_source() {
   fi
 }
 
-# Function to install CheckMake via Go
-install_checkmake() {
-  echo "Installing CheckMake via Go..."
-  su - "$ACTUAL_USER" -c "go install github.com/mrtazz/checkmake/cmd/checkmake@latest" || {
-    echo "CheckMake installation failed"
+install_broot() {
+  echo "Installing broot shell integration..."
+
+  # Install the shell function integration
+  su - "$ACTUAL_USER" -c "broot --install" || {
+    echo "Failed to run broot shell integration."
     exit 1
   }
 
-  # Ensure GOPATH/bin is in PATH
-  if ! grep -q 'export PATH="$HOME/go/bin:$PATH"' "$USER_HOME/.zshrc"; then
-    echo 'export PATH="$HOME/go/bin:$PATH"' >>"$USER_HOME/.zshrc"
-  fi
+  echo "broot shell integration installed successfully."
 }
 
-# Function to install Go language server
-install_go_language_server() {
-  echo "Installing Go language server..."
-  # Go Language Server
-  su - "$ACTUAL_USER" -c "go install golang.org/x/tools/gopls@latest" || {
-    echo "Failed to install gopls"
+# Function to install Go tools
+install_go_tools() {
+  echo "Installing Go tools..."
+
+  # Check if Go is installed
+  if ! command -v go &>/dev/null; then
+    echo "Error: Go is not installed. Please ensure Go is installed before running this function."
     exit 1
-  }
+  fi
+
+  # Install Go tools
+  TOOLS=(
+    "golang.org/x/tools/gopls@latest"       # Go language server
+    "github.com/mrtazz/checkmake/cmd/checkmake@latest"  # CheckMake
+    "github.com/DerTimonius/twkb@latest"   # TWKB
+  )
+
+  for tool in "${TOOLS[@]}"; do
+    echo "Installing $tool..."
+    if ! su - "$ACTUAL_USER" -c "go install $tool"; then
+      echo "Error: Failed to install $tool"
+      exit 1
+    fi
+  done
+
+  echo "Go tools installed successfully."
 }
 
 # Function to install Tmux Plugin Manager and tmux plugins
@@ -529,6 +699,7 @@ install_vim_plugins() {
     "airblade/vim-gitgutter"
     "bling/vim-bufferline"
     "mbbill/undotree"
+    "kyleorman/vim-themer"
   )
 
   OPTIONAL_PLUGINS=(
@@ -543,6 +714,12 @@ install_vim_plugins() {
   COLOR_SCHEMES=(
     "altercation/vim-colors-solarized"
     "rafi/awesome-vim-colorschemes"
+	"catppuccin/vim"
+	"ywjno/vim-tomorrow-theme"
+	"ayu-theme/ayu-vim"
+	"ghifarit53/tokyonight-vim"
+	#"chriskempson/base16-vim"
+	"tinted-theming/tinted-vim"
   )
 
   # Define plugin directories
@@ -671,58 +848,188 @@ setup_ftdetect_symlinks() {
   fi
 }
 
-# Function to install and configure Zsh and Oh My Zsh
-install_zsh() {
-  echo "Installing Oh My Zsh..."
-  su - "$ACTUAL_USER" -c "sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" --unattended"
+# Function to clone the fzf-git.sh repository
+clone_fzf_git_repo() {
+  echo "Cloning fzf-git.sh repository to the home directory..."
 
-  # Install Zsh plugins
-  ZSH_CUSTOM="$USER_HOME/.oh-my-zsh/custom"
-  su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '$ZSH_CUSTOM/plugins/zsh-syntax-highlighting'" || echo "Failed to clone zsh-syntax-highlighting."
-  su - "$ACTUAL_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions.git '$ZSH_CUSTOM/plugins/zsh-autosuggestions'" || echo "Failed to clone zsh-autosuggestions."
+  # Define repository details
+  FZF_GIT_REPO="https://github.com/junegunn/fzf-git.sh.git"
+  TARGET_DIR="$USER_HOME/fzf-git.sh"
 
-  # Update .zshrc plugins if not already updated
-  if grep -q "plugins=(" "$USER_HOME/.zshrc"; then
-    # Check if the plugins already contain the necessary entries
-    if ! grep -q "zsh-syntax-highlighting" "$USER_HOME/.zshrc"; then
-      sed -i 's/plugins=(/plugins=(zsh-syntax-highlighting /' "$USER_HOME/.zshrc"
-    fi
-    if ! grep -q "zsh-autosuggestions" "$USER_HOME/.zshrc"; then
-      sed -i 's/plugins=(/plugins=(zsh-autosuggestions /' "$USER_HOME/.zshrc"
-    fi
-  else
-    # If no plugins line exists, add it
-    echo "plugins=(git zsh-syntax-highlighting zsh-autosuggestions)" >>"$USER_HOME/.zshrc"
+  # Check if the target directory already exists
+  if [ -d "$TARGET_DIR" ]; then
+    echo "The fzf-git.sh repository already exists at $TARGET_DIR. Skipping clone."
+    return 0
   fi
 
-  # Add custom PATH entries and aliases if not already present
-  {
-    echo 'export PATH="$HOME/.local/bin:$PATH"'
-    echo 'export PATH="/usr/bin:$PATH"'
-    echo 'export PATH="$HOME/go/bin:$PATH"'
-    echo 'export PATH="/usr/local/bin:$PATH"'
-    echo 'export PATH="/usr/local/go/bin:$PATH"'
-    echo 'alias emacs="emacs -nw"'
-    echo '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
-    echo ''
-    echo 'if [[ $- == *i* ]]; then' # Check if the shell is interactive
-    echo '  if command -v tmux > /dev/null 2>&1 && [ -z "$TMUX" ]; then'
-    echo '    if tmux has-session -t default 2> /dev/null; then'
-    echo '      tmux attach-session -t default'
-    echo '    else'
-    echo '      tmux new-session -s default'
-    echo '    fi'
-    echo '  fi'
-    echo 'fi'
-    echo '# Run figlet | boxes | lolcat only the first time in a tmux session'
-    echo 'if [[ -n "$TMUX" ]]; then'
-    echo '  if [[ "$(tmux show-environment TMUX_WELCOME_SHOWN 2>/dev/null)" != "TMUX_WELCOME_SHOWN=1" ]]; then'
-    echo '    figlet TruVium | boxes | lolcat && fortune -s /usr/share/fortune/computers /usr/share/fortune/wisdom-fr /usr/share/fortune/hitchhiker /usr/share/fortune/science /usr/share/fortune/riddles | lolcat'
-    echo '    tmux set-environment TMUX_WELCOME_SHOWN 1'
-    echo '  fi'
-    echo 'fi'
-  } >>"$USER_HOME/.zshrc"
+  # Clone the repository
+  su - "$ACTUAL_USER" -c "git clone --depth=1 $FZF_GIT_REPO $TARGET_DIR" || {
+    echo "Error: Failed to clone fzf-git.sh repository."
+    exit 1
+  }
+
+  echo "Successfully cloned fzf-git.sh repository to $TARGET_DIR."
 }
+
+# Function to install Oh My Zsh
+install_oh_my_zsh() {
+  echo "Installing Oh My Zsh..."
+  su - "$ACTUAL_USER" -c "sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" --unattended"
+}
+
+# Function to install and configure Starship prompt and Zsh plugins
+install_starship() {
+  echo "Installing Starship prompt and configuring it for the actual user..."
+
+  # Install Starship as the actual user
+  if ! su - "$ACTUAL_USER" -c "command -v starship &>/dev/null"; then
+    echo "Installing Starship..."
+    su - "$ACTUAL_USER" -c "curl -sS https://starship.rs/install.sh | sh -s -- --yes" || {
+      echo "Failed to install Starship."
+      exit 1
+    }
+  else
+    echo "Starship is already installed."
+  fi
+
+  # Configure Starship
+  STARSHIP_CONFIG_DIR="$USER_HOME/.config"
+  STARSHIP_CONFIG_FILE="$STARSHIP_CONFIG_DIR/starship.toml"
+
+  su - "$ACTUAL_USER" -c "mkdir -p $STARSHIP_CONFIG_DIR"
+
+  if [ ! -f "$STARSHIP_CONFIG_FILE" ]; then
+    echo "Creating Starship configuration file..."
+    su - "$ACTUAL_USER" -c "cat <<EOF > $STARSHIP_CONFIG_FILE
+[character]
+success_symbol = '[➜](bold green)'
+error_symbol = '[✗](bold red)'
+
+[git_branch]
+symbol = ' '
+
+[package]
+symbol = '📦 '
+EOF"
+  else
+    echo "Starship configuration file already exists. Skipping creation."
+  fi
+
+  # Ensure Starship is initialized in the user's shell configuration
+  SHELL_RC="$USER_HOME/.zshrc" # Adjust for other shells as needed
+  if ! grep -q 'eval "$(starship init zsh)"' "$SHELL_RC"; then
+    echo 'eval "$(starship init zsh)"' >>"$SHELL_RC"
+  fi
+
+  echo "Starship prompt installed and configured successfully."
+}
+
+install_oh_my_posh() {
+  echo "Installing Oh My Posh..."
+
+  # Check if Oh My Posh is already installed
+  if su - "$ACTUAL_USER" -c "command -v oh-my-posh &>/dev/null"; then
+    echo "Oh My Posh is already installed. Skipping installation."
+    return
+  fi
+
+  # Download and install Oh My Posh as the actual user
+  su - "$ACTUAL_USER" -c "curl -s https://ohmyposh.dev/install.sh | bash -s" || {
+    echo "Failed to install Oh My Posh."
+    exit 1
+  }
+
+  echo "Oh My Posh installation complete."
+}
+
+install_powerlevel10k() {
+  echo "Installing Powerlevel10k..."
+
+  P10K_DIR="$USER_HOME/.oh-my-zsh/custom/themes/powerlevel10k"
+
+  if [ ! -d "$P10K_DIR" ]; then
+    echo "Cloning Powerlevel10k repository..."
+    su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $P10K_DIR" || {
+      echo "Failed to clone Powerlevel10k."
+      exit 1
+    }
+  else
+    echo "Powerlevel10k is already installed."
+  fi
+
+  echo "Powerlevel10k installation complete."
+}
+
+install_spaceship() {
+  echo "Installing Spaceship Prompt..."
+
+  SPACESHIP_DIR="$USER_HOME/.oh-my-zsh/custom/themes/spaceship-prompt"
+
+  if [ ! -d "$SPACESHIP_DIR" ]; then
+    echo "Cloning Spaceship Prompt repository..."
+    su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/spaceship-prompt/spaceship-prompt.git $SPACESHIP_DIR" || {
+      echo "Failed to clone Spaceship Prompt."
+      exit 1
+    }
+    su - "$ACTUAL_USER" -c "ln -s $SPACESHIP_DIR/spaceship.zsh-theme $SPACESHIP_DIR/../spaceship.zsh-theme"
+  else
+    echo "Spaceship Prompt is already installed."
+  fi
+
+  echo "Spaceship Prompt installation complete."
+}
+
+install_zsh_plugins() {
+  echo "Installing Zsh plugins..."
+
+  # Define the directories for plugin installation
+  OH_MY_ZSH_PLUGIN_DIR="$USER_HOME/.oh-my-zsh/custom/plugins"
+  ZSH_PLUGIN_DIR="$USER_HOME/.zsh/plugins"
+
+  # Ensure both plugin directories exist
+  su - "$ACTUAL_USER" -c "mkdir -p '$OH_MY_ZSH_PLUGIN_DIR'"
+  su - "$ACTUAL_USER" -c "mkdir -p '$ZSH_PLUGIN_DIR'"
+
+  # List of plugins to install
+  ZSH_PLUGINS=(
+    "zsh-users/zsh-syntax-highlighting"
+    "zsh-users/zsh-autosuggestions"
+    "zsh-users/zsh-completions"
+  )
+
+  # Install each plugin into both directories
+  for plugin in "${ZSH_PLUGINS[@]}"; do
+    local plugin_name
+    plugin_name=$(basename "$plugin")
+    local oh_my_zsh_target="$OH_MY_ZSH_PLUGIN_DIR/$plugin_name"
+    local zsh_target="$ZSH_PLUGIN_DIR/$plugin_name"
+
+    # Install into .oh-my-zsh/custom/plugins
+    if [ -d "$oh_my_zsh_target" ]; then
+      echo "Plugin '$plugin_name' already installed in .oh-my-zsh/custom/plugins. Skipping."
+    else
+      echo "Installing plugin '$plugin_name' into .oh-my-zsh/custom/plugins..."
+      su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$plugin.git '$oh_my_zsh_target'" || {
+        echo "Failed to install plugin '$plugin_name' to .oh-my-zsh/custom/plugins."
+        exit 1
+      }
+    fi
+
+    # Install into .zsh/plugins
+    if [ -d "$zsh_target" ]; then
+      echo "Plugin '$plugin_name' already installed in .zsh/plugins. Skipping."
+    else
+      echo "Installing plugin '$plugin_name' into .zsh/plugins..."
+      su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$plugin.git '$zsh_target'" || {
+        echo "Failed to install plugin '$plugin_name' to .zsh/plugins."
+        exit 1
+      }
+    fi
+  done
+
+  echo "Zsh plugins installed successfully in both directories."
+}
+
 
 # Function to install coc.nvim dependencies
 install_coc_dependencies() {
@@ -733,25 +1040,40 @@ install_coc_dependencies() {
   }
 }
 
-# Function to copy configuration files
+# Function to copy configuration files and directories
 copy_config_files() {
-  echo "Copying configuration files..."
+  echo "Copying configuration files and directories..."
 
+  # Files to copy directly to the home directory
   DOT_FILES=(
     "vimrc"
     "tmux.conf"
-    "tmux_keys.sh"
+    #"tmux_keys.sh"
     "tmuxline.conf"
   )
 
+  # Files to copy to the .vim directory
   VIM_FILES=(
     "coc-settings.json"
     "hdl_checker.json"
     "airline_theme.conf"
-    "color_scheme.conf"
   )
 
-  # Copy dot-prefixed files to home directory
+  # Files and directories to copy to the .config directory
+  CONFIG_ITEMS=(
+	"vim-themer"
+	"bat"
+	"yazi"
+	"lazygit"
+	"btop"
+	"timewarrior"
+	"taskwarrior"
+    "tmux-sessionizer.conf"
+	"truvium"
+	"tmux_keys.sh"
+  )
+
+  # Copy dot-prefixed files to the home directory
   for file in "${DOT_FILES[@]}"; do
     src="$USER_CONFIG_DIR/$file"
     dest="$USER_HOME/.$file" # Prepend a dot for these files
@@ -773,7 +1095,7 @@ copy_config_files() {
     echo "Created .vim directory."
   fi
 
-  # Copy files to .vim directory
+  # Copy files to the .vim directory
   for file in "${VIM_FILES[@]}"; do
     src="$USER_CONFIG_DIR/$file"
     dest="$USER_HOME/.vim/$file"
@@ -788,6 +1110,39 @@ copy_config_files() {
     fi
   done
 
+  # Ensure .config directory exists
+  CONFIG_DIR="$USER_HOME/.config"
+  if [ ! -d "$CONFIG_DIR" ]; then
+    mkdir -p "$CONFIG_DIR"
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR"
+    echo "Created .config directory."
+  fi
+
+  # Copy files and directories to .config
+  for item in "${CONFIG_ITEMS[@]}"; do
+    src="$USER_CONFIG_DIR/$item"
+    dest="$CONFIG_DIR/$item"
+    if [ -d "$src" ]; then
+      # Backup if exists
+      if [ -d "$dest" ]; then
+        mv "$dest" "$dest.bak" && echo "Backup of $dest created."
+      fi
+      cp -r "$src" "$dest"
+      chown -R "$ACTUAL_USER:$ACTUAL_USER" "$dest"
+      echo "Copied directory $item to $dest."
+    elif [ -f "$src" ]; then
+      # Backup if exists
+      if [ -f "$dest" ]; then
+        mv "$dest" "$dest.bak" && echo "Backup of $dest created."
+      fi
+      cp "$src" "$dest"
+      chown "$ACTUAL_USER:$ACTUAL_USER" "$dest"
+      echo "Copied file $item to $dest."
+    else
+      echo "Item $item not found in $src."
+    fi
+  done
+
   # Copy gp.conf to /etc/gpservice
   GP_CONF_SRC="$USER_CONFIG_DIR/gp.conf"
   GP_CONF_DEST="/etc/gpservice/gp.conf"
@@ -799,6 +1154,53 @@ copy_config_files() {
     echo "Copied gp.conf to $GP_CONF_DEST."
   else
     echo "gp.conf not found in $GP_CONF_SRC."
+  fi
+}
+
+# Function to install tmux-sessionizer
+install_tmux_sessionizer() {
+  echo "Installing tmux-sessionizer..."
+
+  # Define the installation target and source URL
+  INSTALL_DIR="/usr/local/bin"
+  SCRIPT_URL="https://raw.githubusercontent.com/kyleorman/tmux-sessionizer/main/tmux-sessionizer.sh"
+  INSTALL_PATH="$INSTALL_DIR/tmux-sessionizer"
+  CONFIG_DIR="$USER_HOME/.config"
+
+  # Ensure the target directory exists
+  echo "Ensuring $INSTALL_DIR exists..."
+  mkdir -p "$INSTALL_DIR" || {
+    echo "Error: Failed to create directory $INSTALL_DIR."
+    exit 1
+  }
+
+  # Download the main script
+  echo "Downloading tmux-sessionizer from $SCRIPT_URL..."
+  curl -fsLo "$INSTALL_PATH" "$SCRIPT_URL" || {
+    echo "Error: Failed to download tmux-sessionizer script."
+    exit 1
+  }
+
+  # Set executable permissions for the script
+  echo "Setting executable permissions for tmux-sessionizer..."
+  chmod +x "$INSTALL_PATH" || {
+    echo "Error: Failed to set executable permissions for tmux-sessionizer."
+    exit 1
+  }
+
+  # Ensure the user's config directory exists
+  echo "Ensuring $CONFIG_DIR exists..."
+  su - "$ACTUAL_USER" -c "mkdir -p $CONFIG_DIR" || {
+    echo "Error: Failed to create directory $CONFIG_DIR."
+    exit 1
+  }
+
+  # Verify the installation
+  if command -v tmux-sessionizer >/dev/null 2>&1; then
+    echo "tmux-sessionizer installed successfully."
+  else
+    echo "Error: tmux-sessionizer installation failed."
+    exit 1
   fi
 }
 
@@ -915,6 +1317,89 @@ install_doom_emacs() {
   echo "Doom Emacs installed successfully."
 }
 
+
+# Function to install Rust
+install_rust() {
+  echo "Installing Rust..."
+
+  # Check if Rust is already installed
+  if command -v rustc &>/dev/null; then
+    echo "Rust is already installed. Skipping installation."
+    return
+  fi
+
+  # Download and execute the Rust installer
+  echo "Downloading and installing Rust..."
+  su - "$ACTUAL_USER" -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y" || {
+    echo "Failed to install Rust."
+    exit 1
+  }
+
+  # Add Cargo and Rust binaries to the PATH
+  RUST_ENV_FILE="$USER_HOME/.cargo/env"
+  SHELL_RC="$USER_HOME/.zshrc" # Update for other shells as needed
+
+  if [ -f "$RUST_ENV_FILE" ]; then
+    if ! grep -q "source $RUST_ENV_FILE" "$SHELL_RC"; then
+      echo "Adding Rust environment to $SHELL_RC..."
+      su - "$ACTUAL_USER" -c "echo 'source $RUST_ENV_FILE' >> $SHELL_RC"
+    else
+      echo "Rust environment already sourced in $SHELL_RC."
+    fi
+  else
+    echo "Warning: Rust environment file ($RUST_ENV_FILE) not found."
+  fi
+
+  # Ensure Rust is available in the provisioning environment
+  echo "Exporting Rust environment for the current session..."
+  export PATH="$USER_HOME/.cargo/bin:$PATH"
+
+  # Verify the installation
+  echo "Verifying Rust installation..."
+  su - "$ACTUAL_USER" -c "rustup --version" || {
+    echo "Rustup installation verification failed."
+    exit 1
+  }
+
+  echo "Rust installed successfully."
+}
+
+# Function to install cht.sh
+install_cht_sh() {
+  echo "Installing cht.sh..."
+
+  # Define the target path
+  CHT_SH_PATH="/usr/local/bin/cht.sh"
+
+  # Check if cht.sh is already installed
+  if [ -x "$CHT_SH_PATH" ]; then
+    echo "cht.sh is already installed at $CHT_SH_PATH. Skipping installation."
+    return
+  fi
+
+  # Download and install cht.sh
+  echo "Downloading cht.sh..."
+  curl -s https://cht.sh/:cht.sh | sudo tee "$CHT_SH_PATH" >/dev/null || {
+    echo "Failed to download cht.sh."
+    exit 1
+  }
+
+  # Make cht.sh executable
+  echo "Setting executable permissions for cht.sh..."
+  sudo chmod +x "$CHT_SH_PATH" || {
+    echo "Failed to set executable permissions for cht.sh."
+    exit 1
+  }
+
+  # Verify installation
+  if command -v cht.sh &>/dev/null; then
+    echo "cht.sh installed successfully at $CHT_SH_PATH."
+  else
+    echo "cht.sh installation failed."
+    exit 1
+  fi
+}
+
 # Install hdl_checker
 install_hdl_checker_with_pipx() {
   echo "Installing hdl_checker using pipx..."
@@ -1018,6 +1503,89 @@ install_hdl_checker_with_pipx() {
   rm -rf "$HCL_TMP_DIR" || echo "Failed to remove temporary directory $HCL_TMP_DIR"
 }
 
+# Function to rebuild bat cache
+rebuild_bat_cache() {
+  echo "Rebuilding bat theme cache..."
+
+  # Ensure bat is installed
+  if ! command -v bat &>/dev/null; then
+    echo "Error: 'bat' command not found. Please install bat before proceeding."
+    exit 1
+  fi
+
+  # Run bat cache --build as the appropriate user
+  if su - "$ACTUAL_USER" -c "bat cache --build"; then
+    echo "Bat theme cache rebuilt successfully."
+  else
+    echo "Error: Failed to rebuild bat theme cache."
+    exit 1
+  fi
+}
+
+overwrite_shell_configs() {
+  echo "Overwriting shell configuration files..."
+
+  # Directory containing shell configuration files in user_config
+  SHELL_CONFIGS_DIR="$USER_CONFIG_DIR/shell_configs"
+
+  # Define the shell configuration files to overwrite and their corresponding locations
+  declare -A SHELL_CONFIGS=(
+    ["zshrc"]="$USER_HOME/.zshrc"
+    ["bashrc"]="$USER_HOME/.bashrc"
+    ["fish/config.fish"]="$USER_HOME/.config/fish/config.fish"
+    ["nushell/config.nu"]="$USER_HOME/.config/nushell/config.nu"
+  )
+
+  # Iterate through the shell configuration files and overwrite them
+  for src_file in "${!SHELL_CONFIGS[@]}"; do
+    local src_path="$SHELL_CONFIGS_DIR/$src_file"
+    local dest_path="${SHELL_CONFIGS[$src_file]}"
+
+    # Ensure the source file exists
+    if [ ! -f "$src_path" ]; then
+      echo "Warning: Source shell configuration file $src_path not found. Skipping."
+      continue
+    fi
+
+    # Create the parent directory for the destination if it doesn't exist
+    dest_dir="$(dirname "$dest_path")"
+    if [ ! -d "$dest_dir" ]; then
+      echo "Creating directory $dest_dir..."
+      mkdir -p "$dest_dir" || {
+        echo "Error: Failed to create directory $dest_dir. Skipping $dest_path."
+        continue
+      }
+    fi
+
+    # Backup the existing configuration file if it exists
+    if [ -f "$dest_path" ]; then
+      echo "Backing up existing $dest_path to $dest_path.bak..."
+      cp "$dest_path" "$dest_path.bak" || {
+        echo "Error: Failed to back up $dest_path. Skipping overwrite."
+        continue
+      }
+    fi
+
+    # Copy the new configuration file to the destination
+    echo "Copying $src_path to $dest_path..."
+    cp "$src_path" "$dest_path" || {
+      echo "Error: Failed to copy $src_path to $dest_path. Skipping."
+      continue
+    }
+
+    # Adjust ownership of the file
+    echo "Setting ownership of $dest_path to $ACTUAL_USER..."
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$dest_path" || {
+      echo "Error: Failed to set ownership for $dest_path."
+    }
+
+    echo "Successfully updated $dest_path."
+  done
+
+  echo "Shell configuration file overwrite process completed."
+}
+
+
 # Configure X11 Forwarding
 configure_ssh_x11_forwarding() {
   SSH_CONFIG="/etc/ssh/sshd_config"
@@ -1051,66 +1619,65 @@ ensure_home_ownership() {
 
 # --- Main Script Execution ---
 
+STEPS=(
+	"check_internet_connection"
+	"ensure_community_repo_enabled"
+	"enable_parallel_builds"
+	"install_dependencies"
+	"install_rust"
+	"install_aur_packages"
+	"copy_config_files"
+	"install_python_tools"
+	"install_tmux_sessionizer"
+	"install_cht_sh"
+	"install_broot"
+	"install_go_tools"
+	# "install_verible_from_source" (Causing Error)
+	"install_tpm"
+	"install_vim_plugins"
+	"install_doom_emacs"
+	"install_lazyvim"
+	"install_hdl_checker_with_pipx"
+	"clone_fzf_git_repo"
+	"install_oh_my_zsh"
+	"install_starship"
+	"install_spaceship"
+	"install_powerlevel10k"
+	"install_oh_my_posh"
+	"install_zsh_plugins"
+	"configure_git"
+	"install_coc_dependencies"
+	"rebuild_bat_cache"
+	"overwrite_shell_configs"
+	"configure_ssh_x11_forwarding"
+	"ensure_home_ownership"
+)
+
+NUM_STEPS=${#STEPS[@]}
+
 echo "----- Starting Setup Script -----"
 
-# Execute the internet check
-check_internet_connection
+# Initialize progress tracking
+init_progress_bar
 
-# Enable community repo
-ensure_community_repo_enabled
+# Execute each step
+for i in "${!STEPS[@]}"; do
+    step_name="${STEPS[$i]}"
+    current_step=$((i + 1))
 
-# Install essential packages
-install_dependencies
+    # Log the current step
+    log_line "Running step $current_step/$NUM_STEPS: $step_name..."
 
-# Install AUR packages using yay with retry
-install_aur_packages
+    # Run the step function
+    "$step_name"
 
-# Copy configuration files
-copy_config_files
+    # Update progress bar
+    progress_bar_inline "$current_step" "$NUM_STEPS"
+done
 
-# Install Python tools
-install_python_tools
+# Clean up progress bar and restore terminal state
+cleanup_progress_bar
 
-# Install CheckMake via Go
-install_checkmake
-
-# Install Verible
-install_verible_from_source
-
-# Install Tmux Plugin Manager and tmux plugins
-install_tpm
-
-# Install Vim plugins
-install_vim_plugins
-
-# Install Doom Emacs
-install_doom_emacs
-
-# Install LazyVim
-install_lazyvim
-
-# Install Go language server
-install_go_language_server
-
-# Install hdl_checker
-install_hdl_checker_with_pipx
-
-# Install and configure Zsh and Oh My Zsh
-install_zsh
-
-# Configure Git
-configure_git
-
-# Install coc.nvim dependencies
-install_coc_dependencies
-
-# Configure X11 Forwarding
-configure_ssh_x11_forwarding
-
-# Ensure home directory ownership is correct
-ensure_home_ownership
-
-# Clean up package manager cache
 echo "Cleaning up package manager cache..."
 pacman -Scc --noconfirm || true
 

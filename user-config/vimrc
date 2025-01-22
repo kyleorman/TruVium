@@ -140,6 +140,27 @@ endif
 " Activate Optional Plugins
 " packadd! python-mode
 
+
+" =====================================
+" ======   vim themer settings  =======
+" =====================================
+
+" Default settings shown below
+" let g:vim_themer_dirs = ['~/.vim/pack/colors/start']  " Colorscheme directories
+" let g:vim_themer_mode = "manual"                      " Options: 'manual', 'pywal'
+let g:vim_themer_background = "auto"                  " Options: 'light', 'dark', 'auto'
+let g:vim_themer_silent = 1                           " Options: 0 (verbose), 1 (silent)
+let g:vim_themer_preview = 1                          " Options: 0 (centered), 1 (preview)
+" let g:vim_themer_disable_keybindings = 0              " Options: 0 (enable), 1 (disable)
+
+" Optional: Customize keybindings
+" let g:vim_themer_keymap_theme_select = '<leader>tt'        " Fuzzy find themes
+" let g:vim_themer_keymap_pywal = '<leader>tp'               " Toggle Pywal mode
+" let g:vim_themer_keymap_save_theme = '<leader>ts'          " Save current theme
+" let g:vim_themer_keymap_toggle_background = '<leader>tb'   " Toggle light/dark background
+" let g:vim_themer_keymap_toggle_mode = '<leader>tm'         " Toggle between Pywal and manual modes
+" let g:vim_themer_keymap_toggle_preview = '<leader>tv'      " Toggle preview mode in theme selector
+
 " =====================================
 " ======== NERDTree Configuration =====
 " =====================================
@@ -175,9 +196,6 @@ nnoremap <Leader>vz :VimuxZoomRunner<CR>
 " =====================================
 
 " --- Default Configuration ---
-" Enable Powerline fonts for Airline
-" let g:airline_powerline_fonts = 1
-
 " Enable all status line sections in vim-airline
 " let g:airline#extensions#tabline#enabled = 1  " Enable tabline
 " let g:airline#extensions#tabline#formatter = 'default'  " Use default tabline
@@ -197,9 +215,6 @@ nnoremap <Leader>vz :VimuxZoomRunner<CR>
 " let g:airline_section_z = airline#section#create(['%l/%L:%c'])
 
 " ========== Complete Options ==========
-
-" --- Basic Setup ---
-" Enable vim-airline and configure basic settings.
 
 " --- Powerline Fonts ---
 " Enable Powerline fonts for special symbols.
@@ -535,43 +550,43 @@ let g:airline_themes = [
 \ ]
 
 " Initialize the current Airline theme index
-let g:current_airline_theme = 0
+" let g:current_airline_theme = 0
 
 " Function to switch to the next Airline theme
-function! NextAirlineTheme()
-    let g:current_airline_theme = (g:current_airline_theme + 1) % len(g:airline_themes)
-    let airline_theme = g:airline_themes[g:current_airline_theme]
-    try
-        execute 'AirlineTheme ' . airline_theme
-        echo "Airline theme set to " . airline_theme
-    catch /^Vim\%((\a\+)\)\=:E185/
-        echohl ErrorMsg | echo "Error: Airline theme " . airline_theme . " not found." | echohl None
-    catch
-        echohl ErrorMsg | echo "An unexpected error occurred while setting the Airline theme." | echohl None
-    endtry
-endfunction
+" function! NextAirlineTheme()
+"     let g:current_airline_theme = (g:current_airline_theme + 1) % len(g:airline_themes)
+"     let airline_theme = g:airline_themes[g:current_airline_theme]
+"     try
+"         execute 'AirlineTheme ' . airline_theme
+"         echo "Airline theme set to " . airline_theme
+"     catch /^Vim\%((\a\+)\)\=:E185/
+"         echohl ErrorMsg | echo "Error: Airline theme " . airline_theme . " not found." | echohl None
+"     catch
+"         echohl ErrorMsg | echo "An unexpected error occurred while setting the Airline theme." | echohl None
+"     endtry
+" endfunction
 
 " Function to switch to the previous Airline theme
-function! PrevAirlineTheme()
-    let g:current_airline_theme = (g:current_airline_theme - 1 + len(g:airline_themes)) % len(g:airline_themes)
-    let airline_theme = g:airline_themes[g:current_airline_theme]
-    try
-        execute 'AirlineTheme ' . airline_theme
-        echo "Airline theme set to " . airline_theme
-    catch /^Vim\%((\a\+)\)\=:E185/
-        echohl ErrorMsg | echo "Error: Airline theme " . airline_theme . " not found." | echohl None
-    catch
-        echohl ErrorMsg | echo "An unexpected error occurred while setting the Airline theme." | echohl None
-    endtry
-endfunction
+" function! PrevAirlineTheme()
+"     let g:current_airline_theme = (g:current_airline_theme - 1 + len(g:airline_themes)) % len(g:airline_themes)
+"     let airline_theme = g:airline_themes[g:current_airline_theme]
+"     try
+"         execute 'AirlineTheme ' . airline_theme
+"         echo "Airline theme set to " . airline_theme
+"     catch /^Vim\%((\a\+)\)\=:E185/
+"         echohl ErrorMsg | echo "Error: Airline theme " . airline_theme . " not found." | echohl None
+"     catch
+"         echohl ErrorMsg | echo "An unexpected error occurred while setting the Airline theme." | echohl None
+"     endtry
+" endfunction
 
 
 " Function to save the current Airline theme as default
-function! SaveAirlineThemeToFile()
-    let airline_theme = g:airline_themes[g:current_airline_theme]
-    call writefile([airline_theme], expand('~/.vim/airline_theme.conf'))
-    echo "Airline theme saved as default: " . airline_theme
-endfunction
+" function! SaveAirlineThemeToFile()
+"     let airline_theme = g:airline_themes[g:current_airline_theme]
+"     call writefile([airline_theme], expand('~/.vim/airline_theme.conf'))
+"     echo "Airline theme saved as default: " . airline_theme
+" endfunction
 
 " Load the saved Airline theme if available
 if filereadable(expand('~/.vim/airline_theme.conf'))
@@ -591,9 +606,9 @@ if filereadable(expand('~/.vim/airline_theme.conf'))
 endif
 
 " Custom key mappings for Airline theme cycling and saving
-nnoremap <leader>na :call PrevAirlineTheme()<CR>
-nnoremap <leader>pa :call NextAirlineTheme()<CR>
-nnoremap <leader>sa :call SaveAirlineThemeToFile()<CR>
+" nnoremap <leader>na :call PrevAirlineTheme()<CR>
+" nnoremap <leader>pa :call NextAirlineTheme()<CR>
+" nnoremap <leader>sa :call SaveAirlineThemeToFile()<CR>
 
 " =====================================
 " ======== Tmuxline Configuration ===========
@@ -1341,7 +1356,7 @@ nnoremap <C-p> :Files<CR>
 " Alternative functionalities (uncomment as needed)
 " nnoremap <leader>f :Files<CR>
 " nnoremap <leader>b :Buffers<CR>
-" nnoremap <leader>m :History<CR>
+nnoremap <leader>m :History<CR>
 nnoremap <leader>r :Rg<CR>
 nnoremap <leader>g :GFiles<CR>
 
@@ -1428,6 +1443,7 @@ let g:ale_linters = {
     \   'yaml': ['yamllint'],
     \   'markdown': ['markdownlint'],
     \   'latex': ['chktex'],
+    \   'rust': ['analyzer'],
     \}
 
 " Define fixers for various filetypes
@@ -1435,6 +1451,7 @@ let g:ale_fixers = {
 \   'python': ['autopep8'],
 \   'sh': ['shfmt'],
 \   'make': ['shfmt'],
+\   'rust': ['rustfmt'],
 \}
 
 " Enable fixing and linting on save
@@ -1476,7 +1493,7 @@ nnoremap <silent> <leader>e :ALEToggle<CR>
 nnoremap <silent> <leader>ye :ALEInfo -clipboard<CR>
 
 " Display linting errors and warnings as gutter signs
-" ale_virtualtext_cursor options: 'current', 'disabled' 
+" ale_virtualtext_cursor options: 'current', 'disabled'
 " let g:ale_virtualtext_cursor = 1
 " let g:ale_sign_column_always = 1
 
@@ -1495,7 +1512,7 @@ let g:ale_completion_enabled = 0
 let g:coc_global_extensions = [
     \ 'coc-python', 'coc-sh', 'coc-json', 'coc-clangd',
     \ 'coc-solargraph', 'coc-markdownlint', 'coc-yaml',
-    \ 'coc-html', 'coc-css', 'coc-tsserver', 'coc-texlab'
+    \ 'coc-html', 'coc-css', 'coc-tsserver', 'coc-texlab',
     \ ]
 
 " Use <Tab> and <S-Tab> for navigating the completion menu
@@ -1728,97 +1745,6 @@ xmap ga <Plug>(EasyAlign)
 " Remove trailing whitespace before saving VHDL files
 autocmd BufWritePre *.vhd %s/\s\+$//e
 
-" Automatically close VHDL constructs
-inoremap if if <Esc>lA then<Esc>o<Esc>oend if;
-inoremap proc process(<Esc>li) is<Esc>o<Esc>oend process;
-
-" =====================================
-" ======== Color Scheme Cycling ========
-" =====================================
-
-" Define available color schemes
-let g:color_schemes = [
-\ '256_noir', 'abstract', 'afterglow', 'alduin', 'anderson', 'angr', 'apprentice',
-\ 'archery', 'atom', 'ayu', 'carbonized-dark', 'carbonized-light', 'challenger_deep',
-\ 'deep-space', 'deus', 'dogrun', 'flattened_dark', 'flattened_light', 'focuspoint',
-\ 'fogbell_light', 'fogbell_lite', 'fogbell', 'github', 'gotham256', 'gotham',
-\ 'gruvbox', 'happy_hacking', 'hybrid_material', 'hybrid_reverse', 'hybrid', 'iceberg',
-\ 'jellybeans', 'lightning', 'lucid', 'lucius', 'materialbox', 'meta5', 'minimalist',
-\ 'molokai', 'molokayo', 'mountaineer-grey', 'mountaineer-light', 'mountaineer',
-\ 'nord', 'oceanic_material', 'OceanicNextLight', 'OceanicNext', 'one-dark', 'onedark',
-\ 'onehalfdark', 'onehalflight', 'one', 'orange-moon', 'orbital', 'paramount',
-\ 'parsec', 'pink-moon', 'purify', 'pyte', 'rdark-terminal2', 'scheakur', 'seoul256-light',
-\ 'seoul256', 'sierra', 'snow', 'solarized8_flat', 'solarized8_high', 'solarized8_low',
-\ 'solarized8', 'sonokai', 'spacecamp_lite', 'spacecamp', 'space-vim-dark', 'stellarized',
-\ 'sunbather', 'tender', 'termschool', 'twilight256', 'two-firewatch', 'wombat256mod',
-\ 'yellow-moon'
-\ ]
-
-" Initialize the current color scheme index
-let g:current_color_scheme = 0
-
-" Function to load a color scheme by index
-function! LoadColorScheme(index)
-    let g:current_color_scheme = a:index
-    let color_scheme = g:color_schemes[g:current_color_scheme]
-    try
-        execute 'colorscheme ' . color_scheme
-        echo "Color scheme set to " . color_scheme
-    catch /^Vim\%((\a\+)\)\=:E185/
-        echohl ErrorMsg | echo "Error: colorscheme " . color_scheme . " not found." | echohl None
-    catch
-        echohl ErrorMsg | echo "An unexpected error occurred while setting the color scheme." | echohl None
-    endtry
-endfunction
-
-" Function to cycle through color schemes
-function! CycleColorScheme(direction)
-    if a:direction == 'next'
-        let next_index = (g:current_color_scheme + 1) % len(g:color_schemes)
-    elseif a:direction == 'prev'
-        let next_index = (g:current_color_scheme - 1 + len(g:color_schemes)) % len(g:color_schemes)
-    endif
-    call LoadColorScheme(next_index)
-endfunction
-
-" Function to save the current color scheme as default
-function! SaveColorSchemeToFile()
-    let color_scheme = g:color_schemes[g:current_color_scheme]
-    call writefile([color_scheme], expand('~/.vim/color_scheme.conf'))
-    echo "Color scheme saved as default: " . color_scheme
-endfunction
-
-" Key mappings for cycling color schemes
-nnoremap <leader>pt :call CycleColorScheme('prev')<CR>
-nnoremap <leader>nt :call CycleColorScheme('next')<CR>
-nnoremap <leader>st :call SaveColorSchemeToFile()<CR>
-
-" Load the saved color scheme if available
-if filereadable(expand('~/.vim/color_scheme.conf'))
-    let saved_color_scheme = trim(readfile(expand('~/.vim/color_scheme.conf'))[0])
-    let index = index(g:color_schemes, saved_color_scheme)
-    if index != -1
-        let g:current_color_scheme = index
-        call LoadColorScheme(g:current_color_scheme)
-    endif
-endif
-
-" Function to toggle between dark and light background
-function! ToggleBackground()
-    if &background == 'dark'
-        set background=light
-        echo "Background set to light"
-    else
-        set background=dark
-        echo "Background set to dark"
-    endif
-endfunction
-
-" Map <leader>tb to the ToggleBackground function
-nnoremap <leader>tb :call ToggleBackground()<CR>
-
-
-
 " =====================================
 " ======== CoC Extensions Installation ====
 " =====================================
@@ -1875,7 +1801,6 @@ let g:EasyMotion_smartcase = 1
 map <Leader>j <Plug>(easymotion-j)
 map <Leader>k <Plug>(easymotion-k)
 
-
 " =====================================
 " ======== Final Settings ============
 " =====================================
@@ -1895,11 +1820,6 @@ autocmd ColorScheme * highlight ExtraWhitespace ctermbg=red guibg=red
 
 " Generate and save the current buffer as Python executable script
 " nnoremap <leader><leader>r :!python3 %:p<CR>
-
-" Additional FZF key mappings (uncomment if needed)
-" nnoremap <leader>b :Buffers<CR>
-" nnoremap <leader>m :History<CR>
-" nnoremap <leader>f :Files<CR>
 
 " =====================================
 " ========== Plugin Specific Configs =====

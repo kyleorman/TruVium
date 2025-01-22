@@ -1,0 +1,3 @@
+exit
+tmux_cmd check-cleanup
+exit

@@ -1,0 +1,4 @@
+# Source Bash init file from ~/.config/truvium/shells/bash
+if [ -f ~/.config/truvium/shells/bash/init.sh ]; then
+    source ~/.config/truvium/shells/bash/init.sh
+fi
