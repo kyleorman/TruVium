@@ -340,7 +340,7 @@ install_aur_packages() {
     fortune-mod-wisdom-fr
     fortune-mod-hitchhiker
     tlrc
-    # broot-git
+    broot
 	lazysql
 	jupyterlab-catppuccin
 	viu
@@ -1630,9 +1630,9 @@ STEPS=(
 	"install_python_tools"
 	"install_tmux_sessionizer"
 	"install_cht_sh"
-	# "install_broot"
+	"install_broot"
 	"install_go_tools"
-	# "install_verible_from_source" (Causing Error)
+	"install_verible_from_source"
 	"install_tpm"
 	"install_vim_plugins"
 	"install_doom_emacs"
