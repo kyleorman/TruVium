@@ -299,14 +299,14 @@ install_dependencies() {
     imagemagick \
     task \
     taskwarrior-tui \
-	timew \
+    timew \
     lazygit \
-	yazi \
-	kitty \
-	fish \
-	nushell \
-	bazel \
-	termscp \
+    yazi \
+    kitty \
+    fish \
+    nushell \
+    bazel \
+    termscp \
     go ||
     {
       echo "Package installation failed"
@@ -328,7 +328,8 @@ install_aur_packages() {
     texlab
     verilator
     iverilog
-    bazel
+    verible
+    #bazel
     #lemminx
     emacs-nativecomp
     falkon
@@ -341,10 +342,12 @@ install_aur_packages() {
     fortune-mod-hitchhiker
     tlrc
     broot
-	lazysql
-	jupyterlab-catppuccin
-	viu
-	vscode
+    lazysql
+    jupyterlab-catppuccin
+    viu
+    vscode
+    kicad
+    yosys
     #ffmpeg
   )
 
@@ -1632,7 +1635,7 @@ STEPS=(
 	"install_cht_sh"
 	"install_broot"
 	"install_go_tools"
-	"install_verible_from_source"
+	# "install_verible_from_source"
 	"install_tpm"
 	"install_vim_plugins"
 	"install_doom_emacs"
