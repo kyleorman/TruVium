@@ -307,6 +307,13 @@ install_dependencies() {
     nushell \
     bazel \
     termscp \
+	cudd \
+	doxygen \
+	tcl \
+	tk \
+	eigen \
+	yosys \
+	klayout \
     go ||
     {
       echo "Package installation failed"
@@ -347,7 +354,9 @@ install_aur_packages() {
     viu
     vscode
     kicad
-    yosys
+    #yosys
+	tcllib
+	openroad-git
     #ffmpeg
   )
 
