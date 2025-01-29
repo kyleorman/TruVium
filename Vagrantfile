@@ -15,9 +15,13 @@ Vagrant.configure("2") do |config|
   end
 
   # VM box configuration
-  config.vm.box = settings['vm_box'] || "ubuntu/jammy64" # Default to Ubuntu 22.04
+  config.vm.box = settings['vm_box'] || "archlinux/archlinux" # Default to Arch
   config.vm.box_version = settings['vm_box_version'] if settings.key?('vm_box_version')
   config.vm.box_check_update = settings.fetch('box_check_update', true)
+  primary_disk_size = settings.fetch('primary_disk_size', '20GB')
+
+  # Configure the primary disk with the user-defined or default size
+  config.vm.disk :disk, name: "primary", size: primary_disk_size, primary: true
 
   # Assign a hostname
   config.vm.hostname = settings['vm_hostname'] || "dev-env"
@@ -457,12 +461,12 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  # Configure post-up message
-  config.vm.post_up_message = if settings.key?('post_up_message')
-    settings['post_up_message']
-  elsif settings.key?('forward_jupyter_port') && settings['forward_jupyter_port']
-    "Port forwarding for Jupyter is enabled on port 8888."
-  else
-    "Port forwarding for Jupyter is disabled."
-  end
+#   # Configure post-up message
+#   config.vm.post_up_message = if settings.key?('post_up_message')
+#     settings['post_up_message']
+#   elsif settings.key?('forward_jupyter_port') && settings['forward_jupyter_port']
+#     "Port forwarding for Jupyter is enabled on port 8888."
+#   else
+#     "Port forwarding for Jupyter is disabled."
+#   end
 end

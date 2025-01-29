@@ -160,28 +160,20 @@ check_internet_connection() {
 resize_disk() {
     log_line "Resizing /dev/sda3 partition for Btrfs..."
 
-    # Ensure parted and btrfs-progs are installed
-    pacman -S --noconfirm --needed parted btrfs-progs || {
-        log_line "Failed to install parted or btrfs-progs."
+    # Ensure we have growpart, parted, and btrfs-progs installed
+    pacman -S --noconfirm --needed cloud-guest-utils parted btrfs-progs || {
+        log_line "Failed to install cloud-guest-utils, parted, or btrfs-progs."
         exit 1
     }
 
-    # 1) Use parted to resize the partition to the maximum available disk size
-    #    Non-interactive mode (-s) with parted command "resizepart 3 100%"
-    log_line "Using parted to resize partition /dev/sda3 to 100% of disk..."
-    parted -s /dev/sda resizepart 3 100% || {
-        log_line "Error: parted failed to resize /dev/sda3."
+    # 1) Use growpart to resize the partition to fill all available disk space
+    log_line "Using growpart to resize /dev/sda3 to 100% of disk..."
+    growpart /dev/sda 3 || {
+        log_line "Error: growpart failed to resize /dev/sda3."
         exit 1
     }
 
-    # 2) Reread the partition table to ensure the kernel knows about the change
-    log_line "Forcing kernel to reread partition table with partprobe..."
-    partprobe /dev/sda || {
-        log_line "Warning: partprobe did not complete successfully. Continuing anyway..."
-    }
-
-    # 3) Resize the Btrfs filesystem on the root mount to fill the new partition
-    #    Assuming /dev/sda3 is mounted at /
+    # 2) Resize the Btrfs filesystem (mounted at /) to occupy the new partition
     log_line "Resizing the Btrfs filesystem at / to use all available space..."
     btrfs filesystem resize max / || {
         log_line "Error: Btrfs filesystem resize failed."
@@ -190,6 +182,7 @@ resize_disk() {
 
     log_line "Successfully resized /dev/sda3 Btrfs partition and filesystem."
 }
+
 
 # Enable community repo
 ensure_community_repo_enabled() {
