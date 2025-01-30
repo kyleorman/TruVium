@@ -365,6 +365,7 @@ install_aur_packages() {
     verible
     #bazel
     #lemminx
+    lazydocker
     emacs-nativecomp
     falkon
     globalprotect-openconnect
@@ -581,70 +582,100 @@ install_python_tools_in_venv() {
   echo "Successfully installed packages via virtual environment."
 }
 
-# Install OpenROAD - may need to adjust disk size
 install_openroad_from_source() {
   echo "Installing OpenROAD from source..."
 
-  # Ensure necessary dependencies are installed
-  echo "Installing required packages..."
+  # 1) Update system and install essential packages from official repos
+  echo "Installing required Arch Linux packages..."
+  pacman -Syy --noconfirm
   pacman -S --noconfirm --needed \
     base-devel git cmake tcl tk python python-pip clang llvm boost eigen \
     zlib libffi flex bison swig libx11 mesa glew \
-    ttf-liberation ttf-dejavu || {
-    echo "Failed to install required packages."
+    ttf-liberation ttf-dejavu coin-or-lemon doxygen || {
+      echo "Failed to install some required packages from official repos."
+      exit 1
+    }
+
+  # 2) Install AUR dependencies using yay
+  echo "Installing AUR dependencies..."
+  su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed or-tools tclreadline" || {
+    echo "Failed to install AUR dependencies."
     exit 1
   }
 
-  # Create a temporary directory for building OpenROAD
-  TMP_OPENROAD_DIR="/tmp/openroad_build"
-  mkdir -p "$TMP_OPENROAD_DIR"
-  cd "$TMP_OPENROAD_DIR" || {
-    echo "Failed to access temporary directory $TMP_OPENROAD_DIR"
+  # 3) Create build directory with proper permissions
+  BUILD_DIR="/tmp/openroad_build"
+  rm -rf "$BUILD_DIR"  # Clean up any previous failed attempts
+  mkdir -p "$BUILD_DIR"
+  chmod 777 "$BUILD_DIR"  # Give full permissions to ensure write access
+  chown -R "$ACTUAL_USER:$ACTUAL_USER" "$BUILD_DIR"
+
+  # 4) Configure git to handle large files and line endings
+  su - "$ACTUAL_USER" -c "git config --global core.autocrlf false"
+  su - "$ACTUAL_USER" -c "git config --global core.longpaths true"
+
+  # 5) Clone and build as the actual user with specific git options
+  echo "Building OpenROAD as user $ACTUAL_USER..."
+  su - "$ACTUAL_USER" -c "
+    set -e
+    cd '$BUILD_DIR'
+    
+    # Clone with specific options to handle permissions
+    git clone --recursive https://github.com/The-OpenROAD-Project/OpenROAD.git \
+      --config core.autocrlf=false \
+      --config core.fileMode=false \
+      --config core.ignorecase=false
+
+    cd OpenROAD
+
+    # Ensure write permissions for the repository
+    chmod -R u+w .
+
+    # Configure build without tests to avoid permission issues
+    mkdir -p build
+    cd build
+    
+    cmake .. \
+      -DCMAKE_INSTALL_PREFIX=/usr/local \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_TESTS=OFF \
+      -DUSE_SYSTEM_BOOST=ON
+    
+    # Build using all available cores
+    make -j\$(nproc)
+  " || {
+    echo "Failed during OpenROAD build process"
     exit 1
   }
 
-  # Clone OpenROAD repository
-  echo "Cloning OpenROAD repository..."
-  git clone --recursive https://github.com/The-OpenROAD-Project/OpenROAD.git || {
-    echo "Failed to clone OpenROAD repository."
-    exit 1
-  }
-  cd OpenROAD || exit 1
-
-  # Create build directory and configure build
-  mkdir -p build
-  cd build || exit 1
-  echo "Configuring OpenROAD build..."
-  cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local || {
-    echo "CMake configuration failed."
-    exit 1
-  }
-
-  # Compile OpenROAD using all available cores
-  echo "Building OpenROAD..."
-  make -j$(nproc) || {
-    echo "Build failed."
-    exit 1
-  }
-
-  # Install OpenROAD
-  echo "Installing OpenROAD..."
+  # 6) Install as root (required for /usr/local)
+  echo "Installing OpenROAD to system directories..."
+  cd "$BUILD_DIR/OpenROAD/build" || exit 1
   make install || {
-    echo "Installation failed."
+    echo "Installation failed"
     exit 1
   }
 
-  # Verify installation
+  # 7) Configure library paths
+  echo "/usr/local/lib" > /etc/ld.so.conf.d/openroad.conf
+  ldconfig
+
+  # 8) Verify installation
   if command -v openroad &>/dev/null; then
-    echo "OpenROAD installed successfully."
+    # Test basic OpenROAD functionality
+    su - "$ACTUAL_USER" -c "openroad -version" || {
+      echo "OpenROAD installation verification failed"
+      exit 1
+    }
+    echo "OpenROAD installed successfully"
   else
-    echo "OpenROAD installation verification failed."
+    echo "OpenROAD installation verification failed"
     exit 1
   fi
 
-  # Cleanup temporary directory
-  echo "Cleaning up temporary files..."
-  rm -rf "$TMP_OPENROAD_DIR" || echo "Failed to remove temporary directory $TMP_OPENROAD_DIR"
+  # 9) Clean up build directory
+  # echo "Cleaning up build directory..."
+  # rm -rf "$BUILD_DIR"
 }
 
 # Install Verible
@@ -1738,7 +1769,7 @@ STEPS=(
 	"install_cht_sh"
 	"install_broot"
 	"install_go_tools"
-  # "install_openroad_from_source"
+  "install_openroad_from_source"
 	# "install_verible_from_source"
 	"install_tpm"
 	"install_vim_plugins"
