@@ -157,6 +157,33 @@ check_internet_connection() {
   fi
 }
 
+resize_disk() {
+    log_line "Resizing /dev/sda3 partition for Btrfs..."
+
+    # Ensure we have growpart, parted, and btrfs-progs installed
+    pacman -S --noconfirm --needed cloud-guest-utils parted btrfs-progs || {
+        log_line "Failed to install cloud-guest-utils, parted, or btrfs-progs."
+        exit 1
+    }
+
+    # 1) Use growpart to resize the partition to fill all available disk space
+    log_line "Using growpart to resize /dev/sda3 to 100% of disk..."
+    growpart /dev/sda 3 || {
+        log_line "Error: growpart failed to resize /dev/sda3."
+        exit 1
+    }
+
+    # 2) Resize the Btrfs filesystem (mounted at /) to occupy the new partition
+    log_line "Resizing the Btrfs filesystem at / to use all available space..."
+    btrfs filesystem resize max / || {
+        log_line "Error: Btrfs filesystem resize failed."
+        exit 1
+    }
+
+    log_line "Successfully resized /dev/sda3 Btrfs partition and filesystem."
+}
+
+
 # Enable community repo
 ensure_community_repo_enabled() {
   echo "Ensuring that the [community] repository is enabled..."
@@ -307,6 +334,13 @@ install_dependencies() {
     nushell \
     bazel \
     termscp \
+    cudd \
+    doxygen \
+    tcl \
+    tk \
+    eigen \
+    yosys \
+    klayout \
     go ||
     {
       echo "Package installation failed"
@@ -331,6 +365,7 @@ install_aur_packages() {
     verible
     #bazel
     #lemminx
+    lazydocker
     emacs-nativecomp
     falkon
     globalprotect-openconnect
@@ -347,7 +382,9 @@ install_aur_packages() {
     viu
     vscode
     kicad
-    yosys
+    #yosys
+    tcllib
+    # openroad-git
     #ffmpeg
   )
 
@@ -543,6 +580,104 @@ install_python_tools_in_venv() {
   done
 
   echo "Successfully installed packages via virtual environment."
+}
+
+# Install OpenROAD (Require more RAM and Storage)
+install_openroad_from_source() {
+  echo "Installing OpenROAD from source..."
+
+  # 1) Update system and install essential packages from official repos
+  echo "Installing required Arch Linux packages..."
+  pacman -Syy --noconfirm
+  pacman -S --noconfirm --needed \
+    base-devel git cmake tcl tk python python-pip clang llvm boost eigen \
+    zlib libffi flex bison swig libx11 mesa glew qt5-base qt5-svg qt5-x11extras \
+    ttf-liberation ttf-dejavu coin-or-lemon doxygen || {
+      echo "Failed to install some required packages from official repos."
+      exit 1
+    }
+
+  # 2) Install AUR dependencies using yay
+  echo "Installing AUR dependencies..."
+  su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed or-tools tclreadline" || {
+    echo "Failed to install AUR dependencies."
+    exit 1
+  }
+
+  # 3) Create build directory with proper permissions
+  BUILD_DIR="/tmp/openroad_build"
+  rm -rf "$BUILD_DIR"  # Clean up any previous failed attempts
+  mkdir -p "$BUILD_DIR"
+  chmod 777 "$BUILD_DIR"  # Give full permissions to ensure write access
+  chown -R "$ACTUAL_USER:$ACTUAL_USER" "$BUILD_DIR"
+
+  # 4) Configure git to handle large files and line endings
+  su - "$ACTUAL_USER" -c "git config --global core.autocrlf false"
+  su - "$ACTUAL_USER" -c "git config --global core.longpaths true"
+
+  # 5) Clone and build as the actual user with specific git options
+  echo "Building OpenROAD as user $ACTUAL_USER..."
+  su - "$ACTUAL_USER" -c "
+    set -e
+    cd '$BUILD_DIR'
+    
+    # Clone with specific options to handle permissions
+    git clone --recursive https://github.com/The-OpenROAD-Project/OpenROAD.git \
+      --config core.autocrlf=false \
+      --config core.fileMode=false \
+      --config core.ignorecase=false
+
+    cd OpenROAD
+
+    # Ensure write permissions for the repository
+    chmod -R u+w .
+
+    # Configure build without tests to avoid permission issues
+    mkdir -p build
+    cd build
+    
+  cmake .. \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_TESTS=OFF \
+    -DUSE_SYSTEM_BOOST=ON \
+    -DBUILD_GUI=ON
+    
+    # Build using all available cores
+    make -j\$(nproc)
+  " || {
+    echo "Failed during OpenROAD build process"
+    exit 1
+  }
+
+  # 6) Install as root (required for /usr/local)
+  echo "Installing OpenROAD to system directories..."
+  cd "$BUILD_DIR/OpenROAD/build" || exit 1
+  make install || {
+    echo "Installation failed"
+    exit 1
+  }
+
+  # 7) Configure library paths
+  echo "/usr/local/lib" > /etc/ld.so.conf.d/openroad.conf
+  ldconfig
+
+  # 8) Verify installation
+  if command -v openroad &>/dev/null; then
+    # Test basic OpenROAD functionality
+    su - "$ACTUAL_USER" -c "openroad -version" || {
+      echo "OpenROAD installation verification failed"
+      exit 1
+    }
+    echo "OpenROAD installed successfully"
+  else
+    echo "OpenROAD installation verification failed"
+    exit 1
+  fi
+
+  # 9) Clean up build directory
+  # echo "Cleaning up build directory..."
+  # rm -rf "$BUILD_DIR"
 }
 
 # Install Verible
@@ -1624,6 +1759,7 @@ ensure_home_ownership() {
 
 STEPS=(
 	"check_internet_connection"
+	"resize_disk"
 	"ensure_community_repo_enabled"
 	"enable_parallel_builds"
 	"install_dependencies"
@@ -1635,6 +1771,7 @@ STEPS=(
 	"install_cht_sh"
 	"install_broot"
 	"install_go_tools"
+  # "install_openroad_from_source"
 	# "install_verible_from_source"
 	"install_tpm"
 	"install_vim_plugins"

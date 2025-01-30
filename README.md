@@ -14,10 +14,11 @@ TruVium is a comprehensive development environment specifically designed for har
 # 🚨 Important Notice
 
 > **Please Note:**  
-> - The current default OS is **Ubuntu**, but I plan to switch to **Arch** as the default while keeping Ubuntu as a stable fallback.  
->   - **Reason:** Arch packages are more up-to-date, and the installation can be parallelized, significantly reducing spin-up time.
+> - TruVium has switched to **Arch** as the default VM OS. Apple Silicon support is planned for the next major update.
+>   The general purpose development environment is more or less stable. Future updates to this part of TruVium will be focused on improving development workflows within the environment.
+>   The next step for the overall TruVium project is to create dockerized development tools that can be modularly connected to accomplish custom HDL workflows.
 > 
-> ### Other Notable Features Planned for TruVium:
+> ### Notable Features Planned for TruVium:
 > - **Command Wrapper in Rust:**  
 >   A tool to simplify the usage of TruVium commands and enable seamless configuration management.
 > - **Dockerized HDL Development Tools:**  
@@ -33,17 +34,91 @@ TruVium is a comprehensive development environment specifically designed for har
 ### Core Development Environment
 - **Automated Setup**: Complete environment configuration using Vagrant, an open-source tool that provides consistent development environments
 - **Multi-Editor Support**: Choose between Vim, Neovim, and Emacs, each preconfigured with extensive customization for HDL development
-- **Shell Environment**: Zsh shell with Oh My Zsh framework and carefully selected plugins for enhanced productivity
-- **Version Control**: Advanced Git integration with custom configurations for collaborative development
-- **Terminal Multiplexer**: tmux for efficient window management, session persistence, and split panes
+- **Shell Environment**: Zsh shell is set by default. Fully configured Bash shell, Fish shell, and partial support for NuShell are available as alternative options
+- **Version Control**: A script to customize git configuration is available and can be filled out and automatically run during the initial setup, or manually any time afterward
+- **Terminal Multiplexer**: tmux is configured with automatic session cleanup, tmux sessionizer for project based sessions, and a variety of useful customizations
+
+### Quality of Life CLI Tools
+- **fzf**: Advanced fuzzy finder that enables quick search through files, command history, and processes. Integrates with various tools for enhanced navigation
+- **eza**: Modern, maintained alternative to `ls` with Git integration, extended attributes, and beautiful color schemes
+- **zoxide**: Smarter `cd` using a "frecency" algorithm (frequency + recency) to jump to commonly used locations
+- **btop**: Resource monitor providing real-time statistics for CPU, memory, disks, network, and processes with an intuitive interface
+- **ripgrep**: Blazing-fast recursive search tool and `grep` alternative that respects gitignore rules and automatically searches hidden files
+- **fd**: User-friendly alternative to `find` with smart defaults, colorful output, and parallel command execution
+- **bat**: Feature-rich `cat` clone with syntax highlighting, git integration, and automatic paging
+- **yazi**: Modern terminal file manager with image preview capabilities, extensive keyboard shortcuts, and plugin support
+- **broot**: Modern directory navigation tool that uses a tree structure
+- **termscp**: Feature-rich terminal file transfer client supporting multiple protocols (SFTP, SCP, FTP, S3) with an intuitive interface
+- **taskwarrior**: Flexible command-line task management system with tagging, dependencies, and custom reporting
+- **timewarrior**: Companion to taskwarrior providing detailed time tracking and reporting capabilities
+- **tldr**: Simplified and practical command-line documentation focusing on examples and common use cases
+- **cht.sh**: Unified access to the best community-driven documentation and cheat sheets
+- **lazygit**: Simple and powerful terminal UI for git operations with interactive staging, diff viewing, and branch management
+- **lazydocker**: Terminal UI for docker management providing container stats, logs, and easy execution of common commands
+- **lazysql**: Intuitive terminal interface for database operations supporting multiple database types
+- **jq**: Lightweight command-line JSON processor for filtering, transforming, and formatting JSON data
+- **doxygen**: Professional documentation generator supporting multiple programming languages with cross-referencing and dependency graphs
 
 ### HDL Development Tools
-- **GHDL**: An open-source VHDL simulator supporting IEEE standards, enabling compilation and simulation of VHDL designs
-- **GTKWave**: A powerful waveform viewer for analyzing simulation results from VHDL and Verilog designs
-- **Verilator**: High-performance Verilog/SystemVerilog simulator and lint tool for rapid design verification
-- **iVerilog**: IEEE-compliant Verilog simulator for standard-compatible simulation
-- **HDL Checker**: Real-time linting and syntax checking for VHDL and Verilog
-- **Verible**: SystemVerilog parser, formatter, and lint tool from Google
+- **GHDL**: Comprehensive open-source VHDL simulator supporting multiple IEEE standards (87, 93, 02, 08). Features include:
+  - Extensive IEEE standard compliance
+  - Integration with GTKWave for waveform visualization
+  - Support for vendor-specific libraries
+  - Synthesis and formal verification capabilities
+
+- **GTKWave**: Feature-rich waveform viewer for digital simulation results offering:
+  - Support for multiple file formats (VCD, LXT, FST)
+  - Advanced signal search and filter capabilities
+  - Customizable display preferences
+  - Tcl/Tk script support for automation
+
+- **Verilator**: High-performance Verilog/SystemVerilog simulator and lint tool providing:
+  - Fast compilation to native C++/SystemC
+  - Advanced optimization capabilities
+  - Extensive linting rules
+  - Support for modern SystemVerilog features
+
+- **iVerilog**: IEEE-compliant Verilog simulator featuring:
+  - Full IEEE 1364-2005 standard support
+  - Integrated synthesis capabilities
+  - Comprehensive test bench support
+  - Multiple output format support
+
+- **HDL Checker**: Real-time linting and syntax checking tool offering:
+  - Multi-language support (VHDL, Verilog, SystemVerilog)
+  - Integration with multiple editors
+  - Customizable rule sets
+  - Project-wide analysis capabilities
+
+- **Verible**: Google's SystemVerilog toolset providing:
+  - Style linting with customizable rules
+  - Format checking and auto-formatting
+  - Static analysis capabilities
+  - Syntax-aware code indexing
+
+- **Yosys**: Comprehensive framework for RTL synthesis and verification including:
+  - Multiple HDL input format support
+  - Extensive optimization capabilities
+  - Formal verification tools
+  - Technology mapping features
+
+- **klayout**: Advanced layout viewer and editor featuring:
+  - Support for multiple layout formats
+  - DRC and LVS capabilities
+  - Macro development framework
+  - Advanced visualization tools
+
+- **kicad**: Complete electronics design automation suite offering:
+  - Schematic capture
+  - PCB layout
+  - 3D visualization
+  - Component management
+
+- **OpenROAD**: Integrated chip design flow tool providing:
+  - Floor planning
+  - Placement optimization
+  - Clock tree synthesis
+  - Routing capabilities
 
 ### Editor Features
 
@@ -99,26 +174,31 @@ TruVium is a comprehensive development environment specifically designed for har
    ```bash
    vagrant ssh
    ```
+
+Additonal host terminal commands
+
+**Reload the Environment**
+- If you want to force a restart or boot up the environment if it was off (e.g. after the host machine is rebooted)
+   ```bash
+   vagrant reload
+   ```
+**Stop the Environment**
+   ```bash
+   vagrant halt
+   ```
+
+**Destroy the Environment**
+warning - configurations made after the instance was created will be lost and you will have to spin up a new instance 
+   ```bash
+   vagrant destroy
+   ```
+
 ## Usage Notes
 
 ### Operating System
-- The default configuration uses Ubuntu LTS as an OS for long-term stability
-- Uses the apt package manager (sudo apt-get install)
-- Ubuntu LTS prioritizes stability, so many programs are installed from source to have relatively up-to-date versions, resulting in longer setup time
-
-- You may use the alternative Arch Linux OS configuration by running:
-  ```bash
-  git checkout TruVium-Arch
-  ```
-- The package managers (pacman for official packages and yay for community packages) host more up-to-date programs
-- Arch Linux setup time is significantly less by avoiding building from source and utilizing parallel installs
-- The alternative configuration is more likely to break due to versioning conflicts but will be updated with new features more frequently
-
-### Quality-of-Life Tools
-TruVium prioritizes workflow efficiency through:
-- tmux: Terminal multiplexer for session management
-- Vi-Motions: Efficient text navigation
-- FZF: Fuzzy finder for quick file and command access
+- The default configuration uses Arch Linux for the most up to date software versions
+- Uses the pacman package manager (sudo pacman -S <package>)
+- Access to community provided AUR packages available via yay (yay -S <package>)
 
 ## Configuration
 
@@ -127,21 +207,24 @@ TruVium prioritizes workflow efficiency through:
 - Host terminal configuration can affect some keybindings, colors, and fonts. Using a NerdFont like FiraCode Mono for powerline symbol support is suggested. Additionally, Alacritty is a good cross-platform terminal, but a separate X-server is needed and may require configuration if you are running on Windows or macOS.
 
 ### Vagrant Configuration (`vagrant_config.json`)
-- Default configuration sets vm_cpus and vm_memory to minimum values
+- Default configuration sets vm_cpus and vm_memory to relatively low values
 - If your host computer can support higher settings, they can be set in `vagrant_config.json` -- this may improve setup time and user experience
-- Setup time may also be improved by commenting out unnecessary installs within `vagrant_setup.sh` or `vagrant_setup_arch.sh` scripts in `/TruVium/vagrant-scripts`
+- Setup time may also be improved by commenting out unnecessary installs within `vagrant_setup_arch.sh` in `/TruVium/vagrant-scripts`
 
 ```json
 {
-  "vm_box": "ubuntu/jammy64",
-  "vm_memory": "2048",     # 2GB RAM allocation
-  "vm_cpus": 1,
-  "forward_jupyter_port": false,
+  "vm_box": "archlinux/archlinux",
+  "vm_box_version": "20241001.267073",
+  "box_check_update": true,
+  "vm_hostname": "dev-env",
+  "vm_memory": "4096", # 4GB RAM allocation
+  "vm_cpus": 4,
   "vb_gui": false,
-  "graphics_controller": "vmsvga",
-  "vb_clipboard": "bidirectional"
+  "graphics_controller": "Vboxsvga",
+  "primary_disk_size": "20GB",
 }
 ```
+
 ### Git Profile Setup
 - Fill out `git_setup_example.conf` in `/TruVium/templates`, rename file to git_setup.conf, and place in the `/TruVium/vagrant-config` directory
 - It will be applied during `vagrant up`
@@ -178,16 +261,13 @@ TruVium prioritizes workflow efficiency through:
 - X11 forwarding is unnecessary if you set up a desktop environment through the VM GUI
 
 ### tmux Configuration
-- Prefix key is set to `Alt-1` by default
+- Prefix key is set to `Ctrl-a` by default
 > **Note**: May conflict with host OS keybinds and can be adjusted in tmux configuration.
-- After first boot in the default Ubuntu OS configuration:
-  1. Run `<PREFIX> I` to install plugins
-  2. Wait for the plugins to install and press enter
-  3. Run `<PREFIX> U`, type all, press enter to update, and enter again after it completes
 - Notable hotkeys:
   - `Alt-f`: Use FZF to control tmux
-  > **Note**: May conflict with host terminal keybinds.
+  - `Alt-t`: Use tmux-sessionizer to create persistent project based sessions
   - `Alt-\`: Use floating window
+  > **Note**: Commands that don't us the Prefix key may conflict with host terminal keybinds.
   - `<PREFIX>s`: Create vertical split
   - `<PREFIX>d`: Create horizontal split
 - Configuration location:
@@ -216,13 +296,16 @@ TruVium prioritizes workflow efficiency through:
   - `<C-J>`: Move Down
   - `<C-K>`: Move Up
   - `<C-L>`: Move Right
+  or
+  - `<S-Left Arrow>`: Move Left
+  - `<S-Down Arrow>`: Move Down
+  - `<S-Up Arrow>`: Move Up
+  - `<S-Right Arrow>`: Move Right
 - Note: Navigation may behave differently in NeoVim, Doom Emacs, or other software
 
 ### Adding Custom Tools
-1. Modify appropriate setup script:
+1. Modify the setup script:
    ```bash
-   # For Ubuntu
-   vagrant_setup.sh
    # For Arch Linux
    vagrant_setup_arch.sh
    ```
@@ -233,6 +316,7 @@ TruVium prioritizes workflow efficiency through:
    ```
 
 ### Editor Configuration
+### Editor Configuration
 - **Vim**: Configuration in `~/.vimrc`
 - **Neovim**: Configuration in `~/.config/nvim`
 - **Emacs**: Configuration in `~/.doom.d/config.el`
@@ -240,7 +324,7 @@ TruVium prioritizes workflow efficiency through:
 ## Additional Documentation
 
 - [Desktop Environment Setup Guide](docs/desktop_environment_setup.md): Instructions for configuring desktop environments and session managers in the TruVium Vagrant VM.
-> **Note**: This guide provides additional configurations for desktop environments within the TruVium Vagrant VM. Not all configurations are thoroughly tested, as TruVium’s primary focus is on CLI-based HDL development.
+> **Note**: This guide provides additional configurations for desktop environments within the TruVium Vagrant VM. Not all configurations are thoroughly tested, as TruVium's primary focus is on CLI-based HDL development.
 - [Custom Keybindings](docs/custom_keybinds.md): A work-in-progress list of all configured keybindings, organized by tool for easy reference and future updates.
 > **Note**: Some keybindings may require adjustment based on host terminal or OS configuration.
 
@@ -444,7 +528,3 @@ This project leverages many outstanding open-source tools and configurations:
 ## Support
 
 For bug reports and feature requests, please create an issue in the GitHub repository. Detailed bug reports and clear feature proposals are appreciated.
-
----
-
-For more detailed information about specific components, please check the documentation in the `docs/` directory.

@@ -4,9 +4,10 @@
   "box_check_update": true,
   "vm_hostname": "dev-env",
   "vm_memory": "4096",
-  "vm_cpus": 2,
+  "vm_cpus": 4,
   "vb_gui": false,
   "graphics_controller": "Vboxsvga",
+  "primary_disk_size": "20GB",
   
   "vb_display": {
     "video_memory": 128,
@@ -37,7 +38,8 @@
   "ssh_forward_x11": true,
   "ssh_insert_key": false,
   "forward_jupyter_port": false,
-  "port_forwarding": [],
+  "port_forwarding": [
+  ],
   "synced_folders": [
     {
       "guest": "/home/vagrant/TruWork",
@@ -62,6 +64,6 @@
   
   "environment_variables": {},
   "user_shell": "zsh",
-  "swap_size": "4G",
+  "swap_size": "16G",
   "default_swap_size": "1G"
 }

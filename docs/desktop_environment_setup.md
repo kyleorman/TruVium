@@ -36,35 +36,7 @@ Ensure you have the following tools installed and accessible from your host mach
    ```
 
 2. **Install a Desktop Environment with Session Manager**:
-   Select a desktop environment that includes a session manager. Here are options for **Ubuntu** and **Arch Linux**:
-
-#### Ubuntu TruVium Configuration
-
-1. **GNOME** (includes GDM):
-   ```bash
-   sudo apt install ubuntu-gnome-desktop
-   ```
-
-2. **KDE Plasma** (includes SDDM):
-   ```bash
-   sudo apt install kde-plasma-desktop
-   ```
-   > Note: For the full KDE suite, use `sudo apt install kubuntu-desktop`.
-
-3. **MATE** (includes LightDM):
-   ```bash
-   sudo apt install ubuntu-mate-desktop
-   ```
-
-4. **Xfce** (includes LightDM):
-   ```bash
-   sudo apt install xubuntu-desktop
-   ```
-
-5. **LXQt** (includes SDDM):
-   ```bash
-   sudo apt install lxqt
-   ```
+   Select a desktop environment that includes a session manager. Here are options for **Arch Linux**:
 
 #### Arch Linux TruVium Configuration
 
@@ -132,23 +104,6 @@ To access the desktop environment via the VirtualBox GUI, update `vagrant_config
 1. Open `/TruVium/vagrant-config/vagrant_config.json` for editing.
 2. Locate the `"vb_gui"` key and change its value to `true`.
 
-### Example:
-
-```json
-{
-  "vm_box": "ubuntu/jammy64",
-  "vm_box_version": "20241002.0.0",
-  "box_check_update": true,
-  "vm_hostname": "dev-env",
-  "vm_memory": "2048",
-  "vm_cpus": 1,
-  "vb_gui": true,
-  "graphics_controller": "vmsvga",
-  "vb_clipboard": "bidirectional",
-  "ssh_forward_x11": true,
-}
-```
-
 ---
 
 ## Accessing the Desktop Environment
@@ -159,7 +114,7 @@ After enabling GUI mode in `vagrant_config.json`:
    ```bash
    vagrant reload
    ```
-   This command restarts the VM with GUI enabled.
+   This command restarts the VM with the new settings.
 
 2. **Access the VirtualBox GUI**:
    The VirtualBox GUI should open to the session manager.
@@ -193,25 +148,6 @@ If you do not mind possible additional configuaration you can install a session 
 
 #### Step 1: Install a Standalone Session Manager
 
-##### Ubuntu TruVium Configuration
-1. **GDM** (GNOME Display Manager):
-   ```bash
-   sudo apt install gdm3
-   sudo systemctl enable gdm.service --now
-   ```
-
-2. **LightDM**:
-   ```bash
-   sudo apt install lightdm lightdm-gtk-greeter
-   sudo systemctl enable lightdm.service --now
-   ```
-
-3. **SDDM** (Simple Desktop Display Manager):
-   ```bash
-   sudo apt install sddm
-   sudo systemctl enable sddm.service --now
-   ```
-
 ##### Arch Linux TruVium Configuration
 1. **GDM**:
    ```bash
@@ -235,36 +171,9 @@ If you do not mind possible additional configuaration you can install a session 
 
 Once a session manager is installed and enabled, add a standalone desktop environment.
 
-##### Ubuntu TruVium Configuration
-
-1. **Cinnamon** (requires LightDM):
-   ```bash
-   sudo apt install cinnamon-desktop-environment
-   ```
-
-2. **LXDE** (lightweight desktop environment):
-   ```bash
-   sudo apt install lxde
-   ```
-
-3. **i3 (tiling window manager)**:
-   ```bash
-   sudo apt install i3
-   ```
-
-4. **Openbox**:
-   ```bash
-   sudo apt install openbox
-   ```
-
-5. **Fluxbox** (lightweight window manager):
-   ```bash
-   sudo apt install fluxbox
-   ```
-
 ##### Arch Linux TruVium Configuration
 
-1. **Cinnamon** (requires LightDM):
+1. **Cinnamon**:
    ```bash
    sudo pacman -S cinnamon
    ```
