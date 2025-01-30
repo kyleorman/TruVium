@@ -3,11 +3,11 @@
   "vm_box_version": "20241001.267073",
   "box_check_update": true,
   "vm_hostname": "dev-env",
-  "vm_memory": "8192",
+  "vm_memory": "4096",
   "vm_cpus": 4,
   "vb_gui": false,
   "graphics_controller": "Vboxsvga",
-  "primary_disk_size": "100GB",
+  "primary_disk_size": "20GB",
   
   "vb_display": {
     "video_memory": 128,

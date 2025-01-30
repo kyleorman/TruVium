@@ -582,6 +582,7 @@ install_python_tools_in_venv() {
   echo "Successfully installed packages via virtual environment."
 }
 
+# Install OpenROAD (Require more RAM and Storage)
 install_openroad_from_source() {
   echo "Installing OpenROAD from source..."
 
@@ -590,7 +591,7 @@ install_openroad_from_source() {
   pacman -Syy --noconfirm
   pacman -S --noconfirm --needed \
     base-devel git cmake tcl tk python python-pip clang llvm boost eigen \
-    zlib libffi flex bison swig libx11 mesa glew \
+    zlib libffi flex bison swig libx11 mesa glew qt5-base qt5-svg qt5-x11extras \
     ttf-liberation ttf-dejavu coin-or-lemon doxygen || {
       echo "Failed to install some required packages from official repos."
       exit 1
@@ -635,11 +636,12 @@ install_openroad_from_source() {
     mkdir -p build
     cd build
     
-    cmake .. \
-      -DCMAKE_INSTALL_PREFIX=/usr/local \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DBUILD_TESTS=OFF \
-      -DUSE_SYSTEM_BOOST=ON
+  cmake .. \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_TESTS=OFF \
+    -DUSE_SYSTEM_BOOST=ON \
+    -DBUILD_GUI=ON
     
     # Build using all available cores
     make -j\$(nproc)
@@ -1769,7 +1771,7 @@ STEPS=(
 	"install_cht_sh"
 	"install_broot"
 	"install_go_tools"
-  "install_openroad_from_source"
+  # "install_openroad_from_source"
 	# "install_verible_from_source"
 	"install_tpm"
 	"install_vim_plugins"
