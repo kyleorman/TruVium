@@ -581,6 +581,72 @@ install_python_tools_in_venv() {
   echo "Successfully installed packages via virtual environment."
 }
 
+# Install OpenROAD - may need to adjust disk size
+install_openroad_from_source() {
+  echo "Installing OpenROAD from source..."
+
+  # Ensure necessary dependencies are installed
+  echo "Installing required packages..."
+  pacman -S --noconfirm --needed \
+    base-devel git cmake tcl tk python python-pip clang llvm boost eigen \
+    zlib libffi flex bison swig libx11 mesa glew \
+    ttf-liberation ttf-dejavu || {
+    echo "Failed to install required packages."
+    exit 1
+  }
+
+  # Create a temporary directory for building OpenROAD
+  TMP_OPENROAD_DIR="/tmp/openroad_build"
+  mkdir -p "$TMP_OPENROAD_DIR"
+  cd "$TMP_OPENROAD_DIR" || {
+    echo "Failed to access temporary directory $TMP_OPENROAD_DIR"
+    exit 1
+  }
+
+  # Clone OpenROAD repository
+  echo "Cloning OpenROAD repository..."
+  git clone --recursive https://github.com/The-OpenROAD-Project/OpenROAD.git || {
+    echo "Failed to clone OpenROAD repository."
+    exit 1
+  }
+  cd OpenROAD || exit 1
+
+  # Create build directory and configure build
+  mkdir -p build
+  cd build || exit 1
+  echo "Configuring OpenROAD build..."
+  cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local || {
+    echo "CMake configuration failed."
+    exit 1
+  }
+
+  # Compile OpenROAD using all available cores
+  echo "Building OpenROAD..."
+  make -j$(nproc) || {
+    echo "Build failed."
+    exit 1
+  }
+
+  # Install OpenROAD
+  echo "Installing OpenROAD..."
+  make install || {
+    echo "Installation failed."
+    exit 1
+  }
+
+  # Verify installation
+  if command -v openroad &>/dev/null; then
+    echo "OpenROAD installed successfully."
+  else
+    echo "OpenROAD installation verification failed."
+    exit 1
+  fi
+
+  # Cleanup temporary directory
+  echo "Cleaning up temporary files..."
+  rm -rf "$TMP_OPENROAD_DIR" || echo "Failed to remove temporary directory $TMP_OPENROAD_DIR"
+}
+
 # Install Verible
 install_verible_from_source() {
   echo "Installing Verible from source..."
@@ -1672,6 +1738,7 @@ STEPS=(
 	"install_cht_sh"
 	"install_broot"
 	"install_go_tools"
+  # "install_openroad_from_source"
 	# "install_verible_from_source"
 	"install_tpm"
 	"install_vim_plugins"

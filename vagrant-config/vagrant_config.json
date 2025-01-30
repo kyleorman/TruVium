@@ -7,7 +7,7 @@
   "vm_cpus": 4,
   "vb_gui": false,
   "graphics_controller": "Vboxsvga",
-  "primary_disk_size": "40GB",
+  "primary_disk_size": "50GB",
   
   "vb_display": {
     "video_memory": 128,
