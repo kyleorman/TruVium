@@ -41,12 +41,13 @@ TruVium is a comprehensive development environment specifically designed for har
 ### Quality of Life CLI Tools
 - **fzf**: Advanced fuzzy finder that enables quick search through files, command history, and processes. Integrates with various tools for enhanced navigation
 - **eza**: Modern, maintained alternative to `ls` with Git integration, extended attributes, and beautiful color schemes
-- **zoxide**: Smarter directory navigation using a "frecency" algorithm (frequency + recency) to jump to commonly used locations
+- **zoxide**: Smarter `cd` using a "frecency" algorithm (frequency + recency) to jump to commonly used locations
 - **btop**: Resource monitor providing real-time statistics for CPU, memory, disks, network, and processes with an intuitive interface
-- **ripgrep**: Blazing-fast recursive search tool that respects gitignore rules and automatically searches hidden files
+- **ripgrep**: Blazing-fast recursive search tool and `grep` alternative that respects gitignore rules and automatically searches hidden files
 - **fd**: User-friendly alternative to `find` with smart defaults, colorful output, and parallel command execution
 - **bat**: Feature-rich `cat` clone with syntax highlighting, git integration, and automatic paging
 - **yazi**: Modern terminal file manager with image preview capabilities, extensive keyboard shortcuts, and plugin support
+- **broot**: Modern directory navigation tool that uses a tree structure
 - **termscp**: Feature-rich terminal file transfer client supporting multiple protocols (SFTP, SCP, FTP, S3) with an intuitive interface
 - **taskwarrior**: Flexible command-line task management system with tagging, dependencies, and custom reporting
 - **timewarrior**: Companion to taskwarrior providing detailed time tracking and reporting capabilities

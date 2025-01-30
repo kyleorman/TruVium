@@ -64,6 +64,6 @@
   
   "environment_variables": {},
   "user_shell": "zsh",
-  "swap_size": "8G",
+  "swap_size": "32G",
   "default_swap_size": "1G"
 }
