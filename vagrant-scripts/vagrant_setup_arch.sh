@@ -168,21 +168,32 @@ resize_disk() {
 
     # 1) Use growpart to resize the partition to fill all available disk space
     log_line "Using growpart to resize /dev/sda3 to 100% of disk..."
-    growpart /dev/sda 3 || {
-        log_line "Error: growpart failed to resize /dev/sda3."
-        exit 1
-    }
+
+    # Capture the output and return status of growpart
+    GROWPART_OUTPUT=$(growpart /dev/sda 3 2>&1) || GROWPART_STATUS=$?
+
+    if [[ -n "${GROWPART_STATUS:-}" ]]; then
+        # If growpart failed, check if it was just NOCHANGE
+        if echo "$GROWPART_OUTPUT" | grep -q "NOCHANGE"; then
+            log_line "No partition change required. /dev/sda3 is already at max size."
+        else
+            log_line "Error: growpart failed to resize /dev/sda3."
+            log_line "growpart output was: $GROWPART_OUTPUT"
+            exit 1
+        fi
+    else
+        log_line "growpart successfully resized /dev/sda3."
+    fi
 
     # 2) Resize the Btrfs filesystem (mounted at /) to occupy the new partition
     log_line "Resizing the Btrfs filesystem at / to use all available space..."
-    btrfs filesystem resize max / || {
+    if ! btrfs filesystem resize max /; then
         log_line "Error: Btrfs filesystem resize failed."
         exit 1
-    }
+    fi
 
     log_line "Successfully resized /dev/sda3 Btrfs partition and filesystem."
 }
-
 
 # Enable community repo
 ensure_community_repo_enabled() {
