@@ -352,6 +352,7 @@ install_dependencies() {
     eigen \
     yosys \
     klayout \
+	emacs \
     go ||
     {
       echo "Package installation failed"
@@ -377,7 +378,7 @@ install_aur_packages() {
     #bazel
     #lemminx
     lazydocker
-    emacs-nativecomp
+    #emacs-nativecomp
     falkon
     globalprotect-openconnect
     figlet
