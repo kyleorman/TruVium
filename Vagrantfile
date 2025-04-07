@@ -121,6 +121,8 @@ Vagrant.configure("2") do |config|
         apt-get update -y
         apt-get install -y util-linux btrfs-progs
       elif [ "$OS" = "arch" ]; then
+	    pacman -Sy --noconfirm archlinux-keyring
+	    pacman -Syu --noconfirm --overwrite '/usr/share/man/*/man1/kill.1.gz'
         pacman -Sy --noconfirm util-linux btrfs-progs
       fi
 
