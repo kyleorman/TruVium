@@ -65,16 +65,6 @@ endif
 " Set default background to dark
 set background=dark
 
-" Disable arrow keys in Normal and Visual Modes to encourage use of hjkl
-nnoremap <Up> <Nop>
-nnoremap <Down> <Nop>
-nnoremap <Left> <Nop>
-nnoremap <Right> <Nop>
-vnoremap <Up> <Nop>
-vnoremap <Down> <Nop>
-vnoremap <Left> <Nop>
-vnoremap <Right> <Nop>
-
 " =====================================
 " ==== Whitespace Highlighting ========
 " =====================================
