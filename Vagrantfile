@@ -121,6 +121,9 @@ Vagrant.configure("2") do |config|
         apt-get update -y
         apt-get install -y util-linux btrfs-progs
       elif [ "$OS" = "arch" ]; then
+	    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+	    pacman -Sy --noconfirm reflector
+		reflector --latest 5 --sort rate --save /etc/pacman.d/mirrorlist
 	    pacman -Sy --noconfirm archlinux-keyring
 	    pacman -Syu --noconfirm --overwrite '/usr/share/man/*/man1/kill.1.gz'
         pacman -Sy --noconfirm util-linux btrfs-progs
