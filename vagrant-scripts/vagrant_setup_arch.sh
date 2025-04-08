@@ -195,7 +195,7 @@ resize_disk() {
     log_line "Successfully resized /dev/sda3 Btrfs partition and filesystem."
 }
 
-# Enable community repo
+# Enable community repo (Depreciated--Community repo disabled as of 3/1/25)
 ensure_community_repo_enabled() {
   echo "Ensuring that the [community] repository is enabled..."
 
@@ -1772,7 +1772,6 @@ ensure_home_ownership() {
 STEPS=(
 	"check_internet_connection"
 	"resize_disk"
-	"ensure_community_repo_enabled"
 	"enable_parallel_builds"
 	"install_dependencies"
 	"install_rust"
