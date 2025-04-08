@@ -116,18 +116,24 @@ Vagrant.configure("2") do |config|
           ;;
       esac
 
-      # Install necessary tools based on OS
-      if [ "$OS" = "ubuntu" ]; then
-        apt-get update -y
-        apt-get install -y util-linux btrfs-progs
-      elif [ "$OS" = "arch" ]; then
-	    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-	    pacman -Sy --noconfirm reflector
-		reflector --latest 5 --sort rate --save /etc/pacman.d/mirrorlist
-	    pacman -Sy --noconfirm archlinux-keyring
-	    pacman -Syu --noconfirm --overwrite '/usr/share/man/*/man1/kill.1.gz'
-        pacman -Sy --noconfirm util-linux btrfs-progs
-      fi
+	# Install necessary tools based on OS
+	if [ "$OS" = "ubuntu" ]; then
+	  apt-get update -y
+	  apt-get install -y util-linux btrfs-progs
+	elif [ "$OS" = "arch" ]; then
+	  # Backup current mirrorlist
+	  cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+	  # Update mirrors using reflector
+	  pacman -Sy --noconfirm --needed reflector archlinux-keyring
+	  reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+	  # Update entire system in one go with overwrite handling
+	  pacman -Syu --noconfirm --overwrite '/usr/share/man/*/man1/kill.1.gz'
+	  # Install required tools
+	  pacman -S --noconfirm --needed util-linux btrfs-progs
+	else
+	  echo "Unsupported OS: $OS"
+	  exit 1
+	fi
 
       # Check filesystem type
       FS_TYPE=$(stat -f -c %T /)
