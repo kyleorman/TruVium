@@ -353,6 +353,7 @@ install_dependencies() {
     yosys \
     klayout \
 	emacs \
+	ghostty-terminfo \
     go ||
     {
       echo "Package installation failed"
