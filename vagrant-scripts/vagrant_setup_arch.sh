@@ -370,7 +370,7 @@ install_aur_packages() {
   AUR_PACKAGES=(
     nerd-fonts-complete
     perl-language-server
-    ghdl
+    '--mflags "--nocheck" ghdl'
     gtkwave
     texlab
     verilator
