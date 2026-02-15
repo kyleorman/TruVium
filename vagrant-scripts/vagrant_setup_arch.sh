@@ -356,6 +356,8 @@ install_dependencies() {
     zoxide \
     btop \
     thefuck \
+    figlet \
+    lolcat \
     p7zip \
     jq \
     poppler \
@@ -371,6 +373,8 @@ install_dependencies() {
     nushell \
     bazel \
     lazydocker \
+    termscp \
+    cudd \
     ttf-firacode-nerd \
     ttf-hack-nerd \
     ttf-jetbrains-mono-nerd \
@@ -481,9 +485,7 @@ install_aur_packages() {
     # emacs-nativecomp # disabled due build failures
     falkon
     globalprotect-openconnect-git
-    figlet
     boxes
-    lolcat
     fortune-mod
     fortune-mod-wisdom-fr
     fortune-mod-hitchhiker
@@ -495,8 +497,6 @@ install_aur_packages() {
     visual-studio-code-bin
     kicad
     tcllib
-    # termscp # currently omitted due package source churn
-    # cudd # currently omitted due package source churn
     # openroad-git # resource-intensive and disabled by default
     # ffmpeg # optional
   )
