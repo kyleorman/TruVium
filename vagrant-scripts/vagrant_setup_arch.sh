@@ -1300,6 +1300,30 @@ install_zsh_plugins() {
     "zsh-users/zsh-completions"
   )
 
+  clone_zsh_plugin_with_retry() {
+    local plugin_repo="$1"
+    local target_dir="$2"
+    local context="$3"
+    local retry=3
+
+    while [ "$retry" -gt 0 ]; do
+      if su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$plugin_repo.git '$target_dir'"; then
+        return 0
+      fi
+
+      retry=$((retry - 1))
+      if [ "$retry" -gt 0 ]; then
+        echo "Retrying plugin clone for '$plugin_repo' in $context... ($retry attempts left)"
+        sleep 2
+      fi
+    done
+
+    echo "WARNING: Failed to install plugin '$plugin_repo' to $context. Continuing."
+    return 1
+  }
+
+  local failed_plugins=()
+
   # Install each plugin into both directories
   for plugin in "${ZSH_PLUGINS[@]}"; do
     local plugin_name
@@ -1312,10 +1336,9 @@ install_zsh_plugins() {
       echo "Plugin '$plugin_name' already installed in .oh-my-zsh/custom/plugins. Skipping."
     else
       echo "Installing plugin '$plugin_name' into .oh-my-zsh/custom/plugins..."
-      su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$plugin.git '$oh_my_zsh_target'" || {
-        echo "Failed to install plugin '$plugin_name' to .oh-my-zsh/custom/plugins."
-        exit 1
-      }
+      if ! clone_zsh_plugin_with_retry "$plugin" "$oh_my_zsh_target" ".oh-my-zsh/custom/plugins"; then
+        failed_plugins+=("$plugin_name (.oh-my-zsh/custom/plugins)")
+      fi
     fi
 
     # Install into .zsh/plugins
@@ -1323,24 +1346,36 @@ install_zsh_plugins() {
       echo "Plugin '$plugin_name' already installed in .zsh/plugins. Skipping."
     else
       echo "Installing plugin '$plugin_name' into .zsh/plugins..."
-      su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$plugin.git '$zsh_target'" || {
-        echo "Failed to install plugin '$plugin_name' to .zsh/plugins."
-        exit 1
-      }
+      if ! clone_zsh_plugin_with_retry "$plugin" "$zsh_target" ".zsh/plugins"; then
+        failed_plugins+=("$plugin_name (.zsh/plugins)")
+      fi
     fi
   done
 
-  echo "Zsh plugins installed successfully in both directories."
+  if [ "${#failed_plugins[@]}" -gt 0 ]; then
+    echo "WARNING: Some Zsh plugin installs failed: ${failed_plugins[*]}"
+  else
+    echo "Zsh plugins installed successfully in both directories."
+  fi
 }
 
 
 # Function to install coc.nvim dependencies
 install_coc_dependencies() {
   echo "Installing coc.nvim dependencies..."
-  su - "$ACTUAL_USER" -c "cd '$USER_HOME/.vim/pack/plugins/start/coc.nvim' && npm install" || {
-    echo "Failed to install coc.nvim dependencies"
-    exit 1
-  }
+
+  local coc_dir="$USER_HOME/.vim/pack/plugins/start/coc.nvim"
+  if [ ! -d "$coc_dir" ]; then
+    echo "WARNING: coc.nvim plugin directory not found at $coc_dir. Skipping dependency install."
+    return 0
+  fi
+
+  if ! su - "$ACTUAL_USER" -c "cd '$coc_dir' && npm install"; then
+    echo "WARNING: Failed to install coc.nvim dependencies. Continuing."
+    return 0
+  fi
+
+  echo "coc.nvim dependencies installed successfully."
 }
 
 # Function to copy configuration files and directories
