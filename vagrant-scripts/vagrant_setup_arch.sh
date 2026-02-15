@@ -401,6 +401,33 @@ install_dependencies() {
   fi
 }
 
+install_opencode() {
+  echo "Installing OpenCode CLI..."
+
+  if command -v opencode &>/dev/null; then
+    echo "OpenCode CLI is already installed."
+    return 0
+  fi
+
+  local retry=3
+  while [ "$retry" -gt 0 ]; do
+    if npm install -g opencode-ai && command -v opencode &>/dev/null; then
+      echo "OpenCode CLI installed successfully."
+      opencode --version || true
+      return 0
+    fi
+
+    retry=$((retry - 1))
+    if [ "$retry" -gt 0 ]; then
+      echo "Retrying OpenCode CLI installation... ($retry attempts left)"
+      sleep 2
+    fi
+  done
+
+  echo "Failed to install OpenCode CLI."
+  exit 1
+}
+
 # Function to install AUR packages with retry mechanism
 install_aur_packages() {
   echo "Installing AUR packages..."
@@ -2004,6 +2031,7 @@ STEPS=(
 	"resize_disk"
 	"enable_parallel_builds"
 	"install_dependencies"
+	"install_opencode"
 	"install_rust"
 	"install_aur_packages"
 	"copy_config_files"
