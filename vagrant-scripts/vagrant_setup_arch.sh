@@ -157,41 +157,86 @@ check_internet_connection() {
 }
 
 resize_disk() {
-    log_line "Resizing /dev/sda3 partition for Btrfs..."
+    log_line "Resizing root partition and filesystem when supported..."
 
-    # Ensure we have growpart, parted, and btrfs-progs installed
-    pacman -S --noconfirm --needed cloud-guest-utils parted btrfs-progs || {
-        log_line "Failed to install cloud-guest-utils, parted, or btrfs-progs."
-        exit 1
+    local ROOT_SOURCE ROOT_DEVICE FS_TYPE
+    local ROOT_DISK_NAME ROOT_PARTNUM ROOT_DISK_PATH
+    local GROWPART_OUTPUT GROWPART_STATUS=""
+
+    ROOT_SOURCE=$(findmnt -n -o SOURCE / || true)
+    ROOT_DEVICE=$(readlink -f "$ROOT_SOURCE" 2>/dev/null || printf '%s' "$ROOT_SOURCE")
+    FS_TYPE=$(findmnt -n -o FSTYPE / || true)
+
+    if [ -z "$ROOT_DEVICE" ] || [ ! -b "$ROOT_DEVICE" ]; then
+        log_line "Skipping disk resize: root device is not a block device ($ROOT_SOURCE)."
+        return 0
+    fi
+
+    # Try to determine parent disk + partition number from lsblk first
+    ROOT_DISK_NAME=$(lsblk -no PKNAME "$ROOT_DEVICE" 2>/dev/null || true)
+    ROOT_PARTNUM=$(lsblk -no PARTNUM "$ROOT_DEVICE" 2>/dev/null || true)
+
+    if [ -n "$ROOT_DISK_NAME" ] && [ -n "$ROOT_PARTNUM" ]; then
+        ROOT_DISK_PATH="/dev/$ROOT_DISK_NAME"
+    elif [[ "$ROOT_DEVICE" =~ ^/dev/(nvme[0-9]+n[0-9]+|mmcblk[0-9]+)p([0-9]+)$ ]]; then
+        ROOT_DISK_PATH="/dev/${BASH_REMATCH[1]}"
+        ROOT_PARTNUM="${BASH_REMATCH[2]}"
+    elif [[ "$ROOT_DEVICE" =~ ^(/dev/[[:alpha:]]+)([0-9]+)$ ]]; then
+        ROOT_DISK_PATH="${BASH_REMATCH[1]}"
+        ROOT_PARTNUM="${BASH_REMATCH[2]}"
+    else
+        log_line "Skipping disk resize: unable to infer partition layout for $ROOT_DEVICE."
+        return 0
+    fi
+
+    # Ensure required tools are available
+    pacman -S --noconfirm --needed cloud-guest-utils parted || {
+        log_line "Failed to install cloud-guest-utils or parted."
+        return 0
     }
 
-    # 1) Use growpart to resize the partition to fill all available disk space
-    log_line "Using growpart to resize /dev/sda3 to 100% of disk..."
+    # Grow the root partition to fill available space
+    log_line "Using growpart to resize $ROOT_DEVICE on $ROOT_DISK_PATH (partition $ROOT_PARTNUM)..."
+    GROWPART_OUTPUT=$(growpart "$ROOT_DISK_PATH" "$ROOT_PARTNUM" 2>&1) || GROWPART_STATUS=$?
 
-    # Capture the output and return status of growpart
-    GROWPART_OUTPUT=$(growpart /dev/sda 3 2>&1) || GROWPART_STATUS=$?
-
-    if [[ -n "${GROWPART_STATUS:-}" ]]; then
-        # If growpart failed, check if it was just NOCHANGE
+    if [[ -n "$GROWPART_STATUS" ]]; then
         if echo "$GROWPART_OUTPUT" | grep -q "NOCHANGE"; then
-            log_line "No partition change required. /dev/sda3 is already at max size."
+            log_line "No partition change required for $ROOT_DEVICE."
         else
-            log_line "Error: growpart failed to resize /dev/sda3."
+            log_line "Warning: growpart failed for $ROOT_DEVICE."
             log_line "growpart output was: $GROWPART_OUTPUT"
-            exit 1
         fi
     else
-        log_line "growpart successfully resized /dev/sda3."
+        log_line "growpart successfully resized $ROOT_DEVICE."
     fi
 
-    # 2) Resize the Btrfs filesystem (mounted at /) to occupy the new partition
-    log_line "Resizing the Btrfs filesystem at / to use all available space..."
-    if ! btrfs filesystem resize max /; then
-        log_line "Error: Btrfs filesystem resize failed."
-        exit 1
-    fi
+    # Grow filesystem to match partition size
+    case "$FS_TYPE" in
+        btrfs)
+            if ! command -v btrfs >/dev/null 2>&1; then
+                pacman -S --noconfirm --needed btrfs-progs || true
+            fi
+            if ! btrfs filesystem resize max /; then
+                log_line "Warning: Btrfs filesystem resize failed on /."
+                return 0
+            fi
+            ;;
+        ext2|ext3|ext4)
+            if ! command -v resize2fs >/dev/null 2>&1; then
+                pacman -S --noconfirm --needed e2fsprogs || true
+            fi
+            if ! resize2fs "$ROOT_DEVICE"; then
+                log_line "Warning: resize2fs failed on $ROOT_DEVICE."
+                return 0
+            fi
+            ;;
+        *)
+            log_line "Skipping filesystem resize: unsupported filesystem type '$FS_TYPE'."
+            return 0
+            ;;
+    esac
 
-    log_line "Successfully resized /dev/sda3 Btrfs partition and filesystem."
+    log_line "Root resize step completed for $ROOT_DEVICE ($FS_TYPE)."
 }
 
 # Function to enable parallel downloads in pacman.conf and parallel builds in makepkg.conf
