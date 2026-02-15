@@ -391,7 +391,39 @@ install_dependencies() {
 # Function to install AUR packages with retry mechanism
 install_aur_packages() {
   echo "Installing AUR packages..."
-  su - "$ACTUAL_USER" -c "command -v yay >/dev/null 2>&1 || (git clone https://aur.archlinux.org/yay.git $TMP_DIR/yay && cd $TMP_DIR/yay && makepkg -si --noconfirm)"
+
+  install_yay() {
+    local retry=3
+
+    if su - "$ACTUAL_USER" -c "command -v yay >/dev/null 2>&1"; then
+      return 0
+    fi
+
+    # Prefer official repo package when available.
+    if pacman -S --noconfirm --needed yay >/dev/null 2>&1; then
+      return 0
+    fi
+
+    while [ "$retry" -gt 0 ]; do
+      su - "$ACTUAL_USER" -c "rm -rf $TMP_DIR/yay"
+      if su - "$ACTUAL_USER" -c "git clone https://aur.archlinux.org/yay.git $TMP_DIR/yay && cd $TMP_DIR/yay && GODEBUG=netdns=cgo makepkg -si --noconfirm"; then
+        return 0
+      fi
+
+      retry=$((retry - 1))
+      if [ "$retry" -gt 0 ]; then
+        echo "Retrying yay bootstrap... ($retry attempts left)"
+        sleep 2
+      fi
+    done
+
+    echo "WARNING: Unable to install yay. Skipping AUR package installation."
+    return 1
+  }
+
+  if ! install_yay; then
+    return 0
+  fi
 
   install_ghdl_with_fallback() {
     local retry=3
@@ -470,8 +502,8 @@ install_aur_packages() {
     until su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed $package"; do
       retry=$((retry - 1))
       if [ "$retry" -le 0 ]; then
-        echo "Failed to install AUR package: $package after multiple attempts."
-        exit 1
+        echo "WARNING: Failed to install AUR package: $package after multiple attempts. Continuing."
+        break
       fi
       echo "Retrying installation of $package... ($retry attempts left)"
       sleep 2
@@ -810,11 +842,19 @@ install_verible_from_source() {
 install_broot() {
   echo "Installing broot shell integration..."
 
+  if ! command -v broot &>/dev/null; then
+    echo "broot not found; attempting to install from pacman..."
+    if ! pacman -S --noconfirm --needed broot; then
+      echo "WARNING: Failed to install broot package. Skipping shell integration."
+      return 0
+    fi
+  fi
+
   # Install the shell function integration
-  su - "$ACTUAL_USER" -c "broot --install" || {
-    echo "Failed to run broot shell integration."
-    exit 1
-  }
+  if ! su - "$ACTUAL_USER" -c "broot --install"; then
+    echo "WARNING: Failed to run broot shell integration. Continuing."
+    return 0
+  fi
 
   echo "broot shell integration installed successfully."
 }
