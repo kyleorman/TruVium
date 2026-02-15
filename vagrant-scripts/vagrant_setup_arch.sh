@@ -356,7 +356,6 @@ install_dependencies() {
     zoxide \
     btop \
     thefuck \
-    figlet \
     lolcat \
     p7zip \
     jq \
@@ -414,29 +413,46 @@ install_aur_packages() {
     fi
 
     # Prefer official repo package when available.
-    if pacman -S --noconfirm --needed yay >/dev/null 2>&1; then
+    if pacman -S --noconfirm --needed yay >/dev/null 2>&1 && su - "$ACTUAL_USER" -c "command -v yay >/dev/null 2>&1"; then
       return 0
     fi
 
+    # First fallback: yay-bin avoids Go module resolver issues.
+    retry=3
     while [ "$retry" -gt 0 ]; do
-      su - "$ACTUAL_USER" -c "rm -rf $TMP_DIR/yay"
-      if su - "$ACTUAL_USER" -c "git clone https://aur.archlinux.org/yay.git $TMP_DIR/yay && cd $TMP_DIR/yay && GODEBUG=netdns=cgo makepkg -si --noconfirm"; then
+      su - "$ACTUAL_USER" -c "rm -rf $TMP_DIR/yay-bin"
+      if su - "$ACTUAL_USER" -c "git clone https://aur.archlinux.org/yay-bin.git $TMP_DIR/yay-bin && cd $TMP_DIR/yay-bin && makepkg -si --noconfirm" && su - "$ACTUAL_USER" -c "command -v yay >/dev/null 2>&1"; then
         return 0
       fi
 
       retry=$((retry - 1))
       if [ "$retry" -gt 0 ]; then
-        echo "Retrying yay bootstrap... ($retry attempts left)"
+        echo "Retrying yay-bin bootstrap... ($retry attempts left)"
         sleep 2
       fi
     done
 
-    echo "WARNING: Unable to install yay. Skipping AUR package installation."
+    # Final fallback: build yay from source with resolver/proxy fallbacks.
+    retry=3
+    while [ "$retry" -gt 0 ]; do
+      su - "$ACTUAL_USER" -c "rm -rf $TMP_DIR/yay"
+      if su - "$ACTUAL_USER" -c "git clone https://aur.archlinux.org/yay.git $TMP_DIR/yay && cd $TMP_DIR/yay && env GODEBUG=netdns=cgo GOPROXY=direct GOSUMDB=off makepkg -si --noconfirm" && su - "$ACTUAL_USER" -c "command -v yay >/dev/null 2>&1"; then
+        return 0
+      fi
+
+      retry=$((retry - 1))
+      if [ "$retry" -gt 0 ]; then
+        echo "Retrying yay source bootstrap... ($retry attempts left)"
+        sleep 2
+      fi
+    done
+
+    echo "ERROR: Unable to install yay; cannot continue AUR package installation."
     return 1
   }
 
   if ! install_yay; then
-    return 0
+    exit 1
   fi
 
   install_ghdl_with_fallback() {
@@ -485,8 +501,10 @@ install_aur_packages() {
     # emacs-nativecomp # disabled due build failures
     falkon
     globalprotect-openconnect-git
+    figlet
     boxes
     fortune-mod
+    fortune-mod-hackers
     fortune-mod-wisdom-fr
     fortune-mod-hitchhiker
     tlrc
