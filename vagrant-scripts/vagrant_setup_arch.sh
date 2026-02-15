@@ -295,13 +295,18 @@ install_dependencies() {
 
   # Combined pacman installation
   pacman -Syu --noconfirm
+
+  # Preselect common virtual providers to keep installs non-interactive
+  pacman -S --noconfirm --needed qt6-multimedia-ffmpeg jack2 || {
+    echo "Warning: Failed to preinstall multimedia/audio providers; continuing."
+  }
+
   pacman -S --noconfirm --needed \
     base-devel \
     git \
     zsh \
     wget \
     curl \
-    gvim \
     neovim \
     tmux \
     python \
@@ -371,6 +376,16 @@ install_dependencies() {
       echo "Package installation failed"
       exit 1
     }
+
+  # gvim conflicts with vim/vim-minimal on some Arch base boxes.
+  # Keep it optional so provisioning can continue.
+  if pacman -Qi vim >/dev/null 2>&1; then
+    echo "Skipping gvim install because vim is already present and conflicts with gvim."
+  else
+    pacman -S --noconfirm --needed gvim || {
+      echo "Warning: Optional package gvim failed to install; continuing."
+    }
+  fi
 }
 
 # Function to install AUR packages with retry mechanism
