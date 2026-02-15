@@ -333,10 +333,43 @@ install_aur_packages() {
   echo "Installing AUR packages..."
   su - "$ACTUAL_USER" -c "command -v yay >/dev/null 2>&1 || (git clone https://aur.archlinux.org/yay.git $TMP_DIR/yay && cd $TMP_DIR/yay && makepkg -si --noconfirm)"
 
+  install_ghdl_with_fallback() {
+    local retry=3
+
+    while [ "$retry" -gt 0 ]; do
+      su - "$ACTUAL_USER" -c "rm -rf ~/.cache/yay/ghdl"
+      if su - "$ACTUAL_USER" -c 'yay -S --noconfirm --needed --answerclean All --cleanbuild --mflags "--nocheck" ghdl'; then
+        return 0
+      fi
+      retry=$((retry - 1))
+      if [ "$retry" -gt 0 ]; then
+        echo "Retrying installation of ghdl... ($retry attempts left)"
+        sleep 2
+      fi
+    done
+
+    echo "Falling back to ghdl-gcc after ghdl failures..."
+    retry=2
+    while [ "$retry" -gt 0 ]; do
+      su - "$ACTUAL_USER" -c "rm -rf ~/.cache/yay/ghdl-gcc"
+      if su - "$ACTUAL_USER" -c 'yay -S --noconfirm --needed --answerclean All --cleanbuild --mflags "--nocheck" ghdl-gcc'; then
+        return 0
+      fi
+      retry=$((retry - 1))
+      if [ "$retry" -gt 0 ]; then
+        echo "Retrying installation of ghdl-gcc... ($retry attempts left)"
+        sleep 2
+      fi
+    done
+
+    echo "WARNING: Unable to install ghdl or ghdl-gcc from AUR. Continuing without GHDL."
+    return 0
+  }
+
   # Define AUR packages to install
   AUR_PACKAGES=(
     perl-language-server
-    '--mflags "--nocheck" ghdl'
+    ghdl
     gtkwave
     texlab
     verilator
@@ -368,6 +401,11 @@ install_aur_packages() {
 
   # Install each AUR package with retries
   for package in "${AUR_PACKAGES[@]}"; do
+    if [ "$package" = "ghdl" ]; then
+      install_ghdl_with_fallback
+      continue
+    fi
+
     retry=3
     until su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed $package"; do
       retry=$((retry - 1))

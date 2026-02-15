@@ -16,7 +16,7 @@ Vagrant.configure("2") do |config|
   end
 
   # VM box configuration
-  config.vm.box = settings['vm_box'] || "archlinux/archlinux" # Default to Arch
+  config.vm.box = settings['vm_box'] || "generic/arch" # Default to Arch
   config.vm.box_version = settings['vm_box_version'] if settings.key?('vm_box_version')
   config.vm.box_check_update = settings.fetch('box_check_update', true)
   primary_disk_size = settings.fetch('primary_disk_size', '20GB')

@@ -202,7 +202,7 @@ warning - configurations made after the instance was created will be lost and yo
 ## Configuration
 
 ### Host Configuration
-- Apple Silicon hosts can run VirtualBox 7.x, but TruVium currently uses the `archlinux/archlinux` x86_64 Vagrant box. There is no official ARM64 Arch Vagrant box for this provider, so the default workflow is currently x86 host focused.
+- Apple Silicon hosts can run VirtualBox 7.x, but TruVium currently uses the `generic/arch` x86_64 Vagrant box. There is no ARM64 Arch Vagrant box for this provider, so the default workflow is currently x86 host focused.
 - Host terminal configuration can affect some keybindings, colors, and fonts. Using a NerdFont like FiraCode Mono for powerline symbol support is suggested. Additionally, Alacritty is a good cross-platform terminal, but a separate X-server is needed and may require configuration if you are running on Windows or macOS.
 
 ### Vagrant Configuration (`vagrant_config.json`)
@@ -212,8 +212,8 @@ warning - configurations made after the instance was created will be lost and yo
 
 ```json
 {
-  "vm_box": "archlinux/archlinux",
-  "vm_box_version": "20241001.267073",
+  "vm_box": "generic/arch",
+  "vm_box_version": "4.3.12",
   "box_check_update": true,
   "vm_hostname": "dev-env",
   "vm_memory": "4096",

@@ -1,6 +1,6 @@
 {
-  "vm_box": "archlinux/archlinux",
-  "vm_box_version": "20241001.267073",
+  "vm_box": "generic/arch",
+  "vm_box_version": "4.3.12",
   "box_check_update": true,
   "vm_hostname": "dev-env",
   "vm_memory": "4096",

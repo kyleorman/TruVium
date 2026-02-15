@@ -11,8 +11,8 @@ The configuration is stored in a JSON file, typically named `vagrant_config.json
 ### Base Box Configuration
 ```json
 {
-  "vm_box": "archlinux/archlinux",        // The base Vagrant box to use
-  "vm_box_version": "20241001.267073",    // Specific version of the box
+  "vm_box": "generic/arch",               // The base Vagrant box to use
+  "vm_box_version": "4.3.12",             // Specific version of the box
   "box_check_update": true,               // Whether to check for box updates
   "vm_hostname": "dev-env",               // Hostname of the VM
   "primary_disk_size": "20GB"             // Primary VM disk size
@@ -127,8 +127,8 @@ Optimized for command-line work, development, and servers.
 
 ```json
 {
-  "vm_box": "archlinux/archlinux",
-  "vm_box_version": "20241001.267073",
+  "vm_box": "generic/arch",
+  "vm_box_version": "4.3.12",
   "box_check_update": true,
   "vm_hostname": "cli-dev",
   
@@ -189,8 +189,8 @@ Balanced configuration for desktop usage with GUI applications.
 
 ```json
 {
-  "vm_box": "archlinux/archlinux",
-  "vm_box_version": "20241001.267073",
+  "vm_box": "generic/arch",
+  "vm_box_version": "4.3.12",
   "box_check_update": true,
   "vm_hostname": "gui-dev",
   
