@@ -871,20 +871,46 @@ install_go_tools() {
 
   # Install Go tools
   TOOLS=(
-    "golang.org/x/tools/gopls@latest"       # Go language server
-    "github.com/mrtazz/checkmake/cmd/checkmake@latest"  # CheckMake
-    "github.com/DerTimonius/twkb@latest"   # TWKB
+    "golang.org/x/tools/gopls@latest"                  # Go language server
+    "github.com/mrtazz/checkmake/cmd/checkmake@latest" # CheckMake
+    "github.com/DerTimonius/twkb@latest"               # TWKB
   )
 
+  install_go_tool_with_fallbacks() {
+    local tool="$1"
+
+    # Normal install path first
+    if su - "$ACTUAL_USER" -c "go install $tool"; then
+      return 0
+    fi
+
+    # Some boxes fail with Go's default DNS resolver; try libc resolver
+    if su - "$ACTUAL_USER" -c "GODEBUG=netdns=cgo go install $tool"; then
+      return 0
+    fi
+
+    # Final fallback: bypass module proxy and use libc DNS resolver
+    if su - "$ACTUAL_USER" -c "GODEBUG=netdns=cgo GOPROXY=direct go install $tool"; then
+      return 0
+    fi
+
+    return 1
+  }
+
+  local failed_tools=()
   for tool in "${TOOLS[@]}"; do
     echo "Installing $tool..."
-    if ! su - "$ACTUAL_USER" -c "go install $tool"; then
-      echo "Error: Failed to install $tool"
-      exit 1
+    if ! install_go_tool_with_fallbacks "$tool"; then
+      echo "WARNING: Failed to install $tool. Continuing."
+      failed_tools+=("$tool")
     fi
   done
 
-  echo "Go tools installed successfully."
+  if [ "${#failed_tools[@]}" -gt 0 ]; then
+    echo "WARNING: Some Go tools failed to install: ${failed_tools[*]}"
+  else
+    echo "Go tools installed successfully."
+  fi
 }
 
 # Function to install Tmux Plugin Manager and tmux plugins
