@@ -127,8 +127,10 @@ Vagrant.configure("2") do |config|
       elif [ "$OS" = "arch" ]; then
         # Backup current mirrorlist
         cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+        # Refresh keyring before installing reflector to avoid signature trust failures
+        pacman -Sy --noconfirm --needed archlinux-keyring
         # Update mirrors using reflector
-        pacman -Sy --noconfirm --needed reflector archlinux-keyring
+        pacman -S --noconfirm --needed reflector
         reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
         # Update entire system in one go with overwrite handling
         pacman -Syu --noconfirm --overwrite '/usr/share/man/*/man1/kill.1.gz'
@@ -145,18 +147,18 @@ Vagrant.configure("2") do |config|
 
       if [ "$FS_TYPE" = "btrfs" ]; then
         echo "Using Btrfs-specific swap setup..."
-        
+
         # Create a properly aligned swap file
         truncate -s 0 "$SWAPFILE"
         chattr +C "$SWAPFILE" 2>/dev/null || true  # Disable CoW, don't fail if not supported
         fallocate -l "${SIZE}M" "$SWAPFILE"
-        
+
         # Set proper permissions
         chmod 600 "$SWAPFILE"
-        
+
         # Get page size and offset for Btrfs
         PAGESIZE=$(getconf PAGESIZE)
-        
+
         if command -v filefrag >/dev/null 2>&1; then
           OFFSET=$(filefrag -v "$SWAPFILE" | awk '{ if($1==0) print $4 }' | cut -d'.' -f1)
           if [ -n "$OFFSET" ]; then
@@ -180,7 +182,7 @@ Vagrant.configure("2") do |config|
         fi
       else
         echo "Using standard swap setup for ${FS_TYPE}..."
-        
+
         # Create swap file
         dd if=/dev/zero of="$SWAPFILE" bs=1M count="$SIZE" status=progress
         chmod 600 "$SWAPFILE"
@@ -203,7 +205,7 @@ Vagrant.configure("2") do |config|
       fi
     SHELL
   end
-  
+
   # Provisioning scripts
   if settings.key?('provision')
     settings['provision'].each do |script|
@@ -225,7 +227,7 @@ Vagrant.configure("2") do |config|
     # Default provisioning with vagrant_setup_arch.sh script
     config.vm.provision "shell", path: File.join(base_path, "vagrant-scripts", "vagrant_setup_arch.sh")
   end
-  
+
   # Reset swap size after provisioning
   if settings.key?('default_swap_size')
     default_swap_size = settings['default_swap_size'].to_s.upcase
@@ -292,7 +294,7 @@ Vagrant.configure("2") do |config|
         apt-get update -y
         apt-get install -y util-linux btrfs-progs
       elif [ "$OS" = "arch" ]; then
-        pacman -Sy --noconfirm util-linux btrfs-progs
+        pacman -S --noconfirm --needed util-linux btrfs-progs
       fi
 
       # Check filesystem type
@@ -301,18 +303,18 @@ Vagrant.configure("2") do |config|
 
       if [ "$FS_TYPE" = "btrfs" ]; then
         echo "Using Btrfs-specific swap setup..."
-        
+
         # Create a properly aligned swap file
         truncate -s 0 "$SWAPFILE"
         chattr +C "$SWAPFILE" 2>/dev/null || true  # Disable CoW, don't fail if not supported
         fallocate -l "${SIZE}M" "$SWAPFILE"
-        
+
         # Set proper permissions
         chmod 600 "$SWAPFILE"
-        
+
         # Get page size and offset for Btrfs
         PAGESIZE=$(getconf PAGESIZE)
-        
+
         if command -v filefrag >/dev/null 2>&1; then
           OFFSET=$(filefrag -v "$SWAPFILE" | awk '{ if($1==0) print $4 }' | cut -d'.' -f1)
           if [ -n "$OFFSET" ]; then
@@ -336,7 +338,7 @@ Vagrant.configure("2") do |config|
         fi
       else
         echo "Using standard swap setup for ${FS_TYPE}..."
-        
+
         # Create swap file
         dd if=/dev/zero of="$SWAPFILE" bs=1M count="$SIZE" status=progress
         chmod 600 "$SWAPFILE"
@@ -407,28 +409,28 @@ Vagrant.configure("2") do |config|
       vb.customize ["modifyvm", :id, "--vtxvpid", perf.fetch('vtx_vpid', true) ? "on" : "off"]
       vb.customize ["modifyvm", :id, "--hwvirtex", perf.fetch('hw_virtualization', true) ? "on" : "off"]
       vb.customize ["modifyvm", :id, "--ioapic", perf.fetch('io_apic', true) ? "on" : "off"]
-      vb.customize ["modifyvm", :id, "--pagefusion", perf.fetch('page_fusion', true) ? "on" : "off"]
+      #vb.customize ["modifyvm", :id, "--pagefusion", perf.fetch('page_fusion', false) ? "on" : "off"]
     end
 
     # Storage Configuration
     if settings.key?('storage')
       storage = settings['storage']
-      
+
       # Add additional disks
       if storage.key?('additional_disks')
         # Create vm-disks directory if it doesn't exist
         FileUtils.mkdir_p(File.join(base_path, "vm-disks"))
-        
+
         storage['additional_disks'].each_with_index do |disk, index|
           disk_path = File.join(base_path, "vm-disks", "#{disk['name']}.#{disk['format'] || 'vdi'}")
-          
+
           unless File.exist?(disk_path)
-            vb.customize ['createhd', 
+            vb.customize ['createhd',
               '--filename', disk_path,
               '--size', disk['size'].to_s.gsub(/[^\d]/, ''),
               '--format', disk['format'] || 'vdi']
           end
-          
+
           vb.customize ['storageattach', :id,
             '--storagectl', storage['controller'] || 'SATA',
             '--port', disk['port'] || (index + 1),
@@ -459,7 +461,7 @@ Vagrant.configure("2") do |config|
     config.vm.provision "shell", inline: <<-SHELL
       if ! command -v zsh &> /dev/null; then
         if [ -f /etc/arch-release ]; then
-          pacman -Sy --noconfirm zsh
+          pacman -S --noconfirm --needed zsh
         else
           apt-get update && apt-get install -y zsh
         fi
