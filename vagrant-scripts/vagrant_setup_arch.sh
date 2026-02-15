@@ -917,10 +917,11 @@ install_go_tools() {
 install_tpm() {
   echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
   TPM_DIR="$USER_HOME/.tmux/plugins/tpm"
+
   if [ ! -d "$TPM_DIR" ]; then
     su - "$ACTUAL_USER" -c "git clone https://github.com/tmux-plugins/tpm '$TPM_DIR'" || {
-      echo "Failed to clone TPM"
-      exit 1
+      echo "WARNING: Failed to clone TPM. Skipping tmux plugin installation."
+      return 0
     }
   else
     echo "TPM is already installed."
@@ -931,15 +932,23 @@ install_tpm() {
     touch "$USER_HOME/.tmux.conf"
     chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.tmux.conf"
   fi
+
+  # Some tmux configs reference $TMUX_PLUGIN_MANAGER_PATH directly.
+  # Define it explicitly to avoid "unknown variable" failures.
+  if ! grep -q "TMUX_PLUGIN_MANAGER_PATH" "$USER_HOME/.tmux.conf"; then
+    echo "set-environment -g TMUX_PLUGIN_MANAGER_PATH '$USER_HOME/.tmux/plugins/tpm'" >>"$USER_HOME/.tmux.conf"
+  fi
+
   if ! grep -q "run -b '~/.tmux/plugins/tpm/tpm'" "$USER_HOME/.tmux.conf"; then
     echo "run -b '~/.tmux/plugins/tpm/tpm'" >>"$USER_HOME/.tmux.conf"
   fi
 
   # Install tmux plugins
-  su - "$ACTUAL_USER" -c "tmux start-server && tmux new-session -d && ~/.tmux/plugins/tpm/bin/install_plugins && tmux kill-server" || {
-    echo "Failed to install tmux plugins"
-    exit 1
-  }
+  if ! su - "$ACTUAL_USER" -c "TMUX_PLUGIN_MANAGER_PATH='$TPM_DIR' tmux start-server && tmux new-session -d && tmux set-environment -g TMUX_PLUGIN_MANAGER_PATH '$TPM_DIR' && ~/.tmux/plugins/tpm/bin/install_plugins && tmux kill-server"; then
+    echo "WARNING: Failed to install tmux plugins. Continuing."
+    su - "$ACTUAL_USER" -c "tmux kill-server || true"
+    return 0
+  fi
 }
 
 # Function to install Vim plugins
@@ -1077,10 +1086,10 @@ clone_plugin() {
     echo "Plugin '$repo' already exists at '$target_dir'. Skipping clone."
   else
     echo "Cloning '$repo' into '$target_dir'..."
-    su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$repo.git $target_dir" || {
-      echo "Error: Failed to clone '$repo' into '$target_dir'."
-      exit 1
-    }
+    if ! su - "$ACTUAL_USER" -c "git clone --depth=1 https://github.com/$repo.git $target_dir"; then
+      echo "WARNING: Failed to clone '$repo' into '$target_dir'. Continuing."
+      return 0
+    fi
     echo "Successfully cloned '$repo'."
   fi
 }
