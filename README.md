@@ -13,8 +13,8 @@ TruVium is a comprehensive development environment specifically designed for har
 
 # 🚨 Important Notice
 
-> **Please Note:**  
-> - TruVium has switched to **Arch** as the default VM OS. Apple Silicon support is planned for the next major update.
+> **Please Note:**
+> - TruVium has switched to **Arch** as the default VM OS. Apple Silicon currently has known limitations with the default VirtualBox workflow (see Host Configuration below).
 >   The general purpose development environment is more or less stable. Future updates to this part of TruVium will be focused on improving development workflows within the environment.
 >   The next step for the overall TruVium project is to create dockerized development tools that can be modularly connected to accomplish custom HDL workflows.
 > 
@@ -48,7 +48,6 @@ TruVium is a comprehensive development environment specifically designed for har
 - **bat**: Feature-rich `cat` clone with syntax highlighting, git integration, and automatic paging
 - **yazi**: Modern terminal file manager with image preview capabilities, extensive keyboard shortcuts, and plugin support
 - **broot**: Modern directory navigation tool that uses a tree structure
-- **termscp**: Feature-rich terminal file transfer client supporting multiple protocols (SFTP, SCP, FTP, S3) with an intuitive interface
 - **taskwarrior**: Flexible command-line task management system with tagging, dependencies, and custom reporting
 - **timewarrior**: Companion to taskwarrior providing detailed time tracking and reporting capabilities
 - **tldr**: Simplified and practical command-line documentation focusing on examples and common use cases
@@ -114,7 +113,7 @@ TruVium is a comprehensive development environment specifically designed for har
   - 3D visualization
   - Component management
 
-- **OpenROAD**: Integrated chip design flow tool providing:
+- **OpenROAD** *(optional/manual)*: Integrated chip design flow tool providing:
   - Floor planning
   - Placement optimization
   - Clock tree synthesis
@@ -151,8 +150,8 @@ TruVium is a comprehensive development environment specifically designed for har
 
 ## Prerequisites
 
-- VirtualBox 6.1 or later: Virtualization platform
-- Vagrant 2.2 or later: Development environment manager
+- VirtualBox 7.0 or later: Virtualization platform
+- Vagrant 2.4 or later: Development environment manager
 - 2GB minimum available RAM
 - 20GB minimum free disk space
 - Host system supporting virtualization
@@ -175,7 +174,7 @@ TruVium is a comprehensive development environment specifically designed for har
    vagrant ssh
    ```
 
-Additonal host terminal commands
+Additional host terminal commands
 
 **Reload the Environment**
 - If you want to force a restart or boot up the environment if it was off (e.g. after the host machine is rebooted)
@@ -203,7 +202,7 @@ warning - configurations made after the instance was created will be lost and yo
 ## Configuration
 
 ### Host Configuration
-- Apple Silicon may need a workaround since only the most recent version of VirtualBox is supported and Vagrant doesn't recognize it as an option yet
+- Apple Silicon hosts can run VirtualBox 7.x, but TruVium currently uses the `archlinux/archlinux` x86_64 Vagrant box. There is no official ARM64 Arch Vagrant box for this provider, so the default workflow is currently x86 host focused.
 - Host terminal configuration can affect some keybindings, colors, and fonts. Using a NerdFont like FiraCode Mono for powerline symbol support is suggested. Additionally, Alacritty is a good cross-platform terminal, but a separate X-server is needed and may require configuration if you are running on Windows or macOS.
 
 ### Vagrant Configuration (`vagrant_config.json`)
@@ -217,11 +216,11 @@ warning - configurations made after the instance was created will be lost and yo
   "vm_box_version": "20241001.267073",
   "box_check_update": true,
   "vm_hostname": "dev-env",
-  "vm_memory": "4096", # 4GB RAM allocation
+  "vm_memory": "4096",
   "vm_cpus": 4,
   "vb_gui": false,
   "graphics_controller": "Vboxsvga",
-  "primary_disk_size": "20GB",
+  "primary_disk_size": "20GB"
 }
 ```
 
@@ -247,6 +246,7 @@ warning - configurations made after the instance was created will be lost and yo
   "forward_jupyter_port": true,
   "port_forwarding": [
     { "guest": 8888, "host": 8888 }
+  ]
 }
 ```
 - Run the following in the VM and the Jupyter Notebook will be available in your host OS's browser at `http://localhost:8888/`:
@@ -275,7 +275,7 @@ warning - configurations made after the instance was created will be lost and yo
   - Persistent: `/TruVium/user-config/tmux.conf` for changes between VM rebuilds
 
 ### Vim Configuration
-- Plugins can be added/removed by modifying the `vagrant_setup.sh` or `vagrant_setup_arch.sh` scripts in `/TruVium/vagrant-scripts`
+- Plugins can be added/removed by modifying `vagrant_setup_arch.sh` in `/TruVium/vagrant-scripts`
 - `<leader>` key is mapped to `,` for custom commands
 - Notable hotkeys:
   - `<C-e>`: Toggle NERDTree file explorer
@@ -316,10 +316,9 @@ warning - configurations made after the instance was created will be lost and yo
    ```
 
 ### Editor Configuration
-### Editor Configuration
 - **Vim**: Configuration in `~/.vimrc`
 - **Neovim**: Configuration in `~/.config/nvim`
-- **Emacs**: Configuration in `~/.doom.d/config.el`
+- **Emacs**: Configuration in `~/.doom.d/`
 
 ## Additional Documentation
 
@@ -408,14 +407,17 @@ TruVium/
 │   ├── git_setup_example.conf              # Git configuration template
 │   └── host_setup_example.conf             # Host setup template
 │
-├── user-config/                            # User configuration files transfered into VM
+├── user-config/                            # User configuration files transferred into VM
 │   ├── airline_theme.conf                  # Default Vim airline theme
 │   ├── coc-settings.json                   # CoC configuration
-│   ├── color_scheme.conf                   # Default Vim color settings
+│   ├── shell_configs/                      # Shell entrypoint files copied to home
 │   ├── hdl_checker.json                    # HDL checker settings
+│   ├── truvium/                            # Shared shell/tool configuration tree
 │   ├── tmux.conf                           # tmux configuration
+│   ├── tmux-sessionizer.conf               # tmux-sessionizer config
 │   ├── tmuxline.conf                       # tmux statusline
 │   ├── tmux_keys.sh                        # tmux-Vim integration script
+│   ├── vim-themer/                         # Vim theme persistence config
 │   └── vimrc                               # Vim configuration
 │
 ├── vagrant-config/                         # Vagrant settings
@@ -424,7 +426,6 @@ TruVium/
 │
 ├── vagrant-scripts/                        # VM setup scripts
 │   ├── git_setup.sh                        # Git configuration script
-│   ├── vagrant_setup.sh                    # Ubuntu setup script
 │   └── vagrant_setup_arch.sh               # Arch Linux setup script
 │
 ├── .gitignore                              # Git ignore patterns

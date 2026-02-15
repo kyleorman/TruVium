@@ -35,4 +35,6 @@ alias cd="z"
 #--- The Fuck (command correction) ---#
 
 # Sets the alias to fk
-eval "$(thefuck --alias fk)"
+if command -v thefuck >/dev/null 2>&1; then
+  eval "$(thefuck --alias fk)"
+fi

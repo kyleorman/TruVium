@@ -451,7 +451,7 @@ install_zsh() {
 		echo '  tmux attach-session -t default || tmux new-session -s default'
 		echo 'fi'
 	} >> "$USER_HOME/.zshrc"
-	
+
 	# Source .zshrc to apply changes
     sudo -u "$SUDO_USER" zsh -c "source $USER_HOME/.zshrc"
 }
@@ -462,16 +462,16 @@ install_vim() {
 	apt-get install -y software-properties-common
 	add-apt-repository -y ppa:jonathonf/vim
 	system_update_upgrade
-	
+
     echo "Installing Vim..."
-	
+
     apt-get install -y vim-gtk3
 
 	# Ensure .vim folder exists before changing permissions
 	echo "Creating .vim directory..."
 	mkdir -p "$USER_HOME/.vim"
 	chown -R "$SUDO_USER:$SUDO_USER" "$USER_HOME/.vim"
-	
+
     echo "Configuring Vim..."
     if [ -f "$SCRIPT_DIR/vimrc" ]; then
         cp "$SCRIPT_DIR/vimrc" "$USER_HOME/.vimrc"
@@ -570,7 +570,7 @@ install_vim() {
 
 		generate_helptags "$target_path"
 	done
-	
+
 	# Parameterize Node.js version and check if Node.js is already installed
 	NODE_VERSION=${NODE_VERSION:-18.x}
 	if ! command -v node &> /dev/null; then
@@ -611,7 +611,7 @@ install_vim() {
 	else
 		echo "FZF is already installed."
 	fi
-	
+
 	# --- Symbolic Links for ftdetect ---
 	FTDETECT_SRC_DIR="$USER_HOME/.vim/pack/plugins/start/ultisnips/ftdetect"
 	FTDETECT_DEST_DIR="$USER_HOME/.vim/ftdetect"
@@ -643,7 +643,7 @@ install_vim() {
 	else
 		echo "No ftdetect files found in $FTDETECT_SRC_DIR. Skipping symlink creation."
 	fi
-	
+
 	# Install Python linters, formatters, and hdl-checker
 	echo "Installing Python tools..."
 	pip3 install --upgrade pip
@@ -680,7 +680,7 @@ install_vim() {
 	else
 		echo "Warning: coc-settings.json not found in $SCRIPT_DIR. Skipping copy."
 	fi
-	
+
 	echo "Vim plugins installed and helptags generated successfully."
 }
 
@@ -698,7 +698,7 @@ install_tmux() {
 
     # Install Tmux Plugin Manager and plugins
     # Add your plugin installation steps here
-	
+
 	echo "Installing Tmux Plugin Manager (TPM) and tmux plugins..."
 
 	# Define tmux plugins to install (including TPM itself)
@@ -754,7 +754,7 @@ install_tmux() {
 
 	# --- Check TPM Plugin Installation ---
 	check_tpm_installation
-	
+
 	# Optional: Instruct the user to manually trigger installation if needed
 	echo "If plugins are not installed automatically, please start a new tmux session and press <prefix> + I (e.g., Ctrl-b + I) to install them."
 }

@@ -15,6 +15,7 @@ The configuration is stored in a JSON file, typically named `vagrant_config.json
   "vm_box_version": "20241001.267073",    // Specific version of the box
   "box_check_update": true,               // Whether to check for box updates
   "vm_hostname": "dev-env",               // Hostname of the VM
+  "primary_disk_size": "20GB"             // Primary VM disk size
 ```
 
 ### Resource Allocation
@@ -33,7 +34,8 @@ The configuration is stored in a JSON file, typically named `vagrant_config.json
     "3d_acceleration": true,              // Enable/disable 3D acceleration
     "remote_display": false,              // VirtualBox Remote Display (VRDE)
     "remote_display_port": 3389,          // Port for remote display
-    "monitor_count": 1                    // Number of virtual monitors
+    "monitor_count": 1,                   // Number of virtual monitors
+    "custom_resolution": "1920x1080x32"  // Optional custom resolution
   },
 ```
 
@@ -67,6 +69,8 @@ The configuration is stored in a JSON file, typically named `vagrant_config.json
 ```json
   "ssh_forward_x11": true,                // X11 forwarding for GUI apps
   "ssh_insert_key": false,                // Whether to insert a new SSH key
+  "ssh_username": "vagrant",             // Optional SSH username override
+  "ssh_private_key_path": "~/.ssh/id_rsa" // Optional private key path
 ```
 
 ### Port Forwarding
@@ -315,4 +319,3 @@ Balanced configuration for desktop usage with GUI applications.
 - `IDE`: Legacy compatibility
 - `SCSI`: Advanced features, typically for server workloads
 - `NVMe`: Highest performance, requires compatible guest OS
-

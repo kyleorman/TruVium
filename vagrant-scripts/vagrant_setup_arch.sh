@@ -90,7 +90,6 @@ TMP_DIR="/tmp/setup_script_install"
 USER_CONFIG_DIR="$SCRIPT_DIR/user-config"
 VAGRANT_SCRIPTS_DIR="$SCRIPT_DIR/vagrant-scripts"
 VAGRANT_CONFIG_DIR="$SCRIPT_DIR/vagrant-config"
-PROPRIETARY_DIR="$SCRIPT_DIR/proprietary"
 
 # Determine the actual user (non-root)
 if [ "${SUDO_USER:-}" ]; then
@@ -195,39 +194,6 @@ resize_disk() {
     log_line "Successfully resized /dev/sda3 Btrfs partition and filesystem."
 }
 
-# Enable community repo (Depreciated--Community repo disabled as of 3/1/25)
-ensure_community_repo_enabled() {
-  echo "Ensuring that the [community] repository is enabled..."
-
-  PACMAN_CONF="/etc/pacman.conf"
-
-  # Backup the original pacman.conf if not already backed up
-  if [ ! -f "${PACMAN_CONF}.bak" ]; then
-    cp "$PACMAN_CONF" "${PACMAN_CONF}.bak"
-    echo "Backup of pacman.conf created at ${PACMAN_CONF}.bak"
-  fi
-
-  # Check if [community] is already enabled
-  if grep -q "^\[community\]" "$PACMAN_CONF"; then
-    echo "[community] repository is already enabled."
-    return
-  fi
-
-  # Add the [community] repository to the end of pacman.conf
-  echo -e "\n[community]\nInclude = /etc/pacman.d/mirrorlist" >>"$PACMAN_CONF"
-
-  # Verify the changes
-  if grep -q "^\[community\]" "$PACMAN_CONF"; then
-    echo "[community] repository has been enabled successfully."
-    # Update package databases
-    pacman -Syy
-  else
-    echo "Failed to enable [community] repository. Restoring original pacman.conf."
-    mv "${PACMAN_CONF}.bak" "$PACMAN_CONF"
-    exit 1
-  fi
-}
-
 # Function to enable parallel downloads in pacman.conf and parallel builds in makepkg.conf
 enable_parallel_builds() {
   echo "Enabling parallel downloads in pacman.conf..."
@@ -249,7 +215,7 @@ enable_parallel_builds() {
     sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' "$PACMAN_CONF"
   elif ! grep -q '^ParallelDownloads' "$PACMAN_CONF"; then
     # If ParallelDownloads doesn't exist at all, add it
-    sed -i '/^#ParallelDownloads/i ParallelDownloads = 5' "$PACMAN_CONF"
+    echo "ParallelDownloads = 5" >> "$PACMAN_CONF"
   fi
 
   echo "Enabling parallel builds in makepkg.conf..."
@@ -344,16 +310,17 @@ install_dependencies() {
     fish \
     nushell \
     bazel \
-    termscp \
-    cudd \
+    lazydocker \
+    ttf-firacode-nerd \
+    ttf-hack-nerd \
+    ttf-jetbrains-mono-nerd \
+    ttf-meslo-nerd \
     doxygen \
-    tcl \
     tk \
     eigen \
     yosys \
     klayout \
-	emacs \
-	ghostty-terminfo \
+    emacs \
     go ||
     {
       echo "Package installation failed"
@@ -368,7 +335,6 @@ install_aur_packages() {
 
   # Define AUR packages to install
   AUR_PACKAGES=(
-    nerd-fonts-complete
     perl-language-server
     '--mflags "--nocheck" ghdl'
     gtkwave
@@ -376,12 +342,10 @@ install_aur_packages() {
     verilator
     iverilog
     verible
-    #bazel
-    #lemminx
-    lazydocker
-    #emacs-nativecomp
+    # lemminx # optional XML language server
+    # emacs-nativecomp # disabled due build failures
     falkon
-    globalprotect-openconnect
+    globalprotect-openconnect-git
     figlet
     boxes
     lolcat
@@ -393,20 +357,21 @@ install_aur_packages() {
     lazysql
     jupyterlab-catppuccin
     viu
-    vscode
+    visual-studio-code-bin
     kicad
-    #yosys
     tcllib
-    # openroad-git
-    #ffmpeg
+    # termscp # currently omitted due package source churn
+    # cudd # currently omitted due package source churn
+    # openroad-git # resource-intensive and disabled by default
+    # ffmpeg # optional
   )
 
   # Install each AUR package with retries
   for package in "${AUR_PACKAGES[@]}"; do
     retry=3
     until su - "$ACTUAL_USER" -c "yay -S --noconfirm --needed $package"; do
-      ((retry--))
-      if [ $retry -le 0 ]; then
+      retry=$((retry - 1))
+      if [ "$retry" -le 0 ]; then
         echo "Failed to install AUR package: $package after multiple attempts."
         exit 1
       fi
@@ -465,7 +430,7 @@ install_python_tools() {
           return 0
         else
           echo "Failed to install '$package' via yay. Retries left: $((retry - 1))"
-          ((retry--))
+          retry=$((retry - 1))
           sleep 2
         fi
       done
@@ -798,6 +763,10 @@ install_tpm() {
   fi
 
   # Initialize TPM in .tmux.conf if not already present
+  if [ ! -f "$USER_HOME/.tmux.conf" ]; then
+    touch "$USER_HOME/.tmux.conf"
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$USER_HOME/.tmux.conf"
+  fi
   if ! grep -q "run -b '~/.tmux/plugins/tpm/tpm'" "$USER_HOME/.tmux.conf"; then
     echo "run -b '~/.tmux/plugins/tpm/tpm'" >>"$USER_HOME/.tmux.conf"
   fi
@@ -837,7 +806,7 @@ install_vim_plugins() {
     "davidhalter/jedi-vim"
     "heavenshell/vim-pydocstring"
     "mrtazz/checkmake"
-    "vim-syntastic/syntastic"
+    # "vim-syntastic/syntastic" # archived; ALE is used instead
     "jpalardy/vim-slime"
     "lervag/vimtex"
     "pangloss/vim-javascript"
@@ -858,7 +827,7 @@ install_vim_plugins() {
     "suoto/hdl_checker"
     "vim-perl/vim-perl"
     "octol/vim-cpp-enhanced-highlight"
-    "nsf/gocode"
+    # "nsf/gocode" # deprecated; gopls is installed by install_go_tools
     "daeyun/vim-matlab"
   )
 
@@ -1025,7 +994,10 @@ clone_fzf_git_repo() {
 # Function to install Oh My Zsh
 install_oh_my_zsh() {
   echo "Installing Oh My Zsh..."
-  su - "$ACTUAL_USER" -c "sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" --unattended"
+  su - "$ACTUAL_USER" -c "sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" --unattended" || {
+    echo "Failed to install Oh My Zsh."
+    exit 1
+  }
 }
 
 # Function to install and configure Starship prompt and Zsh plugins
@@ -1068,6 +1040,10 @@ EOF"
 
   # Ensure Starship is initialized in the user's shell configuration
   SHELL_RC="$USER_HOME/.zshrc" # Adjust for other shells as needed
+  if [ ! -f "$SHELL_RC" ]; then
+    touch "$SHELL_RC"
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$SHELL_RC"
+  fi
   if ! grep -q 'eval "$(starship init zsh)"' "$SHELL_RC"; then
     echo 'eval "$(starship init zsh)"' >>"$SHELL_RC"
   fi
@@ -1122,7 +1098,10 @@ install_spaceship() {
       echo "Failed to clone Spaceship Prompt."
       exit 1
     }
-    su - "$ACTUAL_USER" -c "ln -s $SPACESHIP_DIR/spaceship.zsh-theme $SPACESHIP_DIR/../spaceship.zsh-theme"
+    su - "$ACTUAL_USER" -c "ln -sf $SPACESHIP_DIR/spaceship.zsh-theme $SPACESHIP_DIR/../spaceship.zsh-theme" || {
+      echo "Failed to create Spaceship theme symlink."
+      exit 1
+    }
   else
     echo "Spaceship Prompt is already installed."
   fi
@@ -1491,6 +1470,10 @@ install_rust() {
   SHELL_RC="$USER_HOME/.zshrc" # Update for other shells as needed
 
   if [ -f "$RUST_ENV_FILE" ]; then
+    if [ ! -f "$SHELL_RC" ]; then
+      touch "$SHELL_RC"
+      chown "$ACTUAL_USER:$ACTUAL_USER" "$SHELL_RC"
+    fi
     if ! grep -q "source $RUST_ENV_FILE" "$SHELL_RC"; then
       echo "Adding Rust environment to $SHELL_RC..."
       su - "$ACTUAL_USER" -c "echo 'source $RUST_ENV_FILE' >> $SHELL_RC"
@@ -1599,6 +1582,10 @@ install_hdl_checker_with_pipx() {
   esac
 
   # Add ~/.local/bin to PATH in the user's shell config if not already present
+  if [ ! -f "$SHELL_RC" ]; then
+    touch "$SHELL_RC"
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$SHELL_RC"
+  fi
   if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$SHELL_RC"; then
     echo "Adding ~/.local/bin to PATH in $SHELL_RC..."
     echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$SHELL_RC"
@@ -1745,19 +1732,19 @@ configure_ssh_x11_forwarding() {
 
   # Check if the file already contains the required settings and add them if not
   if ! grep -q "^X11Forwarding yes" "$SSH_CONFIG"; then
-    echo "X11Forwarding yes" | sudo tee -a "$SSH_CONFIG" >/dev/null
+    echo "X11Forwarding yes" >>"$SSH_CONFIG"
   fi
 
   if ! grep -q "^X11DisplayOffset 10" "$SSH_CONFIG"; then
-    echo "X11DisplayOffset 10" | sudo tee -a "$SSH_CONFIG" >/dev/null
+    echo "X11DisplayOffset 10" >>"$SSH_CONFIG"
   fi
 
   if ! grep -q "^X11UseLocalhost yes" "$SSH_CONFIG"; then
-    echo "X11UseLocalhost yes" | sudo tee -a "$SSH_CONFIG" >/dev/null
+    echo "X11UseLocalhost yes" >>"$SSH_CONFIG"
   fi
 
   # Restart the SSH service to apply changes
-  sudo systemctl restart sshd
+  systemctl restart sshd
 
   echo "X11 forwarding configuration applied and SSH service restarted."
 }
@@ -1783,8 +1770,8 @@ STEPS=(
 	"install_cht_sh"
 	"install_broot"
 	"install_go_tools"
-  # "install_openroad_from_source"
-	# "install_verible_from_source"
+  # "install_openroad_from_source" # opt-in only: resource intensive
+	# "install_verible_from_source" # opt-in only: verible is installed via AUR
 	"install_tpm"
 	"install_vim_plugins"
 	"install_doom_emacs"

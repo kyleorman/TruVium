@@ -41,4 +41,6 @@ alias cd="z"
 #eval $(thefuck --alias)
 
 # Sets the alias to fk
-eval $(thefuck --alias fk)
+if command -v thefuck >/dev/null 2>&1; then
+  eval "$(thefuck --alias fk)"
+fi

@@ -10,7 +10,7 @@ export PATH="$HOME/.local/bin:$PATH"
 export PATH="/usr/bin:$PATH"
 export PATH="$HOME/go/bin:$PATH"
 export PATH="/usr/local/bin:$PATH"
-source /home/vagrant/.cargo/env
+[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 
 #--- DISPLAY ---#
 if [ -z "$DISPLAY" ]; then

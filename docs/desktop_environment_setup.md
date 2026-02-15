@@ -1,6 +1,6 @@
-# Vagrant Setup and Desktop Environment Configuration Guide (Ubuntu and Arch Linux)
+# Vagrant Setup and Desktop Environment Configuration Guide (Arch Linux)
 
-This guide provides step-by-step instructions for setting up a Vagrant VM with a desktop environment on Ubuntu or Arch Linux using a session manager. It also covers necessary configurations and steps to enable the VirtualBox GUI and access the desktop session.
+This guide provides step-by-step instructions for setting up a Vagrant VM with a desktop environment on Arch Linux using a session manager. It also covers necessary configurations and steps to enable the VirtualBox GUI and access the desktop session.
 
 > **⚠️ Warning**  
 > Not all configuration options in this guide have been thoroughly tested, as the primary goal of TruVium is HDL development in the CLI. GUI configurations, including desktop environments and session managers, are offered for convenience but may require additional adjustments.
@@ -142,7 +142,7 @@ Once logged into the desktop environment, you can adjust display settings as nee
 
 ### Advanced Configuration
 
-If you do not mind possible additional configuaration you can install a session manager and desktop environment separately.
+If you do not mind possible additional configuration you can install a session manager and desktop environment separately.
 
 > **Note**: Cinnamon is highly recommended if you are used to Windows type systems.
 

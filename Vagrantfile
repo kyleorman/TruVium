@@ -1,6 +1,7 @@
 Vagrant.configure("2") do |config|
   require 'json'
   require 'fileutils'
+  require 'shellwords'
 
   # Get the base path of the Vagrantfile
   base_path = File.dirname(__FILE__)
@@ -30,10 +31,10 @@ Vagrant.configure("2") do |config|
   if settings.key?('networks')
     settings['networks'].each do |network|
       network_type = network['type']
-      options = network.reject { |k, _| k == 'type' }.transform_keys(&:to_sym)
+      options = network.reject { |k, _| ['type', 'dhcp'].include?(k) }.transform_keys(&:to_sym)
 
-      if options[:dhcp] == true
-        config.vm.network network_type, type: "dhcp"
+      if network['dhcp'] == true
+        config.vm.network network_type, type: "dhcp", **options
       else
         config.vm.network network_type, **options
       end
@@ -60,7 +61,10 @@ Vagrant.configure("2") do |config|
 
   # Configure initial swap size before provisioning
   if settings.key?('swap_size')
-    swap_size = settings['swap_size']
+    swap_size = settings['swap_size'].to_s.upcase
+    unless swap_size.match?(/\A\d+[GMT]\z/)
+      raise "Invalid swap_size '#{swap_size}'. Expected formats like 1G, 512M, or 1T."
+    end
     config.vm.provision "shell", privileged: true, name: "Configure Initial Swap Space", inline: <<-SHELL
       set -e  # Exit on any error
       SWAPDIR=/swap
@@ -116,24 +120,24 @@ Vagrant.configure("2") do |config|
           ;;
       esac
 
-	# Install necessary tools based on OS
-	if [ "$OS" = "ubuntu" ]; then
-	  apt-get update -y
-	  apt-get install -y util-linux btrfs-progs
-	elif [ "$OS" = "arch" ]; then
-	  # Backup current mirrorlist
-	  cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
-	  # Update mirrors using reflector
-	  pacman -Sy --noconfirm --needed reflector archlinux-keyring
-	  reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-	  # Update entire system in one go with overwrite handling
-	  pacman -Syu --noconfirm --overwrite '/usr/share/man/*/man1/kill.1.gz'
-	  # Install required tools
-	  pacman -S --noconfirm --needed util-linux btrfs-progs
-	else
-	  echo "Unsupported OS: $OS"
-	  exit 1
-	fi
+      # Install necessary tools based on OS
+      if [ "$OS" = "ubuntu" ]; then
+        apt-get update -y
+        apt-get install -y util-linux btrfs-progs
+      elif [ "$OS" = "arch" ]; then
+        # Backup current mirrorlist
+        cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+        # Update mirrors using reflector
+        pacman -Sy --noconfirm --needed reflector archlinux-keyring
+        reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+        # Update entire system in one go with overwrite handling
+        pacman -Syu --noconfirm --overwrite '/usr/share/man/*/man1/kill.1.gz'
+        # Install required tools
+        pacman -S --noconfirm --needed util-linux btrfs-progs
+      else
+        echo "Unsupported OS: $OS"
+        exit 1
+      fi
 
       # Check filesystem type
       FS_TYPE=$(stat -f -c %T /)
@@ -200,7 +204,7 @@ Vagrant.configure("2") do |config|
     SHELL
   end
   
-    # Provisioning scripts
+  # Provisioning scripts
   if settings.key?('provision')
     settings['provision'].each do |script|
       if script['type'] == 'shell'
@@ -224,7 +228,10 @@ Vagrant.configure("2") do |config|
   
   # Reset swap size after provisioning
   if settings.key?('default_swap_size')
-    default_swap_size = settings['default_swap_size']
+    default_swap_size = settings['default_swap_size'].to_s.upcase
+    unless default_swap_size.match?(/\A\d+[GMT]\z/)
+      raise "Invalid default_swap_size '#{default_swap_size}'. Expected formats like 1G, 512M, or 1T."
+    end
     config.vm.provision "shell", privileged: true, name: "Reset Swap Size", run: "always", inline: <<-SHELL
       set -e  # Exit on any error
       SWAPDIR=/swap
@@ -357,7 +364,7 @@ Vagrant.configure("2") do |config|
   if settings.key?('synced_folders')
     settings['synced_folders'].each do |folder|
       # Dynamically expand the '~' in host paths to the home directory
-      host_path = folder['host'].gsub("~", ENV['HOME'])
+      host_path = folder['host'].sub(/\A~/, ENV['HOME'])
       config.vm.synced_folder host_path, folder['guest'], create: folder['create']
     end
   end
@@ -369,27 +376,27 @@ Vagrant.configure("2") do |config|
     vb.cpus = settings['vm_cpus'] || 2
     vb.gui = settings.fetch('vb_gui', false)
 
-	# Display Settings
-	if settings.key?('vb_display')
-	  display = settings['vb_display']
-	  vb.customize ["modifyvm", :id, "--vram", display.fetch('video_memory', 128)]
-	  vb.customize ["modifyvm", :id, "--accelerate3d", display.fetch('3d_acceleration', true) ? "on" : "off"]
-	  vb.customize ["modifyvm", :id, "--graphicscontroller", settings.fetch("graphics_controller", "VBoxSVGA")]
+    # Display Settings
+    if settings.key?('vb_display')
+      display = settings['vb_display']
+      vb.customize ["modifyvm", :id, "--vram", display.fetch('video_memory', 128)]
+      vb.customize ["modifyvm", :id, "--accelerate3d", display.fetch('3d_acceleration', true) ? "on" : "off"]
+      vb.customize ["modifyvm", :id, "--graphicscontroller", settings.fetch('graphics_controller', 'VBoxSVGA')]
 
-	  # Set custom resolution if specified
-	  if display['custom_resolution']
-	    vb.customize ["setextradata", :id, "CustomVideoMode1", display['custom_resolution']]
-	  end	  
-	  
-	  if display['remote_display']
-		vb.customize ["modifyvm", :id, "--vrde", "on"]
-		vb.customize ["modifyvm", :id, "--vrdeport", display.fetch('remote_display_port', 3389)]
-	  else
-		vb.customize ["modifyvm", :id, "--vrde", "off"]
-	  end
-	  
-	  vb.customize ["modifyvm", :id, "--monitorcount", display.fetch('monitor_count', 1)]
-	end
+      # Set custom resolution if specified
+      if display['custom_resolution']
+        vb.customize ["setextradata", :id, "CustomVideoMode1", display['custom_resolution']]
+      end
+
+      if display['remote_display']
+        vb.customize ["modifyvm", :id, "--vrde", "on"]
+        vb.customize ["modifyvm", :id, "--vrdeport", display.fetch('remote_display_port', 3389)]
+      else
+        vb.customize ["modifyvm", :id, "--vrde", "off"]
+      end
+
+      vb.customize ["modifyvm", :id, "--monitorcount", display.fetch('monitor_count', 1)]
+    end
 
     # Performance Settings
     if settings.key?('vb_performance')
@@ -433,7 +440,7 @@ Vagrant.configure("2") do |config|
     end
 
     # Other VirtualBox-specific settings
-    vb.customize ["modifyvm", :id, "--clipboard", settings.fetch('vb_clipboard', 'disabled')]
+    vb.customize ["modifyvm", :id, "--clipboard-mode", settings.fetch('vb_clipboard', 'disabled')]
   end
 
   # Determine shell configuration file
@@ -466,18 +473,14 @@ Vagrant.configure("2") do |config|
   # Configure environment variables
   if settings.key?('environment_variables')
     settings['environment_variables'].each do |key, value|
+      env_key = key.to_s
+      unless env_key.match?(/\A[A-Za-z_][A-Za-z0-9_]*\z/)
+        raise "Invalid environment variable name '#{env_key}'."
+      end
+      export_assignment = "export #{env_key}=#{Shellwords.escape(value.to_s)}"
       config.vm.provision "shell", inline: <<-SHELL
-        echo 'export #{key}="#{value}"' >> /home/vagrant/#{shell_rc}
+        printf '%s\n' #{Shellwords.escape(export_assignment)} >> /home/vagrant/#{shell_rc}
       SHELL
     end
   end
-
-#   # Configure post-up message
-#   config.vm.post_up_message = if settings.key?('post_up_message')
-#     settings['post_up_message']
-#   elsif settings.key?('forward_jupyter_port') && settings['forward_jupyter_port']
-#     "Port forwarding for Jupyter is enabled on port 8888."
-#   else
-#     "Port forwarding for Jupyter is disabled."
-#   end
 end

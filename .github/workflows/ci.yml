@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Vagrantfile syntax
+        run: ruby -c Vagrantfile
+
+      - name: Validate JSON configs
+        run: |
+          python3 -m json.tool vagrant-config/vagrant_config.json > /dev/null
+          python3 -m json.tool proprietary/config.json > /dev/null
+
+      - name: Bash syntax check
+        run: |
+          failed=0
+          while IFS= read -r f; do
+            if ! bash -n "$f"; then
+              echo "FAIL: $f"
+              failed=1
+            fi
+          done < <(find . -type f -name '*.sh')
+          exit "$failed"
+
+      - name: Check for CRLF line endings
+        run: |
+          if grep -rIl $'\r' --include='*.sh' --include='*.conf' .; then
+            echo "ERROR: CRLF line endings found"
+            exit 1
+          fi
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck
+        run: |
+          shellcheck -x -s bash -S warning \
+            vagrant-scripts/vagrant_setup_arch.sh \
+            vagrant-scripts/git_setup.sh \
+            host-scripts/host_setup.sh \
+            proprietary/installer.sh \
+            proprietary/install_vivado.sh \
+            proprietary/install_modelsim.sh

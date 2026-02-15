@@ -1,1 +1,1 @@
-source ~/.config/truvium/shells/zsh/init.zsh
+[ -f "$HOME/.config/truvium/shells/zsh/init.zsh" ] && source "$HOME/.config/truvium/shells/zsh/init.zsh"

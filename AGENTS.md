@@ -14,7 +14,7 @@ TruVium is a Vagrant-managed development environment for HDL and general softwar
 
 - `Vagrantfile`: Core VM orchestration and config parsing.
 - `vagrant-config/`: User-editable VM settings (`vagrant_config.json`).
-- `vagrant-scripts/`: Provisioning scripts (`vagrant_setup_arch.sh`, `git_setup.sh`, legacy `vagrant_setup.sh`).
+- `vagrant-scripts/`: Provisioning scripts (`vagrant_setup_arch.sh`, `git_setup.sh`).
 - `user-config/`: Persistent dotfiles and editor/shell/tmux/tool configs copied into VM.
 - `host-scripts/`: Optional host-side setup script(s).
 - `proprietary/`: Optional proprietary tool installers (work in progress).
@@ -40,7 +40,6 @@ Use these host-side commands during development.
 - `bash -n host-scripts/host_setup.sh`
 - `bash -n vagrant-scripts/git_setup.sh`
 - `bash -n vagrant-scripts/vagrant_setup_arch.sh`
-- `bash -n vagrant-scripts/vagrant_setup.sh`
 - `bash -n proprietary/installer.sh`
 - `bash -n proprietary/install_vivado.sh`
 - `bash -n proprietary/install_modelsim.sh`
@@ -82,7 +81,7 @@ If `shellcheck` is installed, run it on edited shell scripts as an additional ch
 
 ## Testing Instructions
 
-There is no CI workflow in this repository at the time of writing.
+GitHub Actions CI is available for syntax and lint checks.
 
 - Minimum for non-trivial changes: run syntax checks for all touched scripts/files.
 - For provisioning changes: run `vagrant provision` and inspect output for regressions.

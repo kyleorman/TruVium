@@ -18,7 +18,6 @@ syntax on
 " Display line numbers and relative line numbers
 set number
 set relativenumber
-set invrnu
 
 " Toggle relative numbers and numbers on/off
 nnoremap <F3> :set invnumber<CR>
@@ -422,8 +421,8 @@ let g:airline#extensions#undotree#enabled = 1
 " If using Syntastic instead of ALE.
 " Requires 'vim-syntastic/syntastic' plugin.
 " 'vim-syntastic/syntastic'
-" Enable Syntastic extension.
-let g:airline#extensions#syntastic#enabled = 1
+" Disabled: Syntastic is archived and ALE is used instead.
+let g:airline#extensions#syntastic#enabled = 0
 
 " --- Quickfix Integration ---
 " Enhances the quickfix window.
@@ -1360,19 +1359,19 @@ command! -nargs=* Rg call fzf#vim#grep(
 " =====================================
 
 " Git status
-nnoremap <leader>gs :vertical Gstatus<CR>
+nnoremap <leader>gs :vertical Git<CR>
 
 " Git commit
-nnoremap <leader>gc :Gcommit<CR>
+nnoremap <leader>gc :Git commit<CR>
 
 " Git push
-nnoremap <leader>gp :Gpush<CR>
+nnoremap <leader>gp :Git push<CR>
 
 " Git blame
 nnoremap <leader>gb :Git blame<CR>
 
 " Git log
-nnoremap <leader>gl :Glog<CR>
+nnoremap <leader>gl :Git log<CR>
 
 " Git diff split
 nnoremap <leader>gd :Gdiffsplit<CR>
@@ -1500,7 +1499,7 @@ let g:ale_completion_enabled = 0
 
 " Define CoC extensions
 let g:coc_global_extensions = [
-    \ 'coc-python', 'coc-sh', 'coc-json', 'coc-clangd',
+    \ 'coc-pyright', 'coc-sh', 'coc-json', 'coc-clangd',
     \ 'coc-solargraph', 'coc-markdownlint', 'coc-yaml',
     \ 'coc-html', 'coc-css', 'coc-tsserver', 'coc-texlab',
     \ ]
@@ -1742,7 +1741,7 @@ autocmd BufWritePre *.vhd %s/\s\+$//e
 " Function to install CoC extensions if not already installed
 function! InstallCoCExtensions()
     " Define desired extensions
-    let extensions = ['coc-python', 'coc-sh', 'coc-json', 'coc-clangd', 'coc-html', 'coc-css', 'coc-tsserver', 'coc-textlab', 'coc-yaml', 'coc-markdownlint', 'coc-solargraph']
+    let extensions = ['coc-pyright', 'coc-sh', 'coc-json', 'coc-clangd', 'coc-html', 'coc-css', 'coc-tsserver', 'coc-texlab', 'coc-yaml', 'coc-markdownlint', 'coc-solargraph']
 
     " Iterate and install each extension
     for extension in extensions
