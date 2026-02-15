@@ -894,6 +894,11 @@ install_go_tools() {
       return 0
     fi
 
+    # Last resort for restricted DNS environments: skip checksum DB lookup
+    if su - "$ACTUAL_USER" -c "GODEBUG=netdns=cgo GOPROXY=direct GOSUMDB=off go install $tool"; then
+      return 0
+    fi
+
     return 1
   }
 
