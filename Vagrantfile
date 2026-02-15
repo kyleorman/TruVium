@@ -127,15 +127,16 @@ Vagrant.configure("2") do |config|
       elif [ "$OS" = "arch" ]; then
         # Backup current mirrorlist
         cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
-        # Refresh keyring before installing reflector to avoid signature trust failures
+        # Refresh keyring first, then perform a full upgrade to avoid partial upgrade issues
         pacman -Sy --noconfirm --needed archlinux-keyring
-        # Update mirrors using reflector
-        pacman -S --noconfirm --needed reflector
-        reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
         # Update entire system in one go with overwrite handling
         pacman -Syu --noconfirm --overwrite '/usr/share/man/*/man1/kill.1.gz'
         # Install required tools
-        pacman -S --noconfirm --needed util-linux btrfs-progs
+        pacman -S --noconfirm --needed reflector util-linux btrfs-progs
+        # Refresh mirrors, but continue if reflector cannot fetch mirrorstatus
+        if ! reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist; then
+          echo "Warning: reflector failed; continuing with existing mirrorlist."
+        fi
       else
         echo "Unsupported OS: $OS"
         exit 1
