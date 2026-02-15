@@ -363,7 +363,11 @@ Vagrant.configure("2") do |config|
     SHELL
   end
 
-  # Configure synced folders
+  # Ensure repository is always mounted at /vagrant.
+  # Some third-party boxes (including generic/arch) disable the default mount.
+  config.vm.synced_folder File.expand_path(base_path), "/vagrant", create: true
+
+  # Configure additional synced folders
   if settings.key?('synced_folders')
     settings['synced_folders'].each do |folder|
       # Dynamically expand the '~' in host paths to the home directory

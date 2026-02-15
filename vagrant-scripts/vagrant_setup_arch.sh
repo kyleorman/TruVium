@@ -132,6 +132,15 @@ trap cleanup ERR EXIT
 
 # --- Function Definitions ---
 
+verify_vagrant_mounts() {
+  if [ ! -d "$USER_CONFIG_DIR" ]; then
+    echo "Error: Expected user config directory '$USER_CONFIG_DIR' was not found."
+    echo "This usually means the repository is not mounted to /vagrant inside the VM."
+    echo "Ensure Vagrant maps the project root to /vagrant and rerun provisioning."
+    exit 1
+  fi
+}
+
 # Function to check internet connection
 check_internet_connection() {
   echo "Checking for an active internet connection..."
@@ -357,6 +366,7 @@ install_dependencies() {
     lazygit \
     yazi \
     kitty \
+    ghostty-terminfo \
     fish \
     nushell \
     bazel \
@@ -1971,6 +1981,7 @@ ensure_home_ownership() {
 # --- Main Script Execution ---
 
 STEPS=(
+	"verify_vagrant_mounts"
 	"check_internet_connection"
 	"resize_disk"
 	"enable_parallel_builds"
