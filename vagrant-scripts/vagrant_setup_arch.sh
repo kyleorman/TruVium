@@ -1067,12 +1067,12 @@ install_vim_plugins() {
   COLOR_SCHEMES=(
     "altercation/vim-colors-solarized"
     "rafi/awesome-vim-colorschemes"
-	"catppuccin/vim"
-	"ywjno/vim-tomorrow-theme"
-	"ayu-theme/ayu-vim"
-	"ghifarit53/tokyonight-vim"
-	#"chriskempson/base16-vim"
-	"tinted-theming/tinted-vim"
+    "catppuccin/vim"
+    "ywjno/vim-tomorrow-theme"
+    "ayu-theme/ayu-vim"
+    "ghifarit53/tokyonight-vim"
+    #"chriskempson/base16-vim"
+    "tinted-theming/tinted-vim"
   )
 
   # Define plugin directories
@@ -1227,6 +1227,8 @@ clone_fzf_git_repo() {
 # Function to install Oh My Zsh
 install_oh_my_zsh() {
   echo "Installing Oh My Zsh..."
+  # SECURITY NOTE: Downloads and executes external script without checksum verification.
+  # This trades security for latest versions. For production, pin to specific versions.
   su - "$ACTUAL_USER" -c "sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" --unattended" || {
     echo "Failed to install Oh My Zsh."
     exit 1
@@ -1240,6 +1242,8 @@ install_starship() {
   # Install Starship as the actual user
   if ! su - "$ACTUAL_USER" -c "command -v starship &>/dev/null"; then
     echo "Installing Starship..."
+    # SECURITY NOTE: Downloads and executes external script without checksum verification.
+    # This trades security for latest versions. For production, pin to specific versions.
     su - "$ACTUAL_USER" -c "curl -sS https://starship.rs/install.sh | sh -s -- --yes" || {
       echo "Failed to install Starship."
       exit 1
@@ -1294,6 +1298,8 @@ install_oh_my_posh() {
   fi
 
   # Download and install Oh My Posh as the actual user
+  # SECURITY NOTE: Downloads and executes external script without checksum verification.
+  # This trades security for latest versions. For production, pin to specific versions.
   su - "$ACTUAL_USER" -c "curl -s https://ohmyposh.dev/install.sh | bash -s" || {
     echo "Failed to install Oh My Posh."
     exit 1
@@ -1459,16 +1465,16 @@ copy_config_files() {
 
   # Files and directories to copy to the .config directory
   CONFIG_ITEMS=(
-	"vim-themer"
-	"bat"
-	"yazi"
-	"lazygit"
-	"btop"
-	"timewarrior"
-	"taskwarrior"
+    "vim-themer"
+    "bat"
+    "yazi"
+    "lazygit"
+    "btop"
+    "timewarrior"
+    "taskwarrior"
     "tmux-sessionizer.conf"
-	"truvium"
-	"tmux_keys.sh"
+    "truvium"
+    "tmux_keys.sh"
   )
 
   # Copy dot-prefixed files to the home directory
@@ -1728,6 +1734,8 @@ install_rust() {
 
   # Download and execute the Rust installer
   echo "Downloading and installing Rust..."
+  # SECURITY NOTE: Downloads and executes external script without checksum verification.
+  # This trades security for latest versions. For production, pin to specific versions.
   su - "$ACTUAL_USER" -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y" || {
     echo "Failed to install Rust."
     exit 1
@@ -1781,6 +1789,8 @@ install_cht_sh() {
 
   # Download and install cht.sh
   echo "Downloading cht.sh..."
+  # SECURITY NOTE: Downloads and executes external script without checksum verification.
+  # This trades security for latest versions. For production, pin to specific versions.
   curl -s https://cht.sh/:cht.sh | sudo tee "$CHT_SH_PATH" >/dev/null || {
     echo "Failed to download cht.sh."
     exit 1
@@ -2026,40 +2036,40 @@ ensure_home_ownership() {
 # --- Main Script Execution ---
 
 STEPS=(
-	"verify_vagrant_mounts"
-	"check_internet_connection"
-	"resize_disk"
-	"enable_parallel_builds"
-	"install_dependencies"
-	"install_opencode"
-	"install_rust"
-	"install_aur_packages"
-	"copy_config_files"
-	"install_python_tools"
-	"install_tmux_sessionizer"
-	"install_cht_sh"
-	"install_broot"
-	"install_go_tools"
+    "verify_vagrant_mounts"
+    "check_internet_connection"
+    "resize_disk"
+    "enable_parallel_builds"
+    "install_dependencies"
+    "install_opencode"
+    "install_rust"
+    "install_aur_packages"
+    "copy_config_files"
+    "install_python_tools"
+    "install_tmux_sessionizer"
+    "install_cht_sh"
+    "install_broot"
+    "install_go_tools"
   # "install_openroad_from_source" # opt-in only: resource intensive
-	# "install_verible_from_source" # opt-in only: verible is installed via AUR
-	"install_tpm"
-	"install_vim_plugins"
-	"install_doom_emacs"
-	"install_lazyvim"
-	"install_hdl_checker_with_pipx"
-	"clone_fzf_git_repo"
-	"install_oh_my_zsh"
-	"install_starship"
-	"install_spaceship"
-	"install_powerlevel10k"
-	"install_oh_my_posh"
-	"install_zsh_plugins"
-	"configure_git"
-	"install_coc_dependencies"
-	"rebuild_bat_cache"
-	"overwrite_shell_configs"
-	"configure_ssh_x11_forwarding"
-	"ensure_home_ownership"
+    # "install_verible_from_source" # opt-in only: verible is installed via AUR
+    "install_tpm"
+    "install_vim_plugins"
+    "install_doom_emacs"
+    "install_lazyvim"
+    "install_hdl_checker_with_pipx"
+    "clone_fzf_git_repo"
+    "install_oh_my_zsh"
+    "install_starship"
+    "install_spaceship"
+    "install_powerlevel10k"
+    "install_oh_my_posh"
+    "install_zsh_plugins"
+    "configure_git"
+    "install_coc_dependencies"
+    "rebuild_bat_cache"
+    "overwrite_shell_configs"
+    "configure_ssh_x11_forwarding"
+    "ensure_home_ownership"
 )
 
 NUM_STEPS=${#STEPS[@]}

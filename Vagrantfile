@@ -65,6 +65,9 @@ Vagrant.configure("2") do |config|
     unless swap_size.match?(/\A\d+[GMT]\z/)
       raise "Invalid swap_size '#{swap_size}'. Expected formats like 1G, 512M, or 1T."
     end
+    # TODO: Refactor swap configuration - duplicated at lines 238-363
+    # This is technical debt. Both sections configure swap similarly.
+    # Consider extracting to a helper method when modifying this file.
     config.vm.provision "shell", privileged: true, name: "Configure Initial Swap Space", inline: <<-SHELL
       set -e  # Exit on any error
       SWAPDIR=/swap

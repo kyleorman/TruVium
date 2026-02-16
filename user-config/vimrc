@@ -761,15 +761,15 @@ augroup END
 
 " 11. Project Navigator
 " let g:tmuxline_preset = {
-      " \'a'    : ['#S', '#{prefix_highlight}'],
-      " \'b'    : '#(basename #{pane_current_path})',
-      " \'c'    : '#(ls -1 | wc -l) files',
-      " \'win'  : '#I #W',
-      " \'cwin' : '#I #W',
-      " \'x'    : '#(du -sh . | cut -f1)',
-      " \'y'    : '%R',
-      " \'z'    : '#H'
-      " \}
+"       \'a'    : ['#S', '#{prefix_highlight}'],
+"       \'b'    : '#(basename #{pane_current_path})',
+"       \'c'    : '#(ls -1 | wc -l) files',
+"       \'win'  : '#I #W',
+"       \'cwin' : '#I #W',
+"       \'x'    : '#(du -sh . | cut -f1)',
+"       \'y'    : '%R',
+"       \'z'    : '#H'
+"       \}
 
 " === Time and Date Configurations ===
 

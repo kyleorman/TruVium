@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Enhanced Git Configuration and Software Installation Script
 # This script sets up your global Git configuration and installs selected software tools.
@@ -50,6 +51,7 @@ SSH_KEY_TYPE="rsa"
 SSH_KEY_BITS="4096"
 SSH_KEY_COMMENT=""
 SSH_KEY_PASSPHRASE=""
+PROMPT_FOR_SSH_KEY_PASSPHRASE="no"
 PROXY_SETTINGS=""
 
 # -----------------------------
@@ -74,15 +76,21 @@ function echo_error() {
 
 # Logging functions
 function log_info() {
-    [[ -n "$LOG_FILE" ]] && echo "[INFO] $1" >> "$LOG_FILE"
+    if [[ -n "$LOG_FILE" ]]; then
+        echo "[INFO] $1" >> "$LOG_FILE"
+    fi
 }
 
 function log_warning() {
-    [[ -n "$LOG_FILE" ]] && echo "[WARNING] $1" >> "$LOG_FILE"
+    if [[ -n "$LOG_FILE" ]]; then
+        echo "[WARNING] $1" >> "$LOG_FILE"
+    fi
 }
 
 function log_error() {
-    [[ -n "$LOG_FILE" ]] && echo "[ERROR] $1" >> "$LOG_FILE"
+    if [[ -n "$LOG_FILE" ]]; then
+        echo "[ERROR] $1" >> "$LOG_FILE"
+    fi
 }
 
 # Function to backup existing gitconfig
@@ -244,11 +252,15 @@ function install_vscode_debian() {
     sudo apt-get update
     sudo apt-get install -y software-properties-common apt-transport-https wget gnupg
 
-    # Import the Microsoft GPG key
-    wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | sudo apt-key add -
+    # SECURITY NOTE: Downloads external repository key without checksum verification.
+    # This trades security for convenience. For production, pin versions and verify key fingerprints.
+    # Import Microsoft GPG key using keyring-based signed-by method
+    sudo mkdir -p /etc/apt/keyrings
+    wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /etc/apt/keyrings/microsoft.gpg > /dev/null
+    sudo chmod a+r /etc/apt/keyrings/microsoft.gpg
 
     # Enable the Visual Studio Code repository
-    sudo add-apt-repository "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main"
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
 
     # Update package lists
     sudo apt-get update
@@ -390,8 +402,12 @@ function parse_options() {
                 shift 2
                 ;;
             --ssh-key-passphrase)
-                SSH_KEY_PASSPHRASE="$2"
-                shift 2
+                if [[ -n "${2:-}" ]] && [[ "${2:0:1}" != "-" ]]; then
+                    echo_error "Passing SSH passphrases as command-line values is not supported. Use --ssh-key-passphrase to prompt securely, or set SSH_KEY_PASSPHRASE in a config file."
+                    exit 1
+                fi
+                PROMPT_FOR_SSH_KEY_PASSPHRASE="yes"
+                shift
                 ;;
             --proxy)
                 PROXY_SETTINGS="$2"
@@ -448,7 +464,7 @@ Options:
   --ssh-key-type TYPE          SSH key type (rsa, ed25519). Default: rsa
   --ssh-key-bits BITS          Number of bits for SSH key (e.g., 4096). Default: 4096
   --ssh-key-comment COMMENT    Comment for the SSH key.
-  --ssh-key-passphrase PHRASE  Passphrase for the SSH key.
+  --ssh-key-passphrase         Prompt for SSH key passphrase securely.
   --proxy PROXY_URL            Set proxy settings for network operations.
   -h, --help                   Display this help message.
 
@@ -493,9 +509,58 @@ function validate_email() {
     fi
 }
 
+# Function to validate merge tool choice
+function validate_merge_tool() {
+    local tool=$1
+    local valid_tools=(
+        "vimdiff" "vimdiff2" "vimdiff3" "diff" "diff3"
+        "meld" "opendiff" "kdiff3" "tkdiff" "xxdiff"
+        "emerge" "gvimdiff" "gvimdiff2" "gvimdiff3"
+        "bc" "bc3" "code" "smerge" "vscode" ""
+    )
+    local valid_tool
+
+    for valid_tool in "${valid_tools[@]}"; do
+        if [[ "$tool" == "$valid_tool" ]]; then
+            return 0
+        fi
+    done
+
+    if [[ "$tool" =~ ^[A-Za-z0-9._+-]+$ ]]; then
+        echo_warning "Merge tool '$tool' is not in the default list. Continuing as a custom merge tool."
+        return 0
+    fi
+
+    echo_error "Invalid merge tool: $tool"
+    echo_error "Valid options: ${valid_tools[*]}"
+    echo_error "Custom tool names may only contain letters, numbers, '.', '_', '+', or '-'."
+    return 1
+}
+
+function prompt_for_ssh_key_passphrase() {
+    local passphrase=""
+    local passphrase_confirm=""
+
+    while true; do
+        read -s -p "Enter SSH key passphrase (leave blank for no passphrase): " passphrase
+        echo
+        read -s -p "Confirm SSH key passphrase: " passphrase_confirm
+        echo
+
+        if [[ "$passphrase" == "$passphrase_confirm" ]]; then
+            SSH_KEY_PASSPHRASE="$passphrase"
+            return
+        fi
+
+        echo_warning "Passphrases do not match. Please try again."
+    done
+}
+
 # Function to generate SSH key
 function generate_ssh_key() {
-    if [[ -f "$HOME/.ssh/id_$SSH_KEY_TYPE" ]]; then
+    local key_path="$HOME/.ssh/id_$SSH_KEY_TYPE"
+
+    if [[ -f "$key_path" ]]; then
         echo_info "SSH key already exists. Skipping generation."
         return
     fi
@@ -505,12 +570,55 @@ function generate_ssh_key() {
         return
     fi
 
+    if [[ "$PROMPT_FOR_SSH_KEY_PASSPHRASE" == "yes" ]] && [[ -z "$SSH_KEY_PASSPHRASE" ]]; then
+        if [[ "$NON_INTERACTIVE_MODE" == "yes" ]]; then
+            echo_error "--ssh-key-passphrase requires interactive mode. Set SSH_KEY_PASSPHRASE in a config file for non-interactive runs."
+            exit 1
+        fi
+        prompt_for_ssh_key_passphrase
+    fi
+
     mkdir -p "$HOME/.ssh"
-    ssh-keygen -t "$SSH_KEY_TYPE" -b "$SSH_KEY_BITS" -C "$SSH_KEY_COMMENT" -N "$SSH_KEY_PASSPHRASE" -f "$HOME/.ssh/id_$SSH_KEY_TYPE"
-    if [ $? -eq 0 ]; then
-        echo_info "SSH key generated successfully."
+
+    if [[ -n "$SSH_KEY_PASSPHRASE" ]]; then
+        local passphrase_file
+        local askpass_script
+
+        passphrase_file=$(mktemp)
+        askpass_script=$(mktemp)
+
+        chmod 600 "$passphrase_file"
+        printf '%s\n' "$SSH_KEY_PASSPHRASE" > "$passphrase_file"
+
+        cat > "$askpass_script" <<'EOL'
+#!/bin/sh
+cat "$SSH_KEY_PASSPHRASE_FILE"
+EOL
+        chmod 700 "$askpass_script"
+
+        if SSH_KEY_PASSPHRASE_FILE="$passphrase_file" SSH_ASKPASS="$askpass_script" SSH_ASKPASS_REQUIRE=force DISPLAY=dummy ssh-keygen -t "$SSH_KEY_TYPE" -b "$SSH_KEY_BITS" -C "$SSH_KEY_COMMENT" -f "$key_path" </dev/null >/dev/null 2>&1; then
+            echo_info "SSH key generated successfully."
+        else
+            echo_error "Failed to generate SSH key."
+        fi
+
+        rm -f "$passphrase_file" "$askpass_script"
+        SSH_KEY_PASSPHRASE=""
+        return
+    fi
+
+    if [[ "$NON_INTERACTIVE_MODE" == "yes" ]]; then
+        if ssh-keygen -t "$SSH_KEY_TYPE" -b "$SSH_KEY_BITS" -C "$SSH_KEY_COMMENT" -N "" -f "$key_path"; then
+            echo_info "SSH key generated successfully."
+        else
+            echo_error "Failed to generate SSH key."
+        fi
     else
-        echo_error "Failed to generate SSH key."
+        if ssh-keygen -t "$SSH_KEY_TYPE" -b "$SSH_KEY_BITS" -C "$SSH_KEY_COMMENT" -f "$key_path"; then
+            echo_info "SSH key generated successfully."
+        else
+            echo_error "Failed to generate SSH key."
+        fi
     fi
 }
 
@@ -522,6 +630,10 @@ parse_options "$@"
 
 if [[ "$CONFIG_FILE" != "" ]]; then
     load_config_file
+fi
+
+if [[ "$SET_MERGE_TOOL" == "yes" ]] && [[ -n "$MERGE_TOOL_CHOICE" ]]; then
+    validate_merge_tool "$MERGE_TOOL_CHOICE" || exit 1
 fi
 
 # Export proxy settings if provided
@@ -800,6 +912,13 @@ if [[ "$SET_MERGE_TOOL" == "yes" ]]; then
     fi
 
     if [[ "$SET_MERGE_TOOL" == "yes" ]]; then
+        if ! validate_merge_tool "$MERGE_TOOL_CHOICE"; then
+            echo_warning "Skipping merge tool configuration due to invalid input."
+            SET_MERGE_TOOL="no"
+        fi
+    fi
+
+    if [[ "$SET_MERGE_TOOL" == "yes" ]]; then
         set_git_config "merge.tool" "$MERGE_TOOL_CHOICE"
 
         # Install the selected merge tool
@@ -957,4 +1076,3 @@ echo_info "Final Git configuration:"
 git config --global --list
 
 echo_info "Git configuration and software installation setup completed successfully!"
-
