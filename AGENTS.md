@@ -96,6 +96,52 @@ GitHub Actions CI is available for syntax and lint checks.
 - Be careful in `proprietary/`: installers may depend on licensed assets and local paths.
 - Do not add large binary artifacts unless explicitly requested.
 
+## Pipeline Agent Structure
+
+### Workflow Phases
+
+1. Plan
+2. Plan Review
+3. Implement
+4. Code Review
+5. Fixes
+6. Release Check
+7. Commit and Push
+
+### Agent Types
+
+- `planner`: Creates comprehensive `plan.md` using the `AGENTS.md` template.
+- `plan-reviewer`: Reviews `plan.md`, writes `plan_review.md`, and identifies blockers or approves implementation.
+- `build`: Implements changes step-by-step, appends to `implementation_log.md`, and appends to `fix_log.md` during the Fixes phase.
+- `code-reviewer`: Writes `code_review.md` and `release_check.md`, and identifies Blocker, Major, and Minor findings.
+
+### Workflow Rules
+
+- Never skip phases.
+- Work folder for each change is `.opencode/work/<slug>/`.
+- Required artifacts are `plan.md`, `plan_review.md`, `implementation_log.md`, `code_review.md`, `fix_log.md`, and `release_check.md`.
+- Delegation order is `planner` -> `plan-reviewer` -> `build` -> `code-reviewer`; if Blocker or Major findings are reported, loop back to `build` for Fixes, then rerun Code Review and Release Check.
+- Only run Commit and Push after `release_check.md` says `PASS`.
+
+### Work Folder Structure
+
+- `.opencode/work/<slug>/`
+  - `plan.md`
+  - `plan_review.md`
+  - `implementation_log.md`
+  - `code_review.md`
+  - `fix_log.md`
+  - `release_check.md`
+
+### Required Artifacts
+
+- `plan.md`: Implementation plan created by `planner`.
+- `plan_review.md`: Plan review outcome from `plan-reviewer`.
+- `implementation_log.md`: Step-by-step implementation log from `build`.
+- `code_review.md`: Review findings from `code-reviewer`.
+- `fix_log.md`: Fix-by-fix log maintained by `build` during the Fixes phase.
+- `release_check.md`: Final release gate written by `code-reviewer` with `PASS` or `FAIL`.
+
 ## Common Agent Workflows
 
 ### Add a new VM tool/package
@@ -124,6 +170,6 @@ GitHub Actions CI is available for syntax and lint checks.
 - Follow existing style in each file before introducing new patterns.
 - If README and implementation disagree, treat implementation as source of truth and update docs.
 - Ignore unrelated local changes in the working tree.
-- Delete `plan.md` after plan-guided implementation is complete.
-- Delete `review.md` after review findings have been fully addressed.
+- Keep pipeline artifacts in `.opencode/work/<slug>/` (`plan.md`, `plan_review.md`, `implementation_log.md`, `code_review.md`, `fix_log.md`, `release_check.md`) while workflow phases are in progress.
+- Archive or clean up pipeline artifacts only after `release_check.md` is `PASS` and final handoff is complete.
 - In final handoff, report what was changed, what was validated, and any remaining risks.
